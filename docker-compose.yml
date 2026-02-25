@@ -1,0 +1,108 @@
+---
+#####################################################################################################################################################################################################
+# Project:       Juniper
+# Application:   juniper-deploy
+# File Name:     docker-compose.yml
+# Author:        Paul Calnon
+#
+# Date Created:  2026-02-25
+# Last Modified: 2026-02-25
+#
+# License:       MIT License
+# Copyright:     Copyright (c) 2024-2026 Paul Calnon
+#
+# Description:
+#    Docker Compose configuration for the Juniper full-stack deployment.
+#    Starts juniper-data, juniper-cascor, and juniper-canopy with proper
+#    dependency ordering and health checks.
+#
+# Usage:
+#    docker compose up --build          # Build and start all services
+#    docker compose up -d               # Start in detached mode
+#    docker compose down                # Stop all services
+#    docker compose logs -f             # Follow logs
+#
+#####################################################################################################################################################################################################
+
+services:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # JuniperData — Dataset Generation Service (port 8100)
+  # ═══════════════════════════════════════════════════════════════════════════
+  juniper-data:
+    build:
+      context: ../juniper-data
+      dockerfile: Dockerfile
+    image: juniper-data:latest
+    container_name: juniper-data
+    ports:
+      - "8100:8100"
+    environment:
+      JUNIPER_DATA_HOST: "0.0.0.0"
+      JUNIPER_DATA_PORT: "8100"
+      JUNIPER_DATA_LOG_LEVEL: "INFO"
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8100/v1/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # JuniperCascor — CasCor Training Service (port 8200)
+  # ═══════════════════════════════════════════════════════════════════════════
+  juniper-cascor:
+    build:
+      context: ../juniper-cascor
+      dockerfile: Dockerfile
+    image: juniper-cascor:latest
+    container_name: juniper-cascor
+    ports:
+      - "8200:8200"
+    environment:
+      JUNIPER_DATA_URL: "http://juniper-data:8100"
+      CASCOR_HOST: "0.0.0.0"
+      CASCOR_PORT: "8200"
+      CASCOR_LOG_LEVEL: "INFO"
+    depends_on:
+      juniper-data:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8200/v1/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 15s
+      retries: 5
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # JuniperCanopy — Monitoring Dashboard (port 8050)
+  # ═══════════════════════════════════════════════════════════════════════════
+  juniper-canopy:
+    build:
+      context: ../JuniperCanopy/juniper_canopy
+      dockerfile: Dockerfile
+    image: juniper-canopy:latest
+    container_name: juniper-canopy
+    ports:
+      - "8050:8050"
+    environment:
+      JUNIPER_DATA_URL: "http://juniper-data:8100"
+      CASCOR_SERVICE_URL: "http://juniper-cascor:8200"
+      CANOPY_HOST: "0.0.0.0"
+      CANOPY_PORT: "8050"
+    depends_on:
+      juniper-data:
+        condition: service_healthy
+      juniper-cascor:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 20s
+      retries: 5
+    restart: unless-stopped
