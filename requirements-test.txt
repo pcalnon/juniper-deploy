@@ -1,0 +1,6 @@
+# Integration test dependencies for juniper-deploy
+# Install: pip install -r requirements-test.txt
+
+pytest>=7.4
+requests>=2.31
+numpy>=1.24

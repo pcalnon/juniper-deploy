@@ -1,0 +1,141 @@
+#!/usr/bin/env python
+#####################################################################################################################################################################################################
+# Project:       Juniper
+# Application:   juniper-deploy
+# File Name:     test_health.py
+# Author:        Paul Calnon
+#
+# Date Created:  2026-02-25
+# Last Modified: 2026-02-25
+#
+# License:       MIT License
+# Copyright:     Copyright (c) 2024-2026 Paul Calnon
+#
+# Description:
+#    Integration tests for standardized health endpoints across all three
+#    Juniper services. Verifies:
+#      - /v1/health      (liveness probe)
+#      - /v1/health/live (liveness alias)
+#      - /v1/health/ready (readiness probe)
+#
+#####################################################################################################################################################################################################
+
+import pytest
+import requests
+
+from conftest import DEFAULT_TIMEOUT
+
+
+# ---------------------------------------------------------------------------
+# juniper-data health tests
+# ---------------------------------------------------------------------------
+@pytest.mark.health
+class TestJuniperDataHealth:
+    def test_liveness(self, data_url: str, http: requests.Session):
+        resp = http.get(f"{data_url}/v1/health", timeout=DEFAULT_TIMEOUT)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body.get("status") == "ok"
+        assert "version" in body
+
+    def test_liveness_alias(self, data_url: str, http: requests.Session):
+        resp = http.get(f"{data_url}/v1/health/live", timeout=DEFAULT_TIMEOUT)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body.get("status") == "alive"
+
+    def test_readiness(self, data_url: str, http: requests.Session):
+        resp = http.get(f"{data_url}/v1/health/ready", timeout=DEFAULT_TIMEOUT)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body.get("status") == "ready"
+        assert "version" in body
+
+    def test_liveness_content_type(self, data_url: str, http: requests.Session):
+        resp = http.get(f"{data_url}/v1/health", timeout=DEFAULT_TIMEOUT)
+        assert "application/json" in resp.headers.get("content-type", "")
+
+
+# ---------------------------------------------------------------------------
+# juniper-cascor health tests
+# ---------------------------------------------------------------------------
+@pytest.mark.health
+class TestJuniperCascorHealth:
+    def test_liveness(self, cascor_url: str, http: requests.Session):
+        resp = http.get(f"{cascor_url}/v1/health", timeout=DEFAULT_TIMEOUT)
+        assert resp.status_code == 200
+        body = resp.json()
+        # CasCor wraps all responses in {status, data, meta}
+        assert body.get("status") == "success"
+        data = body.get("data", {})
+        assert data.get("status") in ("ok", "healthy")
+
+    def test_liveness_alias(self, cascor_url: str, http: requests.Session):
+        resp = http.get(f"{cascor_url}/v1/health/live", timeout=DEFAULT_TIMEOUT)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body.get("status") == "success"
+        data = body.get("data", {})
+        assert data.get("status") == "alive"
+
+    def test_readiness(self, cascor_url: str, http: requests.Session):
+        resp = http.get(f"{cascor_url}/v1/health/ready", timeout=DEFAULT_TIMEOUT)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body.get("status") == "success"
+        data = body.get("data", {})
+        assert data.get("status") == "ready"
+
+    def test_response_envelope(self, cascor_url: str, http: requests.Session):
+        """All CasCor responses have {status, data, meta} envelope."""
+        resp = http.get(f"{cascor_url}/v1/health", timeout=DEFAULT_TIMEOUT)
+        body = resp.json()
+        assert "status" in body
+        assert "data" in body
+        assert "meta" in body
+        meta = body["meta"]
+        assert "timestamp" in meta
+        assert "version" in meta
+
+
+# ---------------------------------------------------------------------------
+# juniper-canopy health tests
+# ---------------------------------------------------------------------------
+@pytest.mark.health
+class TestJuniperCanopyHealth:
+    def test_liveness(self, canopy_url: str, http: requests.Session):
+        resp = http.get(f"{canopy_url}/v1/health", timeout=DEFAULT_TIMEOUT)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body.get("status") == "healthy"
+        assert "version" in body
+
+    def test_liveness_backward_compat(self, canopy_url: str, http: requests.Session):
+        """Canopy retains /health and /api/health as backward-compatible aliases."""
+        for path in ("/health", "/api/health"):
+            resp = http.get(f"{canopy_url}{path}", timeout=DEFAULT_TIMEOUT)
+            assert resp.status_code == 200, f"Backward-compat alias {path} returned {resp.status_code}"
+
+    def test_liveness_live_alias(self, canopy_url: str, http: requests.Session):
+        resp = http.get(f"{canopy_url}/v1/health/live", timeout=DEFAULT_TIMEOUT)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body.get("status") == "alive"
+
+    def test_readiness(self, canopy_url: str, http: requests.Session):
+        resp = http.get(f"{canopy_url}/v1/health/ready", timeout=DEFAULT_TIMEOUT)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body.get("status") == "ready"
+        assert "version" in body
+
+    def test_liveness_has_service_fields(self, canopy_url: str, http: requests.Session):
+        """Canopy liveness includes runtime state fields."""
+        resp = http.get(f"{canopy_url}/v1/health", timeout=DEFAULT_TIMEOUT)
+        body = resp.json()
+        assert "active_connections" in body
+        assert "training_active" in body
+        assert "demo_mode" in body
+        assert isinstance(body["active_connections"], int)
+        assert isinstance(body["training_active"], bool)
+        assert isinstance(body["demo_mode"], bool)
