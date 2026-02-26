@@ -78,11 +78,11 @@ services:
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # JuniperCanopy — Monitoring Dashboard (port 8050)
+  # juniper-canopy — Monitoring Dashboard (port 8050)
   # ═══════════════════════════════════════════════════════════════════════════
   juniper-canopy:
     build:
-      context: ../JuniperCanopy/juniper_canopy
+      context: ../juniper-canopy
       dockerfile: Dockerfile
     image: juniper-canopy:latest
     container_name: juniper-canopy

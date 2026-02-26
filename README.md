@@ -4,7 +4,7 @@ Docker Compose and integration tests for the Juniper ML ecosystem.
 
 ## Overview
 
-This repository provides a single `make up` command that boots the entire Juniper stack locally — JuniperData, JuniperCascor, and JuniperCanopy — with proper dependency ordering, health checks, and environment wiring.
+This repository provides a single `make up` command that boots the entire Juniper stack locally — JuniperData, JuniperCascor, and juniper-canopy — with proper dependency ordering, health checks, and environment wiring.
 
 ## Prerequisites
 
@@ -16,8 +16,7 @@ This repository provides a single `make up` command that boots the entire Junipe
   ├── juniper-deploy/          ← this repo
   ├── juniper-data/
   ├── juniper-cascor/
-  └── JuniperCanopy/
-      └── juniper_canopy/
+  └── juniper-canopy/
   ```
 
 ## Quick Start
@@ -50,7 +49,7 @@ make help
 | `make logs` | Tail logs from all services (follow) |
 | `make logs-data` | Tail JuniperData logs |
 | `make logs-cascor` | Tail JuniperCascor logs |
-| `make logs-canopy` | Tail JuniperCanopy logs |
+| `make logs-canopy` | Tail juniper-canopy logs |
 | `make status` | Show container status |
 | `make ps` | Compact container listing |
 | `make health` | Detailed health report for all services |
@@ -60,7 +59,7 @@ make help
 | `make clean` | Remove containers, volumes, and local images |
 | `make shell-data` | Shell into JuniperData container |
 | `make shell-cascor` | Shell into JuniperCascor container |
-| `make shell-canopy` | Shell into JuniperCanopy container |
+| `make shell-canopy` | Shell into juniper-canopy container |
 
 You can also use `docker compose` commands directly — the Makefile is a convenience wrapper.
 
@@ -70,7 +69,7 @@ You can also use `docker compose` commands directly — the Makefile is a conven
 |---------|-----|-------------|
 | JuniperData | http://localhost:8100 | Dataset generation REST API |
 | JuniperCascor | http://localhost:8200 | CasCor neural network training service |
-| JuniperCanopy | http://localhost:8050 | Real-time monitoring dashboard |
+| juniper-canopy | http://localhost:8050 | Real-time monitoring dashboard |
 
 ## Health Endpoints
 
@@ -123,8 +122,8 @@ Copy `.env.example` to `.env` to override defaults. All values use `${VAR:-defau
 | `CASCOR_HOST` | `0.0.0.0` | JuniperCascor bind address |
 | `CASCOR_PORT` | `8200` | JuniperCascor port |
 | `CASCOR_LOG_LEVEL` | `INFO` | JuniperCascor log level |
-| `CANOPY_HOST` | `0.0.0.0` | JuniperCanopy bind address |
-| `CANOPY_PORT` | `8050` | JuniperCanopy port |
+| `CANOPY_HOST` | `0.0.0.0` | juniper-canopy bind address |
+| `CANOPY_PORT` | `8050` | juniper-canopy port |
 | `JUNIPER_DATA_URL` | `http://juniper-data:8100` | Inter-service URL for JuniperData |
 | `CASCOR_SERVICE_URL` | `http://juniper-cascor:8200` | Inter-service URL for JuniperCascor |
 
