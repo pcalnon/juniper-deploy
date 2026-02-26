@@ -1,0 +1,29 @@
+#####################################################################################################################################################################################################
+# Project:       Juniper
+# Sub-Project:   juniper-deploy
+# File Name:     CODEOWNERS
+# Author:        Paul Calnon
+#
+# Date Created:  2026-02-26
+# Last Modified: 2026-02-26
+#
+# License:       MIT License
+# Copyright:     Copyright (c) 2024-2026 Paul Calnon
+#
+# Description:
+#    GitHub CODEOWNERS file — defines code ownership for automatic review requests
+#####################################################################################################################################################################################################
+
+# Default owner for everything in the repository
+* @pcalnon
+
+# CI/CD workflows and GitHub configuration
+/.github/ @pcalnon
+
+# Docker Compose and deployment config
+/docker-compose.yml @pcalnon
+/.env.example @pcalnon
+
+# Integration tests
+/tests/ @pcalnon
+/scripts/ @pcalnon
