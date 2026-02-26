@@ -22,18 +22,21 @@
 #
 #####################################################################################################################################################################################################
 
+import os
+
 import pytest
 import requests
 
 # ---------------------------------------------------------------------------
 # Service base URLs (host-side ports exposed by docker-compose.yml)
+# Override via environment variables for non-default port configurations.
 # ---------------------------------------------------------------------------
-DATA_URL = "http://localhost:8100"
-CASCOR_URL = "http://localhost:8200"
-CANOPY_URL = "http://localhost:8050"
+DATA_URL = os.environ.get("JUNIPER_TEST_DATA_URL", "http://localhost:8100")
+CASCOR_URL = os.environ.get("JUNIPER_TEST_CASCOR_URL", "http://localhost:8200")
+CANOPY_URL = os.environ.get("JUNIPER_TEST_CANOPY_URL", "http://localhost:8050")
 
 # URL that juniper-cascor uses internally to reach juniper-data (docker network)
-_CASCOR_INTERNAL_DATA_URL = "http://juniper-data:8100"
+_CASCOR_INTERNAL_DATA_URL = os.environ.get("JUNIPER_TEST_INTERNAL_DATA_URL", "http://juniper-data:8100")
 
 # Default HTTP request timeout in seconds
 DEFAULT_TIMEOUT = 10

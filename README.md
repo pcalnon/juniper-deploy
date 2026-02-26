@@ -73,15 +73,34 @@ pytest tests/ -v
 docker compose down
 ```
 
+## Service Discovery
+
+Inside the Docker network, services communicate using Docker DNS. Each service name in `docker-compose.yml` becomes a hostname:
+
+| From | To | Internal URL |
+|------|----|--------------|
+| juniper-cascor | juniper-data | `http://juniper-data:8100` |
+| juniper-canopy | juniper-data | `http://juniper-data:8100` |
+| juniper-canopy | juniper-cascor | `http://juniper-cascor:8200` |
+
+These URLs are set automatically via `JUNIPER_DATA_URL` and `CASCOR_SERVICE_URL` environment variables. Override them in `.env` only if running services outside Docker or on a custom network.
+
 ## Environment Variables
 
-Copy `.env.example` to `.env` to override defaults:
+Copy `.env.example` to `.env` to override defaults. All values use `${VAR:-default}` substitution in `docker-compose.yml`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `JUNIPER_DATA_PORT` | 8100 | JuniperData port |
-| `CASCOR_PORT` | 8200 | JuniperCascor port |
-| `CANOPY_PORT` | 8050 | JuniperCanopy port |
+| `JUNIPER_DATA_HOST` | `0.0.0.0` | JuniperData bind address |
+| `JUNIPER_DATA_PORT` | `8100` | JuniperData port |
+| `JUNIPER_DATA_LOG_LEVEL` | `INFO` | JuniperData log level |
+| `CASCOR_HOST` | `0.0.0.0` | JuniperCascor bind address |
+| `CASCOR_PORT` | `8200` | JuniperCascor port |
+| `CASCOR_LOG_LEVEL` | `INFO` | JuniperCascor log level |
+| `CANOPY_HOST` | `0.0.0.0` | JuniperCanopy bind address |
+| `CANOPY_PORT` | `8050` | JuniperCanopy port |
+| `JUNIPER_DATA_URL` | `http://juniper-data:8100` | Inter-service URL for JuniperData |
+| `CASCOR_SERVICE_URL` | `http://juniper-cascor:8200` | Inter-service URL for JuniperCascor |
 
 ## Ecosystem Compatibility
 

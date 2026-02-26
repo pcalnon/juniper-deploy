@@ -35,11 +35,11 @@ services:
     image: juniper-data:latest
     container_name: juniper-data
     ports:
-      - "8100:8100"
+      - "${JUNIPER_DATA_PORT:-8100}:${JUNIPER_DATA_PORT:-8100}"
     environment:
-      JUNIPER_DATA_HOST: "0.0.0.0"
-      JUNIPER_DATA_PORT: "8100"
-      JUNIPER_DATA_LOG_LEVEL: "INFO"
+      JUNIPER_DATA_HOST: "${JUNIPER_DATA_HOST:-0.0.0.0}"
+      JUNIPER_DATA_PORT: "${JUNIPER_DATA_PORT:-8100}"
+      JUNIPER_DATA_LOG_LEVEL: "${JUNIPER_DATA_LOG_LEVEL:-INFO}"
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8100/v1/health', timeout=5)"]
@@ -59,12 +59,12 @@ services:
     image: juniper-cascor:latest
     container_name: juniper-cascor
     ports:
-      - "8200:8200"
+      - "${CASCOR_PORT:-8200}:${CASCOR_PORT:-8200}"
     environment:
-      JUNIPER_DATA_URL: "http://juniper-data:8100"
-      CASCOR_HOST: "0.0.0.0"
-      CASCOR_PORT: "8200"
-      CASCOR_LOG_LEVEL: "INFO"
+      JUNIPER_DATA_URL: "${JUNIPER_DATA_URL:-http://juniper-data:8100}"
+      CASCOR_HOST: "${CASCOR_HOST:-0.0.0.0}"
+      CASCOR_PORT: "${CASCOR_PORT:-8200}"
+      CASCOR_LOG_LEVEL: "${CASCOR_LOG_LEVEL:-INFO}"
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -87,12 +87,12 @@ services:
     image: juniper-canopy:latest
     container_name: juniper-canopy
     ports:
-      - "8050:8050"
+      - "${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
     environment:
-      JUNIPER_DATA_URL: "http://juniper-data:8100"
-      CASCOR_SERVICE_URL: "http://juniper-cascor:8200"
-      CANOPY_HOST: "0.0.0.0"
-      CANOPY_PORT: "8050"
+      JUNIPER_DATA_URL: "${JUNIPER_DATA_URL:-http://juniper-data:8100}"
+      CASCOR_SERVICE_URL: "${CASCOR_SERVICE_URL:-http://juniper-cascor:8200}"
+      CANOPY_HOST: "${CANOPY_HOST:-0.0.0.0}"
+      CANOPY_PORT: "${CANOPY_PORT:-8050}"
     depends_on:
       juniper-data:
         condition: service_healthy
