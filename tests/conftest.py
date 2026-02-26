@@ -38,6 +38,11 @@ CANOPY_URL = os.environ.get("JUNIPER_TEST_CANOPY_URL", "http://localhost:8050")
 # URL that juniper-cascor uses internally to reach juniper-data (docker network)
 _CASCOR_INTERNAL_DATA_URL = os.environ.get("JUNIPER_TEST_INTERNAL_DATA_URL", "http://juniper-data:8100")
 
+# API keys for authenticated requests (empty string = no auth)
+DATA_API_KEY = os.environ.get("JUNIPER_TEST_DATA_API_KEY", "")
+CASCOR_API_KEY = os.environ.get("JUNIPER_TEST_CASCOR_API_KEY", "")
+CANOPY_API_KEY = os.environ.get("JUNIPER_TEST_CANOPY_API_KEY", "")
+
 # Default HTTP request timeout in seconds
 DEFAULT_TIMEOUT = 10
 
@@ -79,10 +84,68 @@ def cascor_internal_data_url() -> str:
 # Shared HTTP session
 # ---------------------------------------------------------------------------
 @pytest.fixture(scope="session")
+def data_api_key() -> str:
+    return DATA_API_KEY
+
+
+@pytest.fixture(scope="session")
+def cascor_api_key() -> str:
+    return CASCOR_API_KEY
+
+
+@pytest.fixture(scope="session")
+def canopy_api_key() -> str:
+    return CANOPY_API_KEY
+
+
+@pytest.fixture(scope="session")
 def http() -> requests.Session:
-    """Shared requests.Session with JSON content-type and default timeout."""
+    """Shared requests.Session with JSON content-type and default timeout.
+
+    When API keys are configured via ``JUNIPER_TEST_*_API_KEY`` environment
+    variables, the ``X-API-Key`` header is **not** set globally on the session
+    because each service may use a different key.  Instead, use the per-service
+    helper fixtures (``data_http``, ``cascor_http``, ``canopy_http``) which
+    attach the correct key for the target service.
+    """
     session = requests.Session()
     session.headers.update({"Content-Type": "application/json", "Accept": "application/json"})
+    yield session
+    session.close()
+
+
+@pytest.fixture(scope="session")
+def data_http() -> requests.Session:
+    """Session pre-configured with juniper-data API key (if set)."""
+    session = requests.Session()
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    if DATA_API_KEY:
+        headers["X-API-Key"] = DATA_API_KEY
+    session.headers.update(headers)
+    yield session
+    session.close()
+
+
+@pytest.fixture(scope="session")
+def cascor_http() -> requests.Session:
+    """Session pre-configured with juniper-cascor API key (if set)."""
+    session = requests.Session()
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    if CASCOR_API_KEY:
+        headers["X-API-Key"] = CASCOR_API_KEY
+    session.headers.update(headers)
+    yield session
+    session.close()
+
+
+@pytest.fixture(scope="session")
+def canopy_http() -> requests.Session:
+    """Session pre-configured with juniper-canopy API key (if set)."""
+    session = requests.Session()
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    if CANOPY_API_KEY:
+        headers["X-API-Key"] = CANOPY_API_KEY
+    session.headers.update(headers)
     yield session
     session.close()
 

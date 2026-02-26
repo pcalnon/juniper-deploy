@@ -99,6 +99,13 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 | `CANOPY_PORT` | juniper-canopy | `8050` |
 | `JUNIPER_DATA_URL` | juniper-cascor, juniper-canopy | `http://juniper-data:8100` |
 | `CASCOR_SERVICE_URL` | juniper-canopy | `http://juniper-cascor:8200` |
+| `JUNIPER_DATA_API_KEYS` | juniper-data | *(unset — auth disabled)* |
+| `JUNIPER_CASCOR_API_KEYS` | juniper-cascor | *(unset — auth disabled)* |
+| `CANOPY_API_KEY` | juniper-canopy | *(unset — auth disabled)* |
+| `JUNIPER_CASCOR_RATE_LIMIT_ENABLED` | juniper-cascor | `false` |
+| `JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-cascor | `60` |
+| `CANOPY_RATE_LIMIT_ENABLED` | juniper-canopy | `false` |
+| `CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-canopy | `60` |
 
 ---
 

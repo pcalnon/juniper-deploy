@@ -126,6 +126,78 @@ Copy `.env.example` to `.env` to override defaults. All values use `${VAR:-defau
 | `CANOPY_PORT` | `8050` | juniper-canopy port |
 | `JUNIPER_DATA_URL` | `http://juniper-data:8100` | Inter-service URL for JuniperData |
 | `CASCOR_SERVICE_URL` | `http://juniper-cascor:8200` | Inter-service URL for JuniperCascor |
+| `JUNIPER_DATA_API_KEYS` | *(unset)* | API key(s) for juniper-data (comma-separated) |
+| `JUNIPER_CASCOR_API_KEYS` | *(unset)* | API key(s) for juniper-cascor (comma-separated) |
+| `CANOPY_API_KEY` | *(unset)* | API key for juniper-canopy |
+| `JUNIPER_CASCOR_RATE_LIMIT_ENABLED` | `false` | Enable rate limiting for juniper-cascor |
+| `JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE` | `60` | Rate limit for juniper-cascor |
+| `CANOPY_RATE_LIMIT_ENABLED` | `false` | Enable rate limiting for juniper-canopy |
+| `CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` | `60` | Rate limit for juniper-canopy |
+
+## Authentication
+
+API key authentication can be enabled per service by setting the corresponding environment variable in `.env`. When no key is configured for a service, all endpoints are open (development mode).
+
+### Enabling API Keys
+
+```bash
+# .env
+JUNIPER_DATA_API_KEYS=my-data-secret-key
+JUNIPER_CASCOR_API_KEYS=my-cascor-secret-key
+CANOPY_API_KEY=my-canopy-secret-key
+```
+
+Clients authenticate by including the key in the `X-API-Key` HTTP header:
+
+```bash
+curl -H "X-API-Key: my-data-secret-key" http://localhost:8100/v1/datasets
+```
+
+### Exempt Endpoints
+
+Health, documentation, and monitoring endpoints are always accessible without authentication:
+
+| Endpoint Pattern | Exempt? |
+|-----------------|---------|
+| `/v1/health`, `/v1/health/live`, `/v1/health/ready` | Yes |
+| `/docs`, `/redoc`, `/openapi.json` | Yes |
+| `/dashboard/*` (juniper-canopy only) | Yes |
+
+### Inter-Service Authentication
+
+When API keys are enabled, downstream services automatically receive the upstream API key via environment variables in `docker-compose.yml`:
+
+| From | To | Env Var |
+|------|----|---------|
+| juniper-cascor | juniper-data | `JUNIPER_DATA_API_KEY` |
+| juniper-canopy | juniper-cascor | `JUNIPER_CASCOR_API_KEY` |
+
+### Rate Limiting
+
+Optional rate limiting can be enabled alongside API key authentication:
+
+```bash
+# .env
+JUNIPER_CASCOR_RATE_LIMIT_ENABLED=true
+JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE=60
+CANOPY_RATE_LIMIT_ENABLED=true
+CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE=60
+```
+
+### WebSocket Authentication
+
+JuniperCascor WebSocket endpoints (`/ws/*`) require the `X-API-Key` header during the connection handshake when authentication is enabled. Connections without a valid key are closed with code `4001`.
+
+### Integration Tests with Authentication
+
+When running tests against services with authentication enabled, pass API keys via environment variables:
+
+```bash
+JUNIPER_TEST_DATA_API_KEY=my-data-secret-key \
+JUNIPER_TEST_CASCOR_API_KEY=my-cascor-secret-key \
+JUNIPER_TEST_CANOPY_API_KEY=my-canopy-secret-key \
+pytest tests/ -v
+```
 
 ## Troubleshooting
 

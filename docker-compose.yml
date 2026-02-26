@@ -40,6 +40,7 @@ services:
       JUNIPER_DATA_HOST: "${JUNIPER_DATA_HOST:-0.0.0.0}"
       JUNIPER_DATA_PORT: "${JUNIPER_DATA_PORT:-8100}"
       JUNIPER_DATA_LOG_LEVEL: "${JUNIPER_DATA_LOG_LEVEL:-INFO}"
+      JUNIPER_DATA_API_KEYS: "${JUNIPER_DATA_API_KEYS:-}"
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8100/v1/health', timeout=5)"]
@@ -65,6 +66,10 @@ services:
       CASCOR_HOST: "${CASCOR_HOST:-0.0.0.0}"
       CASCOR_PORT: "${CASCOR_PORT:-8200}"
       CASCOR_LOG_LEVEL: "${CASCOR_LOG_LEVEL:-INFO}"
+      JUNIPER_CASCOR_API_KEYS: "${JUNIPER_CASCOR_API_KEYS:-}"
+      JUNIPER_CASCOR_RATE_LIMIT_ENABLED: "${JUNIPER_CASCOR_RATE_LIMIT_ENABLED:-false}"
+      JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE: "${JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
+      JUNIPER_DATA_API_KEY: "${JUNIPER_DATA_API_KEYS:-}"
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -93,6 +98,10 @@ services:
       CASCOR_SERVICE_URL: "${CASCOR_SERVICE_URL:-http://juniper-cascor:8200}"
       CANOPY_HOST: "${CANOPY_HOST:-0.0.0.0}"
       CANOPY_PORT: "${CANOPY_PORT:-8050}"
+      CANOPY_API_KEY: "${CANOPY_API_KEY:-}"
+      CANOPY_RATE_LIMIT_ENABLED: "${CANOPY_RATE_LIMIT_ENABLED:-false}"
+      CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE: "${CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
+      JUNIPER_CASCOR_API_KEY: "${JUNIPER_CASCOR_API_KEYS:-}"
     depends_on:
       juniper-data:
         condition: service_healthy
