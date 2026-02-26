@@ -14,40 +14,49 @@
 
 ```bash
 # Validate compose configuration
-docker-compose config
+docker compose config
 
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # Start with build
-docker-compose up -d --build
+docker compose up -d --build
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Stop all services
-docker-compose down
+docker compose down
 
 # Check service health
-docker-compose ps
+docker compose ps
+
+# Run integration tests
+pip install -r requirements-test.txt
+bash scripts/wait_for_services.sh
+pytest tests/ -v
 ```
 
 ### Service Ports
 
 | Service | Default Port | Health Endpoint |
 |---------|-------------|-----------------|
-| juniper-data | 8100 | `/health` |
-| juniper-cascor | 8200 | `/health` |
-| juniper-canopy | 8050 | `/health` |
+| juniper-data | 8100 | `/v1/health` |
+| juniper-cascor | 8200 | `/v1/health` |
+| juniper-canopy | 8050 | `/v1/health` |
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
-| `docker-compose.yml` | Service orchestration |
-| `.env.example` | Environment variable template |
-| `scripts/wait_for_services.sh` | Integration test helper |
-| `README.md` | Project documentation |
+| `docker-compose.yml` | Service orchestration with `${VAR:-default}` substitution |
+| `.env.example` | All 10 configurable environment variables |
+| `scripts/wait_for_services.sh` | Polls health endpoints before tests |
+| `tests/conftest.py` | Shared fixtures (configurable via `JUNIPER_TEST_*` env vars) |
+| `tests/test_health.py` | Health endpoint + schema validation tests |
+| `tests/test_data_service.py` | Dataset lifecycle integration tests |
+| `tests/test_full_stack.py` | Cross-service end-to-end tests |
+| `README.md` | Quickstart, service discovery, env var docs |
 
 ---
 
@@ -76,11 +85,20 @@ Part of the Juniper ecosystem. See the parent directory's `CLAUDE.md` at `/home/
 
 ### Environment Variables
 
+All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.env.example` to `.env` to override.
+
 | Variable | Service | Default |
 |----------|---------|---------|
+| `JUNIPER_DATA_HOST` | juniper-data | `0.0.0.0` |
 | `JUNIPER_DATA_PORT` | juniper-data | `8100` |
+| `JUNIPER_DATA_LOG_LEVEL` | juniper-data | `INFO` |
+| `CASCOR_HOST` | juniper-cascor | `0.0.0.0` |
 | `CASCOR_PORT` | juniper-cascor | `8200` |
+| `CASCOR_LOG_LEVEL` | juniper-cascor | `INFO` |
+| `CANOPY_HOST` | juniper-canopy | `0.0.0.0` |
 | `CANOPY_PORT` | juniper-canopy | `8050` |
+| `JUNIPER_DATA_URL` | juniper-cascor, juniper-canopy | `http://juniper-data:8100` |
+| `CASCOR_SERVICE_URL` | juniper-canopy | `http://juniper-cascor:8200` |
 
 ---
 
