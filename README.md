@@ -4,11 +4,12 @@ Docker Compose and integration tests for the Juniper ML ecosystem.
 
 ## Overview
 
-This repository provides a single `docker compose up` command that boots the entire Juniper stack locally — JuniperData, JuniperCascor, and JuniperCanopy — with proper dependency ordering, health checks, and environment wiring.
+This repository provides a single `make up` command that boots the entire Juniper stack locally — JuniperData, JuniperCascor, and JuniperCanopy — with proper dependency ordering, health checks, and environment wiring.
 
 ## Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) with Compose v2
+- [Docker](https://docs.docker.com/get-docker/) >= 24.0 with Compose v2 >= 2.20
+- [GNU Make](https://www.gnu.org/software/make/) >= 4.0
 - All Juniper service repositories cloned as siblings of this directory:
   ```
   Juniper/
@@ -23,17 +24,45 @@ This repository provides a single `docker compose up` command that boots the ent
 
 ```bash
 # Build and start all services
-docker compose up --build
+make build && make up
 
-# Start in detached mode
-docker compose up -d --build
+# Check health
+make health
 
 # Follow logs
-docker compose logs -f
+make logs
 
 # Stop all services
-docker compose down
+make down
+
+# See all available targets
+make help
 ```
+
+### Available Targets
+
+| Target | Description |
+|--------|-------------|
+| `make help` | Show all available targets |
+| `make up` | Start all services (detached) |
+| `make down` | Stop and remove all containers |
+| `make restart` | Restart all services |
+| `make logs` | Tail logs from all services (follow) |
+| `make logs-data` | Tail JuniperData logs |
+| `make logs-cascor` | Tail JuniperCascor logs |
+| `make logs-canopy` | Tail JuniperCanopy logs |
+| `make status` | Show container status |
+| `make ps` | Compact container listing |
+| `make health` | Detailed health report for all services |
+| `make wait` | Block until all services are healthy |
+| `make build` | Build/rebuild all images |
+| `make build-no-cache` | Full rebuild without cache |
+| `make clean` | Remove containers, volumes, and local images |
+| `make shell-data` | Shell into JuniperData container |
+| `make shell-cascor` | Shell into JuniperCascor container |
+| `make shell-canopy` | Shell into JuniperCanopy container |
+
+You can also use `docker compose` commands directly — the Makefile is a convenience wrapper.
 
 ## Services
 
@@ -59,18 +88,15 @@ curl http://localhost:8050/v1/health/ready  # juniper-canopy readiness
 ## Integration Tests
 
 ```bash
-# Start services
-docker compose up -d
-
-# Wait for all services to be healthy
-bash scripts/wait_for_services.sh
+# Start services and wait for healthy
+make build && make up && make wait
 
 # Run integration tests
-pip install pytest requests
+pip install -r requirements-test.txt
 pytest tests/ -v
 
 # Teardown
-docker compose down
+make down
 ```
 
 ## Service Discovery
@@ -101,6 +127,16 @@ Copy `.env.example` to `.env` to override defaults. All values use `${VAR:-defau
 | `CANOPY_PORT` | `8050` | JuniperCanopy port |
 | `JUNIPER_DATA_URL` | `http://juniper-data:8100` | Inter-service URL for JuniperData |
 | `CASCOR_SERVICE_URL` | `http://juniper-cascor:8200` | Inter-service URL for JuniperCascor |
+
+## Troubleshooting
+
+**Services fail to start**: Ensure all sibling repos are cloned and have Dockerfiles. Run `make build` to see build errors.
+
+**Health check fails**: Run `make status` to see container state. Check logs with `make logs-<service>` for the failing service.
+
+**Port conflicts**: If default ports are in use, copy `.env.example` to `.env` and change port values.
+
+**`make clean` won't release disk**: Named volumes may persist. Use `docker volume prune` to clean orphaned volumes.
 
 ## Ecosystem Compatibility
 
