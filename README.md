@@ -199,6 +199,50 @@ JUNIPER_TEST_CANOPY_API_KEY=my-canopy-secret-key \
 pytest tests/ -v
 ```
 
+## Observability
+
+The Juniper stack supports structured JSON logging, Prometheus metrics, and Sentry error tracking. These features are disabled by default and can be enabled per service via environment variables.
+
+### Structured JSON Logging
+
+Set `*_LOG_FORMAT=json` in `.env` to enable JSON-structured log output for a service:
+
+```bash
+JUNIPER_DATA_LOG_FORMAT=json
+JUNIPER_CASCOR_LOG_FORMAT=json
+CANOPY_LOG_FORMAT=json
+```
+
+### Prometheus Metrics
+
+1. Enable the `/metrics` endpoint on each service:
+
+   ```bash
+   JUNIPER_DATA_METRICS_ENABLED=true
+   JUNIPER_CASCOR_METRICS_ENABLED=true
+   CANOPY_METRICS_ENABLED=true
+   ```
+
+2. Start the observability stack (Prometheus + Grafana):
+
+   ```bash
+   docker compose --profile observability up -d
+   ```
+
+3. Access dashboards:
+   - **Prometheus**: http://localhost:9090
+   - **Grafana**: http://localhost:3000 (default login: `admin` / `admin`)
+
+### Sentry Error Tracking
+
+Set the Sentry DSN for each service to enable error reporting:
+
+```bash
+JUNIPER_DATA_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
+JUNIPER_CASCOR_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
+CANOPY_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
+```
+
 ## Troubleshooting
 
 **Services fail to start**: Ensure all sibling repos are cloned and have Dockerfiles. Run `make build` to see build errors.
