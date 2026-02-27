@@ -1,5 +1,9 @@
 .env
+.env.secrets
 !.env.example
+!.env.secrets.example
+!.env.enc
+!.env.secrets.enc
 __pycache__/
 *.pyc
 .pytest_cache/
