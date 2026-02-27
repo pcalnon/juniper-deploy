@@ -106,6 +106,16 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 | `JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-cascor | `60` |
 | `CANOPY_RATE_LIMIT_ENABLED` | juniper-canopy | `false` |
 | `CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-canopy | `60` |
+| `JUNIPER_DATA_LOG_FORMAT` | juniper-data | `text` |
+| `JUNIPER_DATA_SENTRY_DSN` | juniper-data | *(unset)* |
+| `JUNIPER_DATA_METRICS_ENABLED` | juniper-data | `false` |
+| `JUNIPER_CASCOR_LOG_FORMAT` | juniper-cascor | `text` |
+| `JUNIPER_CASCOR_SENTRY_DSN` | juniper-cascor | *(unset)* |
+| `JUNIPER_CASCOR_METRICS_ENABLED` | juniper-cascor | `false` |
+| `CANOPY_LOG_FORMAT` | juniper-canopy | `text` |
+| `CANOPY_SENTRY_DSN` | juniper-canopy | *(unset)* |
+| `CANOPY_METRICS_ENABLED` | juniper-canopy | `false` |
+| `GRAFANA_ADMIN_PASSWORD` | grafana | `admin` |
 
 ---
 

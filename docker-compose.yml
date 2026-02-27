@@ -41,6 +41,9 @@ services:
       JUNIPER_DATA_PORT: "${JUNIPER_DATA_PORT:-8100}"
       JUNIPER_DATA_LOG_LEVEL: "${JUNIPER_DATA_LOG_LEVEL:-INFO}"
       JUNIPER_DATA_API_KEYS: "${JUNIPER_DATA_API_KEYS:-}"
+      JUNIPER_DATA_LOG_FORMAT: "${JUNIPER_DATA_LOG_FORMAT:-text}"
+      JUNIPER_DATA_SENTRY_DSN: "${JUNIPER_DATA_SENTRY_DSN:-}"
+      JUNIPER_DATA_METRICS_ENABLED: "${JUNIPER_DATA_METRICS_ENABLED:-false}"
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8100/v1/health', timeout=5)"]
@@ -70,6 +73,9 @@ services:
       JUNIPER_CASCOR_RATE_LIMIT_ENABLED: "${JUNIPER_CASCOR_RATE_LIMIT_ENABLED:-false}"
       JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE: "${JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
       JUNIPER_DATA_API_KEY: "${JUNIPER_DATA_API_KEYS:-}"
+      JUNIPER_CASCOR_LOG_FORMAT: "${JUNIPER_CASCOR_LOG_FORMAT:-text}"
+      JUNIPER_CASCOR_SENTRY_DSN: "${JUNIPER_CASCOR_SENTRY_DSN:-}"
+      JUNIPER_CASCOR_METRICS_ENABLED: "${JUNIPER_CASCOR_METRICS_ENABLED:-false}"
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -102,6 +108,9 @@ services:
       CANOPY_RATE_LIMIT_ENABLED: "${CANOPY_RATE_LIMIT_ENABLED:-false}"
       CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE: "${CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
       JUNIPER_CASCOR_API_KEY: "${JUNIPER_CASCOR_API_KEYS:-}"
+      CANOPY_LOG_FORMAT: "${CANOPY_LOG_FORMAT:-text}"
+      CANOPY_SENTRY_DSN: "${CANOPY_SENTRY_DSN:-}"
+      CANOPY_METRICS_ENABLED: "${CANOPY_METRICS_ENABLED:-false}"
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -114,4 +123,34 @@ services:
       timeout: 10s
       start_period: 20s
       retries: 5
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Prometheus — Metrics Collection (port 9090)
+  # ═══════════════════════════════════════════════════════════════════════════
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: juniper-prometheus
+    profiles: ["observability"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Grafana — Metrics Dashboard (port 3000)
+  # ═══════════════════════════════════════════════════════════════════════════
+  grafana:
+    image: grafana/grafana:latest
+    container_name: juniper-grafana
+    profiles: ["observability"]
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
     restart: unless-stopped
