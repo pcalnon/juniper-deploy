@@ -22,7 +22,7 @@ This repository provides a single `make up` command that boots the entire Junipe
 ## Quick Start
 
 ```bash
-# Build and start all services
+# Build and start all services (full stack)
 make build && make up
 
 # Check health
@@ -38,12 +38,69 @@ make down
 make help
 ```
 
+## Profiles
+
+Docker Compose profiles control which services start for each operational mode:
+
+| Profile | Command | Services | Use Case |
+|---------|---------|----------|----------|
+| `full` | `make up` | juniper-data, juniper-cascor, juniper-canopy | Production-like stack |
+| `demo` | `make demo` | juniper-data, demo-seed, juniper-cascor-demo, juniper-canopy-demo | Self-running demo with auto-configured training |
+| `dev` | `make dev` | juniper-data, juniper-cascor, juniper-canopy-dev | Frontend development (canopy in demo mode) |
+
+### Demo Profile
+
+The demo profile starts a fully self-running demo stack. On startup:
+
+1. **juniper-data** starts and becomes healthy
+2. **demo-seed** seeds a canonical spiral dataset (2-spiral, 400 points, seed=42)
+3. **juniper-cascor-demo** starts with auto-start training enabled — creates a network and begins training automatically
+4. **juniper-canopy-demo** connects to the demo CasCor and shows live training metrics
+
+```bash
+# Start the demo
+make demo
+
+# Follow logs to watch training progress
+make logs
+
+# Open the dashboard
+# http://localhost:8050
+
+# Stop the demo
+make down
+```
+
+### Dev Profile
+
+The dev profile runs real data and CasCor services with Canopy in demo mode (no backend dependency). Useful for frontend development on juniper-canopy.
+
+```bash
+make dev
+```
+
+### Profile Service Matrix
+
+| Service | `full` | `demo` | `dev` |
+|---------|--------|--------|-------|
+| juniper-data | yes | yes | yes |
+| juniper-cascor | yes | — | yes |
+| juniper-cascor-demo | — | yes | — |
+| juniper-canopy | yes | — | — |
+| juniper-canopy-demo | — | yes | — |
+| juniper-canopy-dev | — | — | yes |
+| demo-seed | — | yes | — |
+
+> **Note**: Do not run `demo` and `full` profiles simultaneously — they bind to the same host ports.
+
 ### Available Targets
 
 | Target | Description |
 |--------|-------------|
 | `make help` | Show all available targets |
-| `make up` | Start all services (detached) |
+| `make up` | Start full stack (detached) |
+| `make demo` | Start demo stack (auto-configured training) |
+| `make dev` | Start dev stack (canopy in demo mode) |
 | `make down` | Stop and remove all containers |
 | `make restart` | Restart all services |
 | `make logs` | Tail logs from all services (follow) |

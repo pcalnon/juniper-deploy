@@ -48,7 +48,7 @@ endif
 .PHONY: help up down restart logs logs-data logs-cascor logs-canopy \
         status build build-no-cache clean \
         shell-data shell-cascor shell-canopy \
-        health wait ps
+        health wait ps demo dev
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Help
@@ -67,15 +67,23 @@ help:  ## Show this help message
 # Lifecycle
 # ═══════════════════════════════════════════════════════════════════════════
 
-up:  ## Start all services (detached)
-	@$(COMPOSE) -f $(COMPOSE_FILE) up -d
+up:  ## Start all services (--profile full, detached)
+	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full up -d
 	@echo -e "$(GREEN)Services starting. Run 'make logs' to follow output.$(RESET)"
 
 down:  ## Stop and remove all containers
-	@$(COMPOSE) -f $(COMPOSE_FILE) down
+	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev down
 
 restart:  ## Restart all services
 	@$(COMPOSE) -f $(COMPOSE_FILE) restart
+
+demo:  ## Start demo stack (auto-configured CasCor training)
+	@$(COMPOSE) -f $(COMPOSE_FILE) --profile demo up -d
+	@echo -e "$(GREEN)Demo stack starting. Run 'make logs' to follow output.$(RESET)"
+
+dev:  ## Start dev stack (real data + cascor, canopy in demo mode)
+	@$(COMPOSE) -f $(COMPOSE_FILE) --profile dev up -d
+	@echo -e "$(GREEN)Dev stack starting. Run 'make logs' to follow output.$(RESET)"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Logs
@@ -114,10 +122,10 @@ wait:  ## Block until all services are healthy
 # ═══════════════════════════════════════════════════════════════════════════
 
 build:  ## Build/rebuild all images
-	@$(COMPOSE) -f $(COMPOSE_FILE) build
+	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev build
 
 build-no-cache:  ## Full rebuild without cache
-	@$(COMPOSE) -f $(COMPOSE_FILE) build --no-cache
+	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev build --no-cache
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Cleanup

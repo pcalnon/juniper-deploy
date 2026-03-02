@@ -14,22 +14,28 @@
 
 ```bash
 # Validate compose configuration
-docker compose config
+docker compose --profile full config
 
-# Start all services
-docker compose up -d
+# Start full stack (all real services)
+make up    # or: docker compose --profile full up -d
 
-# Start with build
-docker compose up -d --build
+# Start demo stack (auto-configured CasCor training)
+make demo  # or: docker compose --profile demo up -d
+
+# Start dev stack (canopy in demo mode)
+make dev   # or: docker compose --profile dev up -d
 
 # View logs
 docker compose logs -f
 
 # Stop all services
-docker compose down
+make down
 
 # Check service health
 docker compose ps
+
+# Run demo integration test
+bash scripts/test_demo_profile.sh
 
 # Run integration tests
 pip install -r requirements-test.txt
@@ -49,14 +55,16 @@ pytest tests/ -v
 
 | File | Purpose |
 |------|---------|
-| `docker-compose.yml` | Service orchestration with `${VAR:-default}` substitution |
-| `.env.example` | All 10 configurable environment variables |
+| `docker-compose.yml` | Service orchestration with profiles (`full`, `demo`, `dev`) |
+| `.env.example` | All configurable environment variables |
+| `.env.demo` | Demo profile environment overrides |
 | `scripts/wait_for_services.sh` | Polls health endpoints before tests |
+| `scripts/test_demo_profile.sh` | Demo profile integration test script |
 | `tests/conftest.py` | Shared fixtures (configurable via `JUNIPER_TEST_*` env vars) |
 | `tests/test_health.py` | Health endpoint + schema validation tests |
 | `tests/test_data_service.py` | Dataset lifecycle integration tests |
 | `tests/test_full_stack.py` | Cross-service end-to-end tests |
-| `README.md` | Quickstart, service discovery, env var docs |
+| `README.md` | Quickstart, profiles, service discovery, env var docs |
 
 ---
 
@@ -116,6 +124,12 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 | `CANOPY_SENTRY_DSN` | juniper-canopy | *(unset)* |
 | `CANOPY_METRICS_ENABLED` | juniper-canopy | `false` |
 | `GRAFANA_ADMIN_PASSWORD` | grafana | `admin` |
+| `JUNIPER_CASCOR_AUTO_START` | juniper-cascor-demo | `true` |
+| `JUNIPER_CASCOR_AUTO_DATASET` | juniper-cascor-demo | `spiral` |
+| `JUNIPER_CASCOR_AUTO_DATASET_PARAMS` | juniper-cascor-demo | JSON params |
+| `JUNIPER_CASCOR_AUTO_NETWORK` | juniper-cascor-demo | JSON config |
+| `JUNIPER_CASCOR_AUTO_TRAIN_EPOCHS` | juniper-cascor-demo | `500` |
+| `CASCOR_DEMO_MODE` | juniper-canopy-dev | `1` |
 
 ---
 

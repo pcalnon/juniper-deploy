@@ -6,29 +6,35 @@
 # Author:        Paul Calnon
 #
 # Date Created:  2026-02-25
-# Last Modified: 2026-02-25
+# Last Modified: 2026-03-01
 #
 # License:       MIT License
 # Copyright:     Copyright (c) 2024-2026 Paul Calnon
 #
 # Description:
 #    Docker Compose configuration for the Juniper full-stack deployment.
-#    Starts juniper-data, juniper-cascor, and juniper-canopy with proper
-#    dependency ordering and health checks.
+#    Supports multiple profiles for different operational modes:
+#
+#      full  — All real services (production-like)
+#      demo  — Real services with auto-configured CasCor training
+#      dev   — Real data + cascor, canopy in demo mode (frontend dev)
 #
 # Usage:
-#    docker compose up --build          # Build and start all services
-#    docker compose up -d               # Start in detached mode
-#    docker compose down                # Stop all services
-#    docker compose logs -f             # Follow logs
+#    docker compose --profile full up -d     # Full production-like stack
+#    docker compose --profile demo up -d     # Self-running demo stack
+#    docker compose --profile dev up -d      # Development stack
+#    docker compose down                     # Stop all services
+#    docker compose logs -f                  # Follow logs
 #
 #####################################################################################################################################################################################################
 
 services:
   # ═══════════════════════════════════════════════════════════════════════════
   # JuniperData — Dataset Generation Service (port 8100)
+  # Shared across all profiles: full, demo, dev
   # ═══════════════════════════════════════════════════════════════════════════
   juniper-data:
+    profiles: ["full", "demo", "dev"]
     build:
       context: ../juniper-data
       dockerfile: Dockerfile
@@ -55,8 +61,10 @@ services:
 
   # ═══════════════════════════════════════════════════════════════════════════
   # JuniperCascor — CasCor Training Service (port 8200)
+  # Used in full + dev profiles (standard configuration)
   # ═══════════════════════════════════════════════════════════════════════════
   juniper-cascor:
+    profiles: ["full", "dev"]
     build:
       context: ../juniper-cascor
       dockerfile: Dockerfile
@@ -89,9 +97,83 @@ services:
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
+  # JuniperCascor Demo — Auto-start CasCor training (port 8200)
+  # Used in demo profile only. Starts with auto-configured training session.
+  # ═══════════════════════════════════════════════════════════════════════════
+  juniper-cascor-demo:
+    profiles: ["demo"]
+    build:
+      context: ../juniper-cascor
+      dockerfile: Dockerfile
+    image: juniper-cascor:latest
+    container_name: juniper-cascor-demo
+    ports:
+      - "${CASCOR_PORT:-8200}:${CASCOR_PORT:-8200}"
+    environment:
+      JUNIPER_DATA_URL: "http://juniper-data:8100"
+      CASCOR_HOST: "0.0.0.0"
+      CASCOR_PORT: "8200"
+      CASCOR_LOG_LEVEL: "INFO"
+      # --- Demo auto-start configuration ---
+      JUNIPER_CASCOR_AUTO_START: "true"
+      JUNIPER_CASCOR_AUTO_DATASET: "spiral"
+      JUNIPER_CASCOR_AUTO_DATASET_PARAMS: '{"n_spirals": 2, "n_points_per_spiral": 200, "noise": 0.15, "seed": 42}'
+      JUNIPER_CASCOR_AUTO_NETWORK: '{"input_size": 2, "output_size": 2, "learning_rate": 0.01}'
+      JUNIPER_CASCOR_AUTO_TRAIN_EPOCHS: "500"
+    depends_on:
+      juniper-data:
+        condition: service_healthy
+      demo-seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8200/v1/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 15s
+      retries: 5
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Demo Dataset Seeder — Init container (runs once and exits)
+  # Seeds a canonical spiral dataset in JuniperData for demo use.
+  # ═══════════════════════════════════════════════════════════════════════════
+  demo-seed:
+    profiles: ["demo"]
+    image: juniper-data:latest
+    container_name: juniper-demo-seed
+    entrypoint: ["python", "-c", "
+import urllib.request, json, time, sys;
+base = 'http://juniper-data:8100/v1';
+for i in range(30):
+    try:
+        urllib.request.urlopen(f'{base}/health', timeout=5);
+        break
+    except Exception:
+        time.sleep(2)
+else:
+    sys.exit(1);
+params = json.dumps({
+    'generator': 'spiral',
+    'params': {'n_spirals': 2, 'n_points_per_spiral': 200, 'noise': 0.15, 'seed': 42},
+    'persist': True
+}).encode();
+req = urllib.request.Request(f'{base}/datasets', data=params,
+    headers={'Content-Type': 'application/json'});
+resp = urllib.request.urlopen(req, timeout=30);
+print(f'Demo dataset created: {json.loads(resp.read())}')
+"]
+    depends_on:
+      juniper-data:
+        condition: service_healthy
+    restart: "no"
+
+  # ═══════════════════════════════════════════════════════════════════════════
   # juniper-canopy — Monitoring Dashboard (port 8050)
+  # Full profile only: connects to real CasCor service
   # ═══════════════════════════════════════════════════════════════════════════
   juniper-canopy:
+    profiles: ["full"]
     build:
       context: ../juniper-canopy
       dockerfile: Dockerfile
@@ -116,6 +198,64 @@ services:
         condition: service_healthy
       juniper-cascor:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 20s
+      retries: 5
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # juniper-canopy-demo — Dashboard pointing at demo CasCor (port 8050)
+  # Demo profile only: connects to juniper-cascor-demo for live demo
+  # ═══════════════════════════════════════════════════════════════════════════
+  juniper-canopy-demo:
+    profiles: ["demo"]
+    build:
+      context: ../juniper-canopy
+      dockerfile: Dockerfile
+    image: juniper-canopy:latest
+    container_name: juniper-canopy-demo
+    ports:
+      - "${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
+    environment:
+      JUNIPER_DATA_URL: "http://juniper-data:8100"
+      CASCOR_SERVICE_URL: "http://juniper-cascor-demo:8200"
+      CANOPY_HOST: "0.0.0.0"
+      CANOPY_PORT: "8050"
+    depends_on:
+      juniper-data:
+        condition: service_healthy
+      juniper-cascor-demo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 20s
+      retries: 5
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # juniper-canopy-dev — Dashboard in demo mode (port 8050)
+  # Dev profile only: runs canopy with CASCOR_DEMO_MODE for frontend dev
+  # ═══════════════════════════════════════════════════════════════════════════
+  juniper-canopy-dev:
+    profiles: ["dev"]
+    build:
+      context: ../juniper-canopy
+      dockerfile: Dockerfile
+    image: juniper-canopy:latest
+    container_name: juniper-canopy-dev
+    ports:
+      - "${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
+    environment:
+      CASCOR_DEMO_MODE: "1"
+      CANOPY_HOST: "0.0.0.0"
+      CANOPY_PORT: "8050"
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health', timeout=5)"]
