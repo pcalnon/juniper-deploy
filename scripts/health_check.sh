@@ -10,7 +10,7 @@
 # Description:
 #    Queries all three Juniper service /v1/health/ready endpoints and
 #    displays a formatted report with service name, status, version,
-#    and response latency.
+#    dependency health, and response latency.
 #
 # Usage:
 #    bash scripts/health_check.sh
@@ -26,6 +26,7 @@ if [[ -z "${NO_COLOR:-}" ]]; then
     YELLOW='\033[0;33m'
     CYAN='\033[0;36m'
     BOLD='\033[1m'
+    DIM='\033[2m'
     RESET='\033[0m'
 else
     GREEN=''
@@ -33,6 +34,7 @@ else
     YELLOW=''
     CYAN=''
     BOLD=''
+    DIM=''
     RESET=''
 fi
 
@@ -63,18 +65,31 @@ try:
     data = json.loads(resp.read().decode())
     status = data.get('status', 'unknown')
     version = data.get('version', 'n/a')
-    print(f'ok|{status}|{version}|{elapsed:.0f}ms')
+    deps = data.get('dependencies', {})
+    dep_parts = []
+    for dk, dv in deps.items():
+        ds = dv.get('status', '?')
+        dl = dv.get('latency_ms')
+        dl_str = f' {dl:.0f}ms' if dl is not None else ''
+        dep_parts.append(f'{dk}={ds}{dl_str}')
+    dep_str = ', '.join(dep_parts) if dep_parts else ''
+    print(f'ok|{status}|{version}|{elapsed:.0f}ms|{dep_str}')
 except Exception as e:
-    print(f'error|unreachable|n/a|—')
+    print(f'error|unreachable|n/a|—|')
 " 2>/dev/null)
 
-    IFS='|' read -r ok status version latency <<< "$result"
+    IFS='|' read -r ok status version latency deps <<< "$result"
 
     if [[ "$ok" == "ok" ]]; then
         printf "  ${CYAN}%-18s${RESET} ${GREEN}%-10s${RESET} %-12s %s\n" "$name" "$status" "$version" "$latency"
     else
         printf "  ${CYAN}%-18s${RESET} ${RED}%-10s${RESET} %-12s %s\n" "$name" "$status" "$version" "$latency"
         all_healthy=false
+    fi
+
+    # Print dependency details if present
+    if [[ -n "${deps:-}" ]]; then
+        printf "  ${DIM}  └── deps: %s${RESET}\n" "$deps"
     fi
 done
 

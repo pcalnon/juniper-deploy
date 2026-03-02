@@ -23,9 +23,9 @@ TIMEOUT=${1:-90}
 POLL_INTERVAL=3
 ELAPSED=0
 
-DATA_URL="http://localhost:8100/v1/health"
-CASCOR_URL="http://localhost:8200/v1/health"
-CANOPY_URL="http://localhost:8050/v1/health"
+DATA_URL="http://localhost:8100/v1/health/live"
+CASCOR_URL="http://localhost:8200/v1/health/live"
+CANOPY_URL="http://localhost:8050/v1/health/live"
 
 echo "Waiting for Juniper services (timeout: ${TIMEOUT}s)..."
 
