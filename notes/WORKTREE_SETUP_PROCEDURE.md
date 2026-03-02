@@ -31,6 +31,11 @@ cd /home/pcalnon/Development/python/Juniper/juniper-deploy
 git status
 ```
 
+**GATE**: Working tree must be clean. If dirty, stash or commit before proceeding:
+```bash
+git stash push -m "WIP before worktree setup"
+```
+
 ### Step 2: Fetch and Update Parent Branch
 
 ```bash
