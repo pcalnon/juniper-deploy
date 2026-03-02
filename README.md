@@ -185,11 +185,11 @@ Copy `.env.example` to `.env` to override defaults. All values use `${VAR:-defau
 | `CASCOR_SERVICE_URL` | `http://juniper-cascor:8200` | Inter-service URL for JuniperCascor |
 | `JUNIPER_DATA_API_KEYS` | *(unset)* | API key(s) for juniper-data (comma-separated) |
 | `JUNIPER_CASCOR_API_KEYS` | *(unset)* | API key(s) for juniper-cascor (comma-separated) |
-| `CANOPY_API_KEY` | *(unset)* | API key for juniper-canopy |
+| `JUNIPER_CANOPY_API_KEY` | *(unset)* | API key for juniper-canopy |
 | `JUNIPER_CASCOR_RATE_LIMIT_ENABLED` | `false` | Enable rate limiting for juniper-cascor |
 | `JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE` | `60` | Rate limit for juniper-cascor |
-| `CANOPY_RATE_LIMIT_ENABLED` | `false` | Enable rate limiting for juniper-canopy |
-| `CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` | `60` | Rate limit for juniper-canopy |
+| `JUNIPER_CANOPY_RATE_LIMIT_ENABLED` | `false` | Enable rate limiting for juniper-canopy |
+| `JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` | `60` | Rate limit for juniper-canopy |
 
 ## Authentication
 
@@ -201,7 +201,7 @@ API key authentication can be enabled per service by setting the corresponding e
 # .env
 JUNIPER_DATA_API_KEYS=my-data-secret-key
 JUNIPER_CASCOR_API_KEYS=my-cascor-secret-key
-CANOPY_API_KEY=my-canopy-secret-key
+JUNIPER_CANOPY_API_KEY=my-canopy-secret-key
 ```
 
 Clients authenticate by including the key in the `X-API-Key` HTTP header:
@@ -237,8 +237,8 @@ Optional rate limiting can be enabled alongside API key authentication:
 # .env
 JUNIPER_CASCOR_RATE_LIMIT_ENABLED=true
 JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE=60
-CANOPY_RATE_LIMIT_ENABLED=true
-CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE=60
+JUNIPER_CANOPY_RATE_LIMIT_ENABLED=true
+JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE=60
 ```
 
 ### WebSocket Authentication
@@ -252,7 +252,7 @@ When running tests against services with authentication enabled, pass API keys v
 ```bash
 JUNIPER_TEST_DATA_API_KEY=my-data-secret-key \
 JUNIPER_TEST_CASCOR_API_KEY=my-cascor-secret-key \
-JUNIPER_TEST_CANOPY_API_KEY=my-canopy-secret-key \
+JUNIPER_TEST_JUNIPER_CANOPY_API_KEY=my-canopy-secret-key \
 pytest tests/ -v
 ```
 
@@ -267,7 +267,7 @@ Set `*_LOG_FORMAT=json` in `.env` to enable JSON-structured log output for a ser
 ```bash
 JUNIPER_DATA_LOG_FORMAT=json
 JUNIPER_CASCOR_LOG_FORMAT=json
-CANOPY_LOG_FORMAT=json
+JUNIPER_CANOPY_LOG_FORMAT=json
 ```
 
 ### Prometheus Metrics
@@ -277,7 +277,7 @@ CANOPY_LOG_FORMAT=json
    ```bash
    JUNIPER_DATA_METRICS_ENABLED=true
    JUNIPER_CASCOR_METRICS_ENABLED=true
-   CANOPY_METRICS_ENABLED=true
+   JUNIPER_CANOPY_METRICS_ENABLED=true
    ```
 
 2. Start the observability stack (Prometheus + Grafana):
@@ -297,7 +297,7 @@ Set the Sentry DSN for each service to enable error reporting:
 ```bash
 JUNIPER_DATA_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
 JUNIPER_CASCOR_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
-CANOPY_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
+JUNIPER_CANOPY_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
 ```
 
 ## Troubleshooting

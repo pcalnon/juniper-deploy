@@ -182,17 +182,16 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
     ports:
       - "${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
     environment:
-      JUNIPER_DATA_URL: "${JUNIPER_DATA_URL:-http://juniper-data:8100}"
-      CASCOR_SERVICE_URL: "${CASCOR_SERVICE_URL:-http://juniper-cascor:8200}"
-      CANOPY_HOST: "${CANOPY_HOST:-0.0.0.0}"
-      CANOPY_PORT: "${CANOPY_PORT:-8050}"
-      CANOPY_API_KEY: "${CANOPY_API_KEY:-}"
-      CANOPY_RATE_LIMIT_ENABLED: "${CANOPY_RATE_LIMIT_ENABLED:-false}"
-      CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE: "${CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
+      JUNIPER_CANOPY_JUNIPER_DATA_URL: "${JUNIPER_DATA_URL:-http://juniper-data:8100}"
+      JUNIPER_CANOPY_CASCOR_SERVICE_URL: "${CASCOR_SERVICE_URL:-http://juniper-cascor:8200}"
+      JUNIPER_CANOPY_SERVER__HOST: "${CANOPY_HOST:-0.0.0.0}"
+      JUNIPER_CANOPY_SERVER__PORT: "${CANOPY_PORT:-8050}"
+      JUNIPER_CANOPY_RATE_LIMIT_ENABLED: "${CANOPY_RATE_LIMIT_ENABLED:-false}"
+      JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE: "${CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
       JUNIPER_CASCOR_API_KEY: "${JUNIPER_CASCOR_API_KEYS:-}"
-      CANOPY_LOG_FORMAT: "${CANOPY_LOG_FORMAT:-text}"
-      CANOPY_SENTRY_DSN: "${CANOPY_SENTRY_DSN:-}"
-      CANOPY_METRICS_ENABLED: "${CANOPY_METRICS_ENABLED:-false}"
+      JUNIPER_CANOPY_LOG_FORMAT: "${CANOPY_LOG_FORMAT:-text}"
+      JUNIPER_CANOPY_SENTRY_DSN: "${CANOPY_SENTRY_DSN:-}"
+      JUNIPER_CANOPY_METRICS_ENABLED: "${CANOPY_METRICS_ENABLED:-false}"
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -221,10 +220,10 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
     ports:
       - "${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
     environment:
-      JUNIPER_DATA_URL: "http://juniper-data:8100"
-      CASCOR_SERVICE_URL: "http://juniper-cascor-demo:8200"
-      CANOPY_HOST: "0.0.0.0"
-      CANOPY_PORT: "8050"
+      JUNIPER_CANOPY_JUNIPER_DATA_URL: "http://juniper-data:8100"
+      JUNIPER_CANOPY_CASCOR_SERVICE_URL: "http://juniper-cascor-demo:8200"
+      JUNIPER_CANOPY_SERVER__HOST: "0.0.0.0"
+      JUNIPER_CANOPY_SERVER__PORT: "8050"
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -241,7 +240,7 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
 
   # ═══════════════════════════════════════════════════════════════════════════
   # juniper-canopy-dev — Dashboard in demo mode (port 8050)
-  # Dev profile only: runs canopy with CASCOR_DEMO_MODE for frontend dev
+  # Dev profile only: runs canopy with JUNIPER_CANOPY_DEMO_MODE for frontend dev
   # ═══════════════════════════════════════════════════════════════════════════
   juniper-canopy-dev:
     profiles: ["dev"]
@@ -253,9 +252,9 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
     ports:
       - "${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
     environment:
-      CASCOR_DEMO_MODE: "1"
-      CANOPY_HOST: "0.0.0.0"
-      CANOPY_PORT: "8050"
+      JUNIPER_CANOPY_DEMO_MODE: "true"
+      JUNIPER_CANOPY_SERVER__HOST: "0.0.0.0"
+      JUNIPER_CANOPY_SERVER__PORT: "8050"
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health', timeout=5)"]
