@@ -73,6 +73,8 @@ make logs
 make down
 ```
 
+The demo auto-start parameters (dataset, network config, epochs) can be customized in `.env.demo`.
+
 ### Dev Profile
 
 The dev profile runs real data and CasCor services with Canopy in demo mode (no backend dependency). Useful for frontend development on juniper-canopy.
@@ -262,6 +264,22 @@ JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE=60
 ### WebSocket Authentication
 
 JuniperCascor WebSocket endpoints (`/ws/*`) require the `X-API-Key` header during the connection handshake when authentication is enabled. Connections without a valid key are closed with code `4001`.
+
+### Docker Compose Secrets
+
+For production deployments, sensitive values (API keys, DSNs) can be provided via Docker Compose file-based secrets instead of environment variables:
+
+1. Copy the template directory:
+
+   ```bash
+   cp -r secrets.example/ secrets/
+   ```
+
+2. Edit each file in `secrets/` with real values
+
+3. Secrets are mounted at `/run/secrets/<name>` inside the container
+
+The `secrets/` directory is git-ignored. See `secrets.example/` for the available secret files.
 
 ### Integration Tests with Authentication
 

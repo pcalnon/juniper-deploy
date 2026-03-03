@@ -63,6 +63,8 @@ services:
       timeout: 10s
       start_period: 10s
       retries: 5
+    secrets:
+      - juniper_data_api_key
     networks:
       - backend
     restart: unless-stopped
@@ -95,6 +97,9 @@ services:
     volumes:
       - juniper-cascor-snapshots:/app/data
       - juniper-cascor-logs:/app/logs
+    secrets:
+      - juniper_cascor_api_key
+      - cascor_sentry_dsn
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -353,6 +358,18 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
     networks:
       - backend
       - frontend
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Secrets — File-based secrets mounted at /run/secrets/<name>
+# Copy secrets.example/ to secrets/ and fill in real values.
+# ═══════════════════════════════════════════════════════════════════════════
+secrets:
+  juniper_data_api_key:
+    file: ./secrets/juniper_data_api_key.txt
+  juniper_cascor_api_key:
+    file: ./secrets/juniper_cascor_api_key.txt
+  cascor_sentry_dsn:
+    file: ./secrets/cascor_sentry_dsn.txt
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Networks
