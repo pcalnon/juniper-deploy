@@ -9,6 +9,7 @@
 !.env.secrets.example
 !.env.enc
 !.env.secrets.enc
+docker-compose.override.yml
 __pycache__/
 *.pyc
 .pytest_cache/

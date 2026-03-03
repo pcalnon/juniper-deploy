@@ -6,7 +6,7 @@
 # Author:        Paul Calnon
 #
 # Date Created:  2026-02-25
-# Last Modified: 2026-03-01
+# Last Modified: 2026-03-02
 #
 # License:       MIT License
 # Copyright:     Copyright (c) 2024-2026 Paul Calnon
@@ -15,26 +15,30 @@
 #    Docker Compose configuration for the Juniper full-stack deployment.
 #    Supports multiple profiles for different operational modes:
 #
-#      full  — All real services (production-like)
-#      demo  — Real services with auto-configured CasCor training
-#      dev   — Real data + cascor, canopy in demo mode (frontend dev)
+#      full           — All real services (production-like)
+#      demo           — Real services with auto-configured CasCor training
+#      dev            — Real data + cascor, canopy in demo mode (frontend dev)
+#      test           — Integration test suite (starts services + test-runner)
+#      observability  — Prometheus + Grafana monitoring stack
 #
 # Usage:
-#    docker compose --profile full up -d     # Full production-like stack
-#    docker compose --profile demo up -d     # Self-running demo stack
-#    docker compose --profile dev up -d      # Development stack
-#    docker compose down                     # Stop all services
-#    docker compose logs -f                  # Follow logs
+#    docker compose --profile full up -d                          # Full production-like stack
+#    docker compose --profile demo up -d                          # Self-running demo stack
+#    docker compose --profile dev up -d                           # Development stack
+#    docker compose --profile test up                             # Run integration tests
+#    docker compose --profile full --profile observability up -d  # Full + monitoring
+#    docker compose down                                          # Stop all services
+#    docker compose logs -f                                       # Follow logs
 #
 #####################################################################################################################################################################################################
 
 services:
   # ═══════════════════════════════════════════════════════════════════════════
   # JuniperData — Dataset Generation Service (port 8100)
-  # Shared across all profiles: full, demo, dev
+  # Shared across all profiles: full, demo, dev, test
   # ═══════════════════════════════════════════════════════════════════════════
   juniper-data:
-    profiles: ["full", "demo", "dev"]
+    profiles: ["full", "demo", "dev", "test"]
     build:
       context: ../juniper-data
       dockerfile: Dockerfile
@@ -50,6 +54,8 @@ services:
       JUNIPER_DATA_LOG_FORMAT: "${JUNIPER_DATA_LOG_FORMAT:-text}"
       JUNIPER_DATA_SENTRY_DSN: "${JUNIPER_DATA_SENTRY_DSN:-}"
       JUNIPER_DATA_METRICS_ENABLED: "${JUNIPER_DATA_METRICS_ENABLED:-false}"
+    volumes:
+      - juniper-data-datasets:/app/data/datasets
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8100/v1/health', timeout=5)"]
@@ -57,6 +63,8 @@ services:
       timeout: 10s
       start_period: 10s
       retries: 5
+    networks:
+      - backend
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -64,7 +72,7 @@ services:
   # Used in full + dev profiles (standard configuration)
   # ═══════════════════════════════════════════════════════════════════════════
   juniper-cascor:
-    profiles: ["full", "dev"]
+    profiles: ["full", "dev", "test"]
     build:
       context: ../juniper-cascor
       dockerfile: Dockerfile
@@ -84,6 +92,9 @@ services:
       JUNIPER_CASCOR_LOG_FORMAT: "${JUNIPER_CASCOR_LOG_FORMAT:-text}"
       JUNIPER_CASCOR_SENTRY_DSN: "${JUNIPER_CASCOR_SENTRY_DSN:-}"
       JUNIPER_CASCOR_METRICS_ENABLED: "${JUNIPER_CASCOR_METRICS_ENABLED:-false}"
+    volumes:
+      - juniper-cascor-snapshots:/app/data
+      - juniper-cascor-logs:/app/logs
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -94,6 +105,9 @@ services:
       timeout: 10s
       start_period: 15s
       retries: 5
+    networks:
+      - backend
+      - frontend
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -120,6 +134,9 @@ services:
       JUNIPER_CASCOR_AUTO_DATASET_PARAMS: '{"n_spirals": 2, "n_points_per_spiral": 200, "noise": 0.15, "seed": 42}'
       JUNIPER_CASCOR_AUTO_NETWORK: '{"input_size": 2, "output_size": 2, "learning_rate": 0.01}'
       JUNIPER_CASCOR_AUTO_TRAIN_EPOCHS: "500"
+    volumes:
+      - juniper-cascor-snapshots:/app/data
+      - juniper-cascor-logs:/app/logs
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -132,6 +149,9 @@ services:
       timeout: 10s
       start_period: 15s
       retries: 5
+    networks:
+      - backend
+      - frontend
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -166,6 +186,8 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
     depends_on:
       juniper-data:
         condition: service_healthy
+    networks:
+      - backend
     restart: "no"
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -173,7 +195,7 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
   # Full profile only: connects to real CasCor service
   # ═══════════════════════════════════════════════════════════════════════════
   juniper-canopy:
-    profiles: ["full"]
+    profiles: ["full", "test"]
     build:
       context: ../juniper-canopy
       dockerfile: Dockerfile
@@ -204,6 +226,9 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
       timeout: 10s
       start_period: 20s
       retries: 5
+    networks:
+      - backend
+      - frontend
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -236,6 +261,9 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
       timeout: 10s
       start_period: 20s
       retries: 5
+    networks:
+      - backend
+      - frontend
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -275,6 +303,10 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - backend
+      - frontend
+      - monitoring
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -290,6 +322,54 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
       GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
     depends_on:
       - prometheus
+    networks:
+      - monitoring
     restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Test Runner — Integration test container (runs once and exits)
+  # Packages the test suite for containerized execution.
+  # ═══════════════════════════════════════════════════════════════════════════
+  test-runner:
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: juniper-test-runner
+    environment:
+      JUNIPER_TEST_DATA_URL: http://juniper-data:8100
+      JUNIPER_TEST_CASCOR_URL: http://juniper-cascor:8200
+      JUNIPER_TEST_CANOPY_URL: http://juniper-canopy:8050
+    depends_on:
+      juniper-data:
+        condition: service_healthy
+      juniper-cascor:
+        condition: service_healthy
+      juniper-canopy:
+        condition: service_healthy
+    networks:
+      - backend
+      - frontend
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Networks
+# ═══════════════════════════════════════════════════════════════════════════
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge
+  monitoring:
+    driver: bridge
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Volumes
+# ═══════════════════════════════════════════════════════════════════════════
+volumes:
+  juniper-data-datasets:
+  juniper-cascor-snapshots:
+  juniper-cascor-logs:
+  grafana-data:
