@@ -71,7 +71,7 @@ services:
     image: juniper-cascor:latest
     container_name: juniper-cascor
     ports:
-      - "${CASCOR_PORT:-8200}:${CASCOR_PORT:-8200}"
+      - "${CASCOR_HOST_PORT:-8201}:${CASCOR_PORT:-8200}"
     environment:
       JUNIPER_DATA_URL: "${JUNIPER_DATA_URL:-http://juniper-data:8100}"
       CASCOR_HOST: "${CASCOR_HOST:-0.0.0.0}"
@@ -108,7 +108,7 @@ services:
     image: juniper-cascor:latest
     container_name: juniper-cascor-demo
     ports:
-      - "${CASCOR_PORT:-8200}:${CASCOR_PORT:-8200}"
+      - "${CASCOR_HOST_PORT:-8201}:${CASCOR_PORT:-8200}"
     environment:
       JUNIPER_DATA_URL: "http://juniper-data:8100"
       CASCOR_HOST: "0.0.0.0"

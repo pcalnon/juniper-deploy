@@ -125,7 +125,7 @@ You can also use `docker compose` commands directly — the Makefile is a conven
 | Service | URL | Description |
 |---------|-----|-------------|
 | JuniperData | http://localhost:8100 | Dataset generation REST API |
-| JuniperCascor | http://localhost:8200 | CasCor neural network training service |
+| JuniperCascor | http://localhost:8201 | CasCor neural network training service |
 | juniper-canopy | http://localhost:8050 | Real-time monitoring dashboard |
 
 ## Health Endpoints
@@ -135,8 +135,8 @@ All services expose standardized health endpoints:
 ```bash
 curl http://localhost:8100/v1/health        # juniper-data liveness
 curl http://localhost:8100/v1/health/ready  # juniper-data readiness
-curl http://localhost:8200/v1/health        # juniper-cascor liveness
-curl http://localhost:8200/v1/health/ready  # juniper-cascor readiness
+curl http://localhost:8201/v1/health        # juniper-cascor liveness
+curl http://localhost:8201/v1/health/ready  # juniper-cascor readiness
 curl http://localhost:8050/v1/health        # juniper-canopy liveness
 curl http://localhost:8050/v1/health/ready  # juniper-canopy readiness
 ```
@@ -177,7 +177,8 @@ Copy `.env.example` to `.env` to override defaults. All values use `${VAR:-defau
 | `JUNIPER_DATA_PORT` | `8100` | JuniperData port |
 | `JUNIPER_DATA_LOG_LEVEL` | `INFO` | JuniperData log level |
 | `CASCOR_HOST` | `0.0.0.0` | JuniperCascor bind address |
-| `CASCOR_PORT` | `8200` | JuniperCascor port |
+| `CASCOR_PORT` | `8200` | JuniperCascor internal container port |
+| `CASCOR_HOST_PORT` | `8201` | JuniperCascor host-exposed port (avoids conflicts with other services on 8200) |
 | `CASCOR_LOG_LEVEL` | `INFO` | JuniperCascor log level |
 | `CANOPY_HOST` | `0.0.0.0` | juniper-canopy bind address |
 | `CANOPY_PORT` | `8050` | juniper-canopy port |
@@ -306,7 +307,7 @@ JUNIPER_CANOPY_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
 
 **Health check fails**: Run `make status` to see container state. Check logs with `make logs-<service>` for the failing service.
 
-**Port conflicts**: If default ports are in use, copy `.env.example` to `.env` and change port values.
+**Port conflicts**: If default ports are in use, copy `.env.example` to `.env` and change port values. The juniper-cascor host port defaults to 8201 (via `CASCOR_HOST_PORT`) to avoid conflicts with other services commonly bound to 8200. Set `CASCOR_HOST_PORT=8200` in `.env` if port 8200 is available.
 
 **`make clean` won't release disk**: Named volumes may persist. Use `docker volume prune` to clean orphaned volumes.
 

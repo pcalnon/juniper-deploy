@@ -26,9 +26,9 @@ ELAPSED=0
 EXIT_CODE=0
 
 DATA_URL="http://localhost:8100/v1/health"
-CASCOR_URL="http://localhost:8200/v1/health"
+CASCOR_URL="http://localhost:${CASCOR_HOST_PORT:-8201}/v1/health"
 CANOPY_URL="http://localhost:8050/v1/health"
-TRAINING_STATUS_URL="http://localhost:8200/v1/training/status"
+TRAINING_STATUS_URL="http://localhost:${CASCOR_HOST_PORT:-8201}/v1/training/status"
 
 # Colors (disabled if NO_COLOR is set)
 if [[ -z "${NO_COLOR:-}" ]]; then

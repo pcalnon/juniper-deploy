@@ -45,11 +45,11 @@ pytest tests/ -v
 
 ### Service Ports
 
-| Service | Default Port | Health Endpoint |
-|---------|-------------|-----------------|
-| juniper-data | 8100 | `/v1/health` |
-| juniper-cascor | 8200 | `/v1/health` |
-| juniper-canopy | 8050 | `/v1/health` |
+| Service | Host Port | Container Port | Health Endpoint |
+|---------|-----------|----------------|-----------------|
+| juniper-data | 8100 | 8100 | `/v1/health` |
+| juniper-cascor | 8201 | 8200 | `/v1/health` |
+| juniper-canopy | 8050 | 8050 | `/v1/health` |
 
 ### Key Files
 
@@ -101,7 +101,8 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 | `JUNIPER_DATA_PORT` | juniper-data | `8100` |
 | `JUNIPER_DATA_LOG_LEVEL` | juniper-data | `INFO` |
 | `CASCOR_HOST` | juniper-cascor | `0.0.0.0` |
-| `CASCOR_PORT` | juniper-cascor | `8200` |
+| `CASCOR_PORT` | juniper-cascor | `8200` (internal container port) |
+| `CASCOR_HOST_PORT` | juniper-cascor | `8201` (host-exposed port) |
 | `CASCOR_LOG_LEVEL` | juniper-cascor | `INFO` |
 | `CANOPY_HOST` | juniper-canopy | `0.0.0.0` |
 | `CANOPY_PORT` | juniper-canopy | `8050` |
