@@ -1,18 +1,36 @@
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
 
 scrape_configs:
-  - job_name: juniper-data
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "juniper-data"
+    metrics_path: "/metrics"
+    scrape_interval: 10s
     static_configs:
       - targets: ["juniper-data:8100"]
-    metrics_path: /metrics
+        labels:
+          service: "juniper-data"
+          environment: "docker"
 
-  - job_name: juniper-cascor
+  - job_name: "juniper-cascor"
+    metrics_path: "/metrics"
+    scrape_interval: 10s
     static_configs:
       - targets: ["juniper-cascor:8200"]
-    metrics_path: /metrics
+        labels:
+          service: "juniper-cascor"
+          environment: "docker"
 
-  - job_name: juniper-canopy
+  - job_name: "juniper-canopy"
+    metrics_path: "/metrics"
+    scrape_interval: 15s
     static_configs:
       - targets: ["juniper-canopy:8050"]
-    metrics_path: /metrics
+        labels:
+          service: "juniper-canopy"
+          environment: "docker"
