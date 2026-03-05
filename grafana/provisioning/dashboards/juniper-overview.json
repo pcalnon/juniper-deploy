@@ -1,0 +1,300 @@
+{
+  "uid": "juniper-overview",
+  "title": "Juniper Overview",
+  "description": "Cross-service overview for the Juniper platform",
+  "tags": ["juniper", "overview"],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {
+          "selected": true,
+          "text": "Prometheus",
+          "value": "prometheus"
+        },
+        "hide": 0
+      },
+      {
+        "name": "interval",
+        "type": "interval",
+        "query": "1m,5m,10m,30m,1h",
+        "current": {
+          "selected": true,
+          "text": "5m",
+          "value": "5m"
+        },
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Service Status",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "JuniperData",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "expr": "up{job=\"juniper-data\"}",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "JuniperCascor",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 1 },
+      "targets": [
+        {
+          "expr": "up{job=\"juniper-cascor\"}",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "JuniperCanopy",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 1 },
+      "targets": [
+        {
+          "expr": "up{job=\"juniper-canopy\"}",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Request Rate",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Request Rate (per second)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+      "targets": [
+        {
+          "expr": "rate(juniper_data_http_requests_total[$interval])",
+          "legendFormat": "juniper-data {{method}} {{endpoint}} {{status}}"
+        },
+        {
+          "expr": "rate(juniper_cascor_http_requests_total[$interval])",
+          "legendFormat": "juniper-cascor {{method}} {{endpoint}} {{status}}"
+        },
+        {
+          "expr": "rate(juniper_canopy_http_requests_total[$interval])",
+          "legendFormat": "juniper-canopy {{method}} {{endpoint}} {{status}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Error Rate",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Error Rate (%)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 15 },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(juniper_data_http_requests_total{status=~\"4..|5..\"}[$interval])) / clamp_min(sum(rate(juniper_data_http_requests_total[$interval])), 1)",
+          "legendFormat": "juniper-data"
+        },
+        {
+          "expr": "100 * sum(rate(juniper_cascor_http_requests_total{status=~\"4..|5..\"}[$interval])) / clamp_min(sum(rate(juniper_cascor_http_requests_total[$interval])), 1)",
+          "legendFormat": "juniper-cascor"
+        },
+        {
+          "expr": "100 * sum(rate(juniper_canopy_http_requests_total{status=~\"4..|5..\"}[$interval])) / clamp_min(sum(rate(juniper_canopy_http_requests_total[$interval])), 1)",
+          "legendFormat": "juniper-canopy"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Latency",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Request Latency — p50 / p95 / p99",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(juniper_data_http_request_duration_seconds_bucket[$interval])) by (le))",
+          "legendFormat": "juniper-data p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(juniper_data_http_request_duration_seconds_bucket[$interval])) by (le))",
+          "legendFormat": "juniper-data p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(juniper_data_http_request_duration_seconds_bucket[$interval])) by (le))",
+          "legendFormat": "juniper-data p99"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(juniper_cascor_http_request_duration_seconds_bucket[$interval])) by (le))",
+          "legendFormat": "juniper-cascor p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(juniper_cascor_http_request_duration_seconds_bucket[$interval])) by (le))",
+          "legendFormat": "juniper-cascor p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(juniper_cascor_http_request_duration_seconds_bucket[$interval])) by (le))",
+          "legendFormat": "juniper-cascor p99"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(juniper_canopy_http_request_duration_seconds_bucket[$interval])) by (le))",
+          "legendFormat": "juniper-canopy p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(juniper_canopy_http_request_duration_seconds_bucket[$interval])) by (le))",
+          "legendFormat": "juniper-canopy p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(juniper_canopy_http_request_duration_seconds_bucket[$interval])) by (le))",
+          "legendFormat": "juniper-canopy p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 5
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}
