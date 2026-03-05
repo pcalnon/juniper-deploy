@@ -48,7 +48,7 @@ endif
 .PHONY: help up down restart logs logs-data logs-cascor logs-canopy \
         status build build-no-cache clean \
         shell-data shell-cascor shell-canopy \
-        health wait ps demo dev
+        health wait ps demo dev obs obs-demo
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Help
@@ -72,7 +72,7 @@ up:  ## Start all services (--profile full, detached)
 	@echo -e "$(GREEN)Services starting. Run 'make logs' to follow output.$(RESET)"
 
 down:  ## Stop and remove all containers
-	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev down
+	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev --profile observability down
 
 restart:  ## Restart all services
 	@$(COMPOSE) -f $(COMPOSE_FILE) restart
@@ -84,6 +84,14 @@ demo:  ## Start demo stack (auto-configured CasCor training)
 dev:  ## Start dev stack (real data + cascor, canopy in demo mode)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile dev up -d
 	@echo -e "$(GREEN)Dev stack starting. Run 'make logs' to follow output.$(RESET)"
+
+obs:  ## Start full stack with observability (Prometheus + Grafana)
+	@$(COMPOSE) -f $(COMPOSE_FILE) --env-file .env --env-file .env.observability --profile full --profile observability up -d
+	@echo -e "$(GREEN)Full stack + observability starting. Grafana: http://localhost:3000$(RESET)"
+
+obs-demo:  ## Start demo stack with observability (Prometheus + Grafana)
+	@$(COMPOSE) -f $(COMPOSE_FILE) --env-file .env --env-file .env.observability --profile demo --profile observability up -d
+	@echo -e "$(GREEN)Demo stack + observability starting. Grafana: http://localhost:3000$(RESET)"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Logs
