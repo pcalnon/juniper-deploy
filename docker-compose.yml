@@ -142,27 +142,29 @@ services:
     profiles: ["demo"]
     image: juniper-data:latest
     container_name: juniper-demo-seed
-    entrypoint: ["python", "-c", "
-import urllib.request, json, time, sys;
-base = 'http://juniper-data:8100/v1';
-for i in range(30):
-    try:
-        urllib.request.urlopen(f'{base}/health', timeout=5);
-        break
-    except Exception:
-        time.sleep(2)
-else:
-    sys.exit(1);
-params = json.dumps({
-    'generator': 'spiral',
-    'params': {'n_spirals': 2, 'n_points_per_spiral': 200, 'noise': 0.15, 'seed': 42},
-    'persist': True
-}).encode();
-req = urllib.request.Request(f'{base}/datasets', data=params,
-    headers={'Content-Type': 'application/json'});
-resp = urllib.request.urlopen(req, timeout=30);
-print(f'Demo dataset created: {json.loads(resp.read())}')
-"]
+    entrypoint:
+      - python
+      - -c
+      - |
+        import urllib.request, json, time, sys
+        base = 'http://juniper-data:8100/v1'
+        for i in range(30):
+            try:
+                urllib.request.urlopen(f'{base}/health', timeout=5)
+                break
+            except Exception:
+                time.sleep(2)
+        else:
+            sys.exit(1)
+        params = json.dumps({
+            'generator': 'spiral',
+            'params': {'n_spirals': 2, 'n_points_per_spiral': 200, 'noise': 0.15, 'seed': 42},
+            'persist': True
+        }).encode()
+        req = urllib.request.Request(f'{base}/datasets', data=params,
+            headers={'Content-Type': 'application/json'})
+        resp = urllib.request.urlopen(req, timeout=30)
+        print(f'Demo dataset created: {json.loads(resp.read())}')
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -253,8 +255,12 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
       - "${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
     environment:
       JUNIPER_CANOPY_DEMO_MODE: "true"
+      JUNIPER_CANOPY_JUNIPER_DATA_URL: "http://juniper-data:8100"
       JUNIPER_CANOPY_SERVER__HOST: "0.0.0.0"
       JUNIPER_CANOPY_SERVER__PORT: "8050"
+    depends_on:
+      juniper-data:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health', timeout=5)"]

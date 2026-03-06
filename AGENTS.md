@@ -55,9 +55,13 @@ pytest tests/ -v
 
 | File | Purpose |
 |------|---------|
-| `docker-compose.yml` | Service orchestration with profiles (`full`, `demo`, `dev`) |
+| `docker-compose.yml` | Service orchestration with profiles (`full`, `demo`, `dev`, `observability`) |
 | `.env.example` | All configurable environment variables |
 | `.env.demo` | Demo profile environment overrides |
+| `.env.observability` | Observability profile environment overrides (auto-enables metrics) |
+| `prometheus/prometheus.yml` | Prometheus scrape configuration |
+| `grafana/provisioning/` | Grafana datasource and dashboard provisioning |
+| `docs/OBSERVABILITY_GUIDE.md` | Comprehensive observability documentation |
 | `scripts/wait_for_services.sh` | Polls health endpoints before tests |
 | `scripts/test_demo_profile.sh` | Demo profile integration test script |
 | `tests/conftest.py` | Shared fixtures (configurable via `JUNIPER_TEST_*` env vars) |
@@ -100,10 +104,10 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 | `JUNIPER_DATA_HOST` | juniper-data | `0.0.0.0` |
 | `JUNIPER_DATA_PORT` | juniper-data | `8100` |
 | `JUNIPER_DATA_LOG_LEVEL` | juniper-data | `INFO` |
-| `CASCOR_HOST` | juniper-cascor | `0.0.0.0` |
-| `CASCOR_PORT` | juniper-cascor | `8200` (internal container port) |
+| `JUNIPER_CASCOR_HOST` | juniper-cascor | `0.0.0.0` |
+| `JUNIPER_CASCOR_PORT` | juniper-cascor | `8200` (internal container port) |
 | `CASCOR_HOST_PORT` | juniper-cascor | `8201` (host-exposed port) |
-| `CASCOR_LOG_LEVEL` | juniper-cascor | `INFO` |
+| `JUNIPER_CASCOR_LOG_LEVEL` | juniper-cascor | `INFO` |
 | `CANOPY_HOST` | juniper-canopy | `0.0.0.0` |
 | `CANOPY_PORT` | juniper-canopy | `8050` |
 | `JUNIPER_DATA_URL` | juniper-cascor, juniper-canopy | `http://juniper-data:8100` |
@@ -124,6 +128,7 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 | `JUNIPER_CANOPY_SENTRY_DSN` | juniper-canopy | *(unset)* |
 | `JUNIPER_CANOPY_METRICS_ENABLED` | juniper-canopy | `false` |
 | `JUNIPER_CANOPY_DEMO_MODE` | juniper-canopy-dev | `true` |
+| `GRAFANA_ADMIN_USER` | grafana | `admin` |
 | `GRAFANA_ADMIN_PASSWORD` | grafana | `admin` |
 | `JUNIPER_CASCOR_AUTO_START` | juniper-cascor-demo | `true` |
 | `JUNIPER_CASCOR_AUTO_DATASET` | juniper-cascor-demo | `spiral` |
