@@ -1,0 +1,57 @@
+# =============================================================================
+# Pre-commit Configuration — juniper-deploy
+#
+# Install: pre-commit install
+# Run all: pre-commit run --all-files
+# =============================================================================
+
+repos:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # General file checks
+  # ═══════════════════════════════════════════════════════════════════════════
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: (\.env\.enc$|\.env\.secrets\.enc$)
+      - id: end-of-file-fixer
+        exclude: (\.env\.enc$|\.env\.secrets\.enc$)
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Shell script linting
+  # ═══════════════════════════════════════════════════════════════════════════
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        args: ['--severity=warning']
+        files: \.(sh|bash)$
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # YAML linting
+  # ═══════════════════════════════════════════════════════════════════════════
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: ['--strict', '-d', '{extends: default, rules: {line-length: {max: 512}, truthy: disable}}']
+        types: [yaml]
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SOPS: Block unencrypted .env files from being committed
+  # ═══════════════════════════════════════════════════════════════════════════
+  - repo: local
+    hooks:
+      - id: no-unencrypted-env
+        name: SOPS — block unencrypted secrets
+        entry: bash util/sops-pre-commit-hook.sh
+        language: system
+        files: \.env
+        types: [file]
+
+# CI configuration (for pre-commit.ci service, if used)
+ci:
+  skip: [no-unencrypted-env]

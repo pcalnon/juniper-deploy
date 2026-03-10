@@ -1,0 +1,28 @@
+# =============================================================================
+# Gitleaks Configuration — Juniper Ecosystem
+#
+# Detects accidentally committed secrets. SOPS-encrypted files are allowlisted
+# since they contain encrypted (not plaintext) secrets.
+#
+# Usage:
+#   gitleaks detect --config .gitleaks.toml
+#   gitleaks detect --config .gitleaks.toml --baseline-path .gitleaks-baseline.json
+#
+# See: https://github.com/gitleaks/gitleaks#configuration
+# =============================================================================
+
+title = "Juniper Gitleaks Configuration"
+
+[allowlist]
+  description = "Allowlisted files and patterns"
+
+  # SOPS-encrypted files contain encrypted secrets, not plaintext
+  paths = [
+    '''\.env\.enc$''',
+    '''\.env\.secrets\.enc$''',
+  ]
+
+  # age public keys are not secrets (only the private key is sensitive)
+  regexes = [
+    '''age1[a-z0-9]{58}''',
+  ]
