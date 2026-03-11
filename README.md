@@ -11,7 +11,8 @@ This repository provides a single `make up` command that boots the entire Junipe
 - [Docker](https://docs.docker.com/get-docker/) >= 24.0 with Compose v2 >= 2.20
 - [GNU Make](https://www.gnu.org/software/make/) >= 4.0
 - All Juniper service repositories cloned as siblings of this directory:
-  ```
+
+  ```text
   Juniper/
   ├── juniper-deploy/          ← this repo
   ├── juniper-data/
@@ -129,9 +130,9 @@ You can also use `docker compose` commands directly — the Makefile is a conven
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| JuniperData | http://localhost:8100 | Dataset generation REST API |
-| JuniperCascor | http://localhost:8201 | CasCor neural network training service |
-| juniper-canopy | http://localhost:8050 | Real-time monitoring dashboard |
+| JuniperData | <http://localhost:8100> | Dataset generation REST API |
+| JuniperCascor | <http://localhost:8201> | CasCor neural network training service |
+| juniper-canopy | <http://localhost:8050> | Real-time monitoring dashboard |
 
 ## Health Endpoints
 
@@ -280,8 +281,9 @@ make obs-demo   # Demo stack + Prometheus + Grafana
 These targets automatically load `.env.observability`, which enables metrics on all services.
 
 Access dashboards:
-- **Grafana**: http://localhost:3000 (default login: `admin` / `admin`)
-- **Prometheus**: http://localhost:9090
+
+- **Grafana**: <http://localhost:3000> (default login: `admin` / `admin`)
+- **Prometheus**: <http://localhost:9090>
 
 ### Grafana Dashboards
 
