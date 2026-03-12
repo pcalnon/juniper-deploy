@@ -116,17 +116,19 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 | `JUNIPER_CASCOR_API_KEYS` | juniper-cascor | *(unset — auth disabled)* |
 | `JUNIPER_CASCOR_RATE_LIMIT_ENABLED` | juniper-cascor | `false` |
 | `JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-cascor | `60` |
-| `JUNIPER_CANOPY_RATE_LIMIT_ENABLED` | juniper-canopy | `false` |
-| `JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-canopy | `60` |
+| `CANOPY_RATE_LIMIT_ENABLED` | juniper-canopy | `false` |
+| `CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-canopy | `60` |
+| `JUNIPER_DATA_API_KEY` | juniper-cascor | *(from `JUNIPER_DATA_API_KEYS`)* |
+| `JUNIPER_CASCOR_API_KEY` | juniper-canopy | *(from `JUNIPER_CASCOR_API_KEYS`)* |
 | `JUNIPER_DATA_LOG_FORMAT` | juniper-data | `text` |
 | `JUNIPER_DATA_SENTRY_DSN` | juniper-data | *(unset)* |
 | `JUNIPER_DATA_METRICS_ENABLED` | juniper-data | `false` |
 | `JUNIPER_CASCOR_LOG_FORMAT` | juniper-cascor | `text` |
 | `JUNIPER_CASCOR_SENTRY_DSN` | juniper-cascor | *(unset)* |
 | `JUNIPER_CASCOR_METRICS_ENABLED` | juniper-cascor | `false` |
-| `JUNIPER_CANOPY_LOG_FORMAT` | juniper-canopy | `text` |
-| `JUNIPER_CANOPY_SENTRY_DSN` | juniper-canopy | *(unset)* |
-| `JUNIPER_CANOPY_METRICS_ENABLED` | juniper-canopy | `false` |
+| `CANOPY_LOG_FORMAT` | juniper-canopy | `text` |
+| `CANOPY_SENTRY_DSN` | juniper-canopy | *(unset)* |
+| `CANOPY_METRICS_ENABLED` | juniper-canopy | `false` |
 | `JUNIPER_CANOPY_DEMO_MODE` | juniper-canopy-dev | `true` |
 | `GRAFANA_ADMIN_USER` | grafana | `admin` |
 | `GRAFANA_ADMIN_PASSWORD` | grafana | `admin` |
