@@ -77,7 +77,8 @@ services:
     image: juniper-cascor:latest
     container_name: juniper-cascor
     ports:
-      - "127.0.0.1:${CASCOR_PORT:-8200}:${CASCOR_PORT:-8200}"
+      # - "127.0.0.1:${CASCOR_PORT:-8200}:${CASCOR_PORT:-8200}"
+      - "${CASCOR_HOST_PORT:-8201}:${CASCOR_PORT:-8200}"
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -87,9 +88,9 @@ services:
       - data
     environment:
       JUNIPER_DATA_URL: "${JUNIPER_DATA_URL:-http://juniper-data:8100}"
-      CASCOR_HOST: "${CASCOR_HOST:-0.0.0.0}"
-      CASCOR_PORT: "${CASCOR_PORT:-8200}"
-      CASCOR_LOG_LEVEL: "${CASCOR_LOG_LEVEL:-INFO}"
+      JUNIPER_CASCOR_HOST: "${CASCOR_HOST:-0.0.0.0}"
+      JUNIPER_CASCOR_PORT: "${CASCOR_PORT:-8200}"
+      JUNIPER_CASCOR_LOG_LEVEL: "${CASCOR_LOG_LEVEL:-INFO}"
       JUNIPER_CASCOR_API_KEYS: "${JUNIPER_CASCOR_API_KEYS:-}"
       JUNIPER_CASCOR_RATE_LIMIT_ENABLED: "${JUNIPER_CASCOR_RATE_LIMIT_ENABLED:-true}"
       JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE: "${JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
@@ -121,7 +122,8 @@ services:
     image: juniper-cascor:latest
     container_name: juniper-cascor-demo
     ports:
-      - "127.0.0.1:${CASCOR_PORT:-8200}:${CASCOR_PORT:-8200}"
+      # - "127.0.0.1:${CASCOR_PORT:-8200}:${CASCOR_PORT:-8200}"
+      - "${CASCOR_HOST_PORT:-8201}:${CASCOR_PORT:-8200}"
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -131,9 +133,9 @@ services:
       - data
     environment:
       JUNIPER_DATA_URL: "http://juniper-data:8100"
-      CASCOR_HOST: "0.0.0.0"
-      CASCOR_PORT: "8200"
-      CASCOR_LOG_LEVEL: "INFO"
+      JUNIPER_CASCOR_HOST: "0.0.0.0"
+      JUNIPER_CASCOR_PORT: "8200"
+      JUNIPER_CASCOR_LOG_LEVEL: "INFO"
       # --- Demo auto-start configuration ---
       JUNIPER_CASCOR_AUTO_START: "true"
       JUNIPER_CASCOR_AUTO_DATASET: "spiral"
@@ -162,29 +164,29 @@ services:
     profiles: ["demo"]
     image: juniper-data:latest
     container_name: juniper-demo-seed
-    networks:
-      - data
-    entrypoint: ["python", "-c", "
-import urllib.request, json, time, sys;
-base = 'http://juniper-data:8100/v1';
-for i in range(30):
-    try:
-        urllib.request.urlopen(f'{base}/health', timeout=5);
-        break
-    except Exception:
-        time.sleep(2)
-else:
-    sys.exit(1);
-params = json.dumps({
-    'generator': 'spiral',
-    'params': {'n_spirals': 2, 'n_points_per_spiral': 200, 'noise': 0.15, 'seed': 42},
-    'persist': True
-}).encode();
-req = urllib.request.Request(f'{base}/datasets', data=params,
-    headers={'Content-Type': 'application/json'});
-resp = urllib.request.urlopen(req, timeout=30);
-print(f'Demo dataset created: {json.loads(resp.read())}')
-"]
+    entrypoint:
+      - python
+      - -c
+      - |
+        import urllib.request, json, time, sys
+        base = 'http://juniper-data:8100/v1'
+        for i in range(30):
+            try:
+                urllib.request.urlopen(f'{base}/health', timeout=5)
+                break
+            except Exception:
+                time.sleep(2)
+        else:
+            sys.exit(1)
+        params = json.dumps({
+            'generator': 'spiral',
+            'params': {'n_spirals': 2, 'n_points_per_spiral': 200, 'noise': 0.15, 'seed': 42},
+            'persist': True
+        }).encode()
+        req = urllib.request.Request(f'{base}/datasets', data=params,
+            headers={'Content-Type': 'application/json'})
+        resp = urllib.request.urlopen(req, timeout=30)
+        print(f'Demo dataset created: {json.loads(resp.read())}')
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -297,8 +299,12 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
       - frontend
     environment:
       JUNIPER_CANOPY_DEMO_MODE: "true"
+      JUNIPER_CANOPY_JUNIPER_DATA_URL: "http://juniper-data:8100"
       JUNIPER_CANOPY_SERVER__HOST: "0.0.0.0"
       JUNIPER_CANOPY_SERVER__PORT: "8050"
+    depends_on:
+      juniper-data:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health', timeout=5)"]
@@ -312,9 +318,14 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
   # Prometheus — Metrics Collection (port 9090)
   # ═══════════════════════════════════════════════════════════════════════════
   prometheus:
-    image: prom/prometheus:v3.2.1
+    image: prom/prometheus:v3.10.0
     container_name: juniper-prometheus
     profiles: ["observability"]
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
     ports:
       - "127.0.0.1:9090:9090"
     networks:
@@ -323,13 +334,19 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
       - data
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
   # Grafana — Metrics Dashboard (port 3000)
   # ═══════════════════════════════════════════════════════════════════════════
   grafana:
-    image: grafana/grafana:12.3.0
+    image: grafana/grafana:12.4.0
     container_name: juniper-grafana
     profiles: ["observability"]
     ports:
@@ -338,11 +355,22 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
       - frontend
     environment:
       # SECURITY: Set GRAFANA_ADMIN_PASSWORD in .env — no insecure default provided.
-      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD}"
+      # GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: "/etc/grafana/provisioning/dashboards/juniper-overview.json"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -357,3 +385,7 @@ networks:
   data:
     driver: bridge
     internal: true
+    
+volumes:
+  prometheus_data:
+  grafana_data:

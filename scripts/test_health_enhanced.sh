@@ -62,7 +62,7 @@ TIMEOUT=90
 ELAPSED=0
 while true; do
     all_ok=true
-    for port in 8100 8200 8050; do
+    for port in 8100 ${CASCOR_HOST_PORT:-8201} 8050; do
         if ! python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:${port}/v1/health/live', timeout=3)" 2>/dev/null; then
             all_ok=false
         fi
@@ -104,7 +104,7 @@ fi
 
 # ─── Step 5: Verify JuniperCascor readiness response ────────────────────────
 echo -e "\n${BOLD}Step 5: Verify JuniperCascor /v1/health/ready${RESET}"
-CASCOR_READY=$(curl -sf http://localhost:8200/v1/health/ready 2>/dev/null || echo '{}')
+CASCOR_READY=$(curl -sf http://localhost:${CASCOR_HOST_PORT:-8201}/v1/health/ready 2>/dev/null || echo '{}')
 
 if echo "$CASCOR_READY" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('service')=='juniper-cascor'" 2>/dev/null; then
     pass_test "service field is 'juniper-cascor'"

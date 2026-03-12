@@ -32,7 +32,7 @@ import requests
 # Override via environment variables for non-default port configurations.
 # ---------------------------------------------------------------------------
 DATA_URL = os.environ.get("JUNIPER_TEST_DATA_URL", "http://localhost:8100")
-CASCOR_URL = os.environ.get("JUNIPER_TEST_CASCOR_URL", "http://localhost:8200")
+CASCOR_URL = os.environ.get("JUNIPER_TEST_CASCOR_URL", "http://localhost:8201")
 CANOPY_URL = os.environ.get("JUNIPER_TEST_CANOPY_URL", "http://localhost:8050")
 
 # URL that juniper-cascor uses internally to reach juniper-data (docker network)

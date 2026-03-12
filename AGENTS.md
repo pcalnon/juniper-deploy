@@ -45,19 +45,23 @@ pytest tests/ -v
 
 ### Service Ports
 
-| Service | Default Port | Health Endpoint |
-|---------|-------------|-----------------|
-| juniper-data | 8100 | `/v1/health` |
-| juniper-cascor | 8200 | `/v1/health` |
-| juniper-canopy | 8050 | `/v1/health` |
+| Service | Host Port | Container Port | Health Endpoint |
+|---------|-----------|----------------|-----------------|
+| juniper-data | 8100 | 8100 | `/v1/health` |
+| juniper-cascor | 8201 | 8200 | `/v1/health` |
+| juniper-canopy | 8050 | 8050 | `/v1/health` |
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
-| `docker-compose.yml` | Service orchestration with profiles (`full`, `demo`, `dev`) |
+| `docker-compose.yml` | Service orchestration with profiles (`full`, `demo`, `dev`, `observability`) |
 | `.env.example` | All configurable environment variables |
 | `.env.demo` | Demo profile environment overrides |
+| `.env.observability` | Observability profile environment overrides (auto-enables metrics) |
+| `prometheus/prometheus.yml` | Prometheus scrape configuration |
+| `grafana/provisioning/` | Grafana datasource and dashboard provisioning |
+| `docs/OBSERVABILITY_GUIDE.md` | Comprehensive observability documentation |
 | `scripts/wait_for_services.sh` | Polls health endpoints before tests |
 | `scripts/test_demo_profile.sh` | Demo profile integration test script |
 | `tests/conftest.py` | Shared fixtures (configurable via `JUNIPER_TEST_*` env vars) |
@@ -74,7 +78,7 @@ pytest tests/ -v
 
 ### Service Dependency Graph
 
-```
+```text
 juniper-canopy (8050)
   └── depends_on: juniper-cascor (healthy), juniper-data (healthy)
 
@@ -100,9 +104,10 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 | `JUNIPER_DATA_HOST` | juniper-data | `0.0.0.0` |
 | `JUNIPER_DATA_PORT` | juniper-data | `8100` |
 | `JUNIPER_DATA_LOG_LEVEL` | juniper-data | `INFO` |
-| `CASCOR_HOST` | juniper-cascor | `0.0.0.0` |
-| `CASCOR_PORT` | juniper-cascor | `8200` |
-| `CASCOR_LOG_LEVEL` | juniper-cascor | `INFO` |
+| `JUNIPER_CASCOR_HOST` | juniper-cascor | `0.0.0.0` |
+| `JUNIPER_CASCOR_PORT` | juniper-cascor | `8200` (internal container port) |
+| `CASCOR_HOST_PORT` | juniper-cascor | `8201` (host-exposed port) |
+| `JUNIPER_CASCOR_LOG_LEVEL` | juniper-cascor | `INFO` |
 | `CANOPY_HOST` | juniper-canopy | `0.0.0.0` |
 | `CANOPY_PORT` | juniper-canopy | `8050` |
 | `JUNIPER_DATA_URL` | juniper-cascor, juniper-canopy | `http://juniper-data:8100` |
@@ -123,6 +128,7 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 | `JUNIPER_CANOPY_SENTRY_DSN` | juniper-canopy | *(unset)* |
 | `JUNIPER_CANOPY_METRICS_ENABLED` | juniper-canopy | `false` |
 | `JUNIPER_CANOPY_DEMO_MODE` | juniper-canopy-dev | `true` |
+| `GRAFANA_ADMIN_USER` | grafana | `admin` |
 | `GRAFANA_ADMIN_PASSWORD` | grafana | `admin` |
 | `JUNIPER_CASCOR_AUTO_START` | juniper-cascor-demo | `true` |
 | `JUNIPER_CASCOR_AUTO_DATASET` | juniper-cascor-demo | `spiral` |
@@ -141,6 +147,7 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 Git worktrees allow multiple branches of a repository to be checked out simultaneously in separate directories. For the Juniper ecosystem, all worktrees are centralized in **`/home/pcalnon/Development/python/Juniper/worktrees/`** using a standardized naming convention.
 
 The full setup and cleanup procedures are defined in:
+
 - **`notes/WORKTREE_SETUP_PROCEDURE.md`** — Creating a worktree for a new task
 - **`notes/WORKTREE_CLEANUP_PROCEDURE.md`** — Merging, removing, and pushing after task completion
 
@@ -168,6 +175,7 @@ Example: `juniper-deploy--feature--add-monitoring--20260225-1430--50700461`
 ### Quick Reference
 
 **Setup** (full procedure in `notes/WORKTREE_SETUP_PROCEDURE.md`):
+
 ```bash
 cd /home/pcalnon/Development/python/Juniper/juniper-deploy
 git fetch origin && git checkout main && git pull origin main
@@ -181,6 +189,7 @@ cd "$WORKTREE_DIR"
 ```
 
 **Cleanup** (full procedure in `notes/WORKTREE_CLEANUP_PROCEDURE.md`):
+
 ```bash
 cd "$WORKTREE_DIR" && git push origin "$BRANCH_NAME"
 cd /home/pcalnon/Development/python/Juniper/juniper-deploy
@@ -228,6 +237,7 @@ The full handoff protocol is defined in **`notes/THREAD_HANDOFF_PROCEDURE.md`**.
 | **User request** | User says "hand off", "new thread", or similar |
 
 **Do NOT handoff** when:
+
 - The task is nearly complete (< 2 remaining steps)
 - The current thread is still sharp and producing correct output
 - The work is tightly coupled and splitting would lose critical in-flight state
