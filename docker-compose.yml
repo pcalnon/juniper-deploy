@@ -41,7 +41,13 @@ services:
     image: juniper-data:latest
     container_name: juniper-data
     ports:
-      - "${JUNIPER_DATA_PORT:-8100}:${JUNIPER_DATA_PORT:-8100}"
+      - "127.0.0.1:${JUNIPER_DATA_PORT:-8100}:${JUNIPER_DATA_PORT:-8100}"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - data
     environment:
       JUNIPER_DATA_HOST: "${JUNIPER_DATA_HOST:-0.0.0.0}"
       JUNIPER_DATA_PORT: "${JUNIPER_DATA_PORT:-8100}"
@@ -71,14 +77,22 @@ services:
     image: juniper-cascor:latest
     container_name: juniper-cascor
     ports:
+      # - "127.0.0.1:${CASCOR_PORT:-8200}:${CASCOR_PORT:-8200}"
       - "${CASCOR_HOST_PORT:-8201}:${CASCOR_PORT:-8200}"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - backend
+      - data
     environment:
       JUNIPER_DATA_URL: "${JUNIPER_DATA_URL:-http://juniper-data:8100}"
       JUNIPER_CASCOR_HOST: "${CASCOR_HOST:-0.0.0.0}"
       JUNIPER_CASCOR_PORT: "${CASCOR_PORT:-8200}"
       JUNIPER_CASCOR_LOG_LEVEL: "${CASCOR_LOG_LEVEL:-INFO}"
       JUNIPER_CASCOR_API_KEYS: "${JUNIPER_CASCOR_API_KEYS:-}"
-      JUNIPER_CASCOR_RATE_LIMIT_ENABLED: "${JUNIPER_CASCOR_RATE_LIMIT_ENABLED:-false}"
+      JUNIPER_CASCOR_RATE_LIMIT_ENABLED: "${JUNIPER_CASCOR_RATE_LIMIT_ENABLED:-true}"
       JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE: "${JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
       JUNIPER_DATA_API_KEY: "${JUNIPER_DATA_API_KEYS:-}"
       JUNIPER_CASCOR_LOG_FORMAT: "${JUNIPER_CASCOR_LOG_FORMAT:-text}"
@@ -108,7 +122,15 @@ services:
     image: juniper-cascor:latest
     container_name: juniper-cascor-demo
     ports:
+      # - "127.0.0.1:${CASCOR_PORT:-8200}:${CASCOR_PORT:-8200}"
       - "${CASCOR_HOST_PORT:-8201}:${CASCOR_PORT:-8200}"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - backend
+      - data
     environment:
       JUNIPER_DATA_URL: "http://juniper-data:8100"
       JUNIPER_CASCOR_HOST: "0.0.0.0"
@@ -183,12 +205,20 @@ services:
     container_name: juniper-canopy
     ports:
       - "${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - frontend
+      - backend
+      - data
     environment:
       JUNIPER_CANOPY_JUNIPER_DATA_URL: "${JUNIPER_DATA_URL:-http://juniper-data:8100}"
       JUNIPER_CANOPY_CASCOR_SERVICE_URL: "${CASCOR_SERVICE_URL:-http://juniper-cascor:8200}"
       JUNIPER_CANOPY_SERVER__HOST: "${CANOPY_HOST:-0.0.0.0}"
       JUNIPER_CANOPY_SERVER__PORT: "${CANOPY_PORT:-8050}"
-      JUNIPER_CANOPY_RATE_LIMIT_ENABLED: "${CANOPY_RATE_LIMIT_ENABLED:-false}"
+      JUNIPER_CANOPY_RATE_LIMIT_ENABLED: "${CANOPY_RATE_LIMIT_ENABLED:-true}"
       JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE: "${CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
       JUNIPER_CASCOR_API_KEY: "${JUNIPER_CASCOR_API_KEYS:-}"
       JUNIPER_CANOPY_LOG_FORMAT: "${CANOPY_LOG_FORMAT:-text}"
@@ -221,6 +251,14 @@ services:
     container_name: juniper-canopy-demo
     ports:
       - "${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - frontend
+      - backend
+      - data
     environment:
       JUNIPER_CANOPY_JUNIPER_DATA_URL: "http://juniper-data:8100"
       JUNIPER_CANOPY_CASCOR_SERVICE_URL: "http://juniper-cascor-demo:8200"
@@ -253,6 +291,12 @@ services:
     container_name: juniper-canopy-dev
     ports:
       - "${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - frontend
     environment:
       JUNIPER_CANOPY_DEMO_MODE: "true"
       JUNIPER_CANOPY_JUNIPER_DATA_URL: "http://juniper-data:8100"
@@ -283,7 +327,11 @@ services:
       - "--storage.tsdb.retention.time=30d"
       - "--web.enable-lifecycle"
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
+    networks:
+      - frontend
+      - backend
+      - data
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -302,10 +350,14 @@ services:
     container_name: juniper-grafana
     profiles: ["observability"]
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
+    networks:
+      - frontend
     environment:
-      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      # SECURITY: Set GRAFANA_ADMIN_PASSWORD in .env — no insecure default provided.
+      # GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD}"
       GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: "/etc/grafana/provisioning/dashboards/juniper-overview.json"
     volumes:
@@ -321,6 +373,19 @@ services:
       retries: 3
     restart: unless-stopped
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Networks — Isolated communication channels
+# ═══════════════════════════════════════════════════════════════════════════
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true
+  data:
+    driver: bridge
+    internal: true
+    
 volumes:
   prometheus_data:
   grafana_data:
