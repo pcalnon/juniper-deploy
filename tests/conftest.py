@@ -43,17 +43,7 @@ DATA_API_KEY = os.environ.get("JUNIPER_TEST_DATA_API_KEY", "")
 CASCOR_API_KEY = os.environ.get("JUNIPER_TEST_CASCOR_API_KEY", "")
 CANOPY_API_KEY = os.environ.get("JUNIPER_TEST_CANOPY_API_KEY", "")
 
-# Default HTTP request timeout in seconds
-DEFAULT_TIMEOUT = 10
-
-
-# ---------------------------------------------------------------------------
-# Custom pytest markers
-# ---------------------------------------------------------------------------
-def pytest_configure(config):
-    config.addinivalue_line("markers", "health: health endpoint checks")
-    config.addinivalue_line("markers", "data: JuniperData service tests")
-    config.addinivalue_line("markers", "full_stack: cross-service integration tests")
+from constants import DEFAULT_TIMEOUT  # noqa: F401 — re-exported for fixtures below
 
 
 # ---------------------------------------------------------------------------

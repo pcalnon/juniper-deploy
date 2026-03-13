@@ -29,7 +29,7 @@ import time
 import pytest
 import requests
 
-from conftest import DEFAULT_TIMEOUT
+from constants import DEFAULT_TIMEOUT
 
 
 # ---------------------------------------------------------------------------
