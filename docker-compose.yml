@@ -385,7 +385,7 @@ networks:
   data:
     driver: bridge
     internal: true
-    
+
 volumes:
   prometheus_data:
   grafana_data:
