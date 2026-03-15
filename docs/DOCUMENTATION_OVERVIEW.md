@@ -46,18 +46,14 @@
 | **ENVIRONMENT_SETUP.md** | ~310 | Setup | Complete environment configuration from scratch |
 | **USER_MANUAL.md** | ~450 | Manual | Comprehensive usage guide for all profiles and features |
 | **REFERENCE.md** | ~380 | Reference | Profiles, services, env vars, ports, Makefile targets |
+| **DEVELOPER_CHEATSHEET.md** | ~100 | Cheatsheet | Quick-reference card for common development tasks |
+| **OBSERVABILITY_GUIDE.md** | ~200 | Guide | Prometheus, Grafana, metrics, and structured logging guide |
 
 ### docs/testing/ Directory
 
 | File | Lines | Type | Purpose |
 |------|-------|------|---------|
 | **TESTING_QUICK_START.md** | ~120 | Tutorial | Run integration tests in 5 minutes |
-
-### notes/ Directory
-
-| File | Lines | Type | Purpose |
-|------|-------|------|---------|
-| **DEVELOPER_CHEATSHEET.md** | ~100 | Cheatsheet | Quick-reference card for common development tasks |
 
 ### Root Directory
 
@@ -129,3 +125,5 @@ juniper-data (8100)
 **Last Updated:** March 3, 2026
 **Version:** 0.1.0
 **Maintainer:** Paul Calnon
+
+> See the [Juniper Ecosystem Guide](../../CLAUDE.md) for the full project map and dependency graph.
