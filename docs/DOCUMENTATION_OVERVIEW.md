@@ -30,6 +30,7 @@
 | **Look up profiles, env vars, ports** | [REFERENCE.md](REFERENCE.md) | docs/ |
 | **Run integration tests** | [TESTING_QUICK_START.md](testing/TESTING_QUICK_START.md) | docs/testing/ |
 | **See development conventions** | [AGENTS.md](../AGENTS.md) | Root |
+| **Quick-reference dev tasks** | [DEVELOPER_CHEATSHEET.md](DEVELOPER_CHEATSHEET.md) | docs/ |
 | **See version history** | [CHANGELOG.md](../CHANGELOG.md) | Root |
 
 ---
@@ -51,6 +52,12 @@
 | File | Lines | Type | Purpose |
 |------|-------|------|---------|
 | **TESTING_QUICK_START.md** | ~120 | Tutorial | Run integration tests in 5 minutes |
+
+### notes/ Directory
+
+| File | Lines | Type | Purpose |
+|------|-------|------|---------|
+| **DEVELOPER_CHEATSHEET.md** | ~100 | Cheatsheet | Quick-reference card for common development tasks |
 
 ### Root Directory
 
