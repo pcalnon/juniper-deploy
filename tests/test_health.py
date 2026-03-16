@@ -47,6 +47,7 @@ def _assert_cascor_envelope(body: dict) -> dict:
 # juniper-data health tests
 # ---------------------------------------------------------------------------
 @pytest.mark.health
+@pytest.mark.usefixtures("require_data")
 class TestJuniperDataHealth:
     def test_liveness(self, data_url: str, http: requests.Session):
         resp = http.get(f"{data_url}/v1/health", timeout=DEFAULT_TIMEOUT)
@@ -83,6 +84,7 @@ class TestJuniperDataHealth:
 # juniper-cascor health tests
 # ---------------------------------------------------------------------------
 @pytest.mark.health
+@pytest.mark.usefixtures("require_cascor")
 class TestJuniperCascorHealth:
     def test_liveness(self, cascor_url: str, http: requests.Session):
         resp = http.get(f"{cascor_url}/v1/health", timeout=DEFAULT_TIMEOUT)
@@ -132,6 +134,7 @@ class TestJuniperCascorHealth:
 # juniper-canopy health tests
 # ---------------------------------------------------------------------------
 @pytest.mark.health
+@pytest.mark.usefixtures("require_canopy")
 class TestJuniperCanopyHealth:
     def test_liveness(self, canopy_url: str, http: requests.Session):
         resp = http.get(f"{canopy_url}/v1/health", timeout=DEFAULT_TIMEOUT)

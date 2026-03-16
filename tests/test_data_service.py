@@ -27,6 +27,7 @@ from constants import DEFAULT_TIMEOUT
 
 
 @pytest.mark.data
+@pytest.mark.usefixtures("require_data")
 class TestGenerators:
     def test_list_generators(self, data_url: str, http: requests.Session):
         resp = http.get(f"{data_url}/v1/generators", timeout=DEFAULT_TIMEOUT)
@@ -53,6 +54,7 @@ class TestGenerators:
 
 
 @pytest.mark.data
+@pytest.mark.usefixtures("require_data")
 class TestDatasetLifecycle:
     """Create → read → download → delete a spiral dataset."""
 
@@ -140,6 +142,7 @@ class TestDatasetLifecycle:
 
 
 @pytest.mark.data
+@pytest.mark.usefixtures("require_data")
 class TestDatasetStats:
     def test_stats_endpoint(self, data_url: str, http: requests.Session):
         resp = http.get(f"{data_url}/v1/datasets/stats", timeout=DEFAULT_TIMEOUT)

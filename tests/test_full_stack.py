@@ -53,6 +53,7 @@ def _reset_cascor_network(cascor_url: str, http: requests.Session) -> None:
 # Cross-service: CasCor ↔ JuniperData
 # ---------------------------------------------------------------------------
 @pytest.mark.full_stack
+@pytest.mark.usefixtures("require_cascor", "require_data")
 class TestCascorJuniperDataIntegration:
     """JuniperCascor can request a dataset from JuniperData over the docker network."""
 
@@ -149,6 +150,7 @@ class TestCascorJuniperDataIntegration:
 # JuniperCanopy end-to-end
 # ---------------------------------------------------------------------------
 @pytest.mark.full_stack
+@pytest.mark.usefixtures("require_canopy")
 class TestCanopyEndToEnd:
     """Canopy is serving requests and reporting service state correctly."""
 
@@ -182,6 +184,7 @@ class TestCanopyEndToEnd:
 # Full stack: all three services together
 # ---------------------------------------------------------------------------
 @pytest.mark.full_stack
+@pytest.mark.usefixtures("require_all_services")
 class TestThreeServiceStack:
     """Smoke test: all three services report healthy simultaneously."""
 

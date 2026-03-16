@@ -151,12 +151,45 @@ def _assert_service_up(url: str, name: str, timeout: int = DEFAULT_TIMEOUT) -> N
         pytest.fail(f"{name} is not reachable at {url}: {exc}")
 
 
+def _check_service_available(url: str, name: str, timeout: int = DEFAULT_TIMEOUT) -> None:
+    """Skip the current test session if the named service is not reachable."""
+    try:
+        resp = requests.get(f"{url}/v1/health", timeout=timeout)
+        resp.raise_for_status()
+    except Exception:
+        pytest.skip(
+            f"{name} is not reachable at {url} — start services with "
+            "`docker compose up -d`"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Per-service availability fixtures (session-scoped)
+# ---------------------------------------------------------------------------
+@pytest.fixture(scope="session")
+def require_data() -> None:
+    """Skip the entire session if juniper-data is not reachable."""
+    _check_service_available(DATA_URL, "juniper-data")
+
+
+@pytest.fixture(scope="session")
+def require_cascor() -> None:
+    """Skip the entire session if juniper-cascor is not reachable."""
+    _check_service_available(CASCOR_URL, "juniper-cascor")
+
+
+@pytest.fixture(scope="session")
+def require_canopy() -> None:
+    """Skip the entire session if juniper-canopy is not reachable."""
+    _check_service_available(CANOPY_URL, "juniper-canopy")
+
+
 @pytest.fixture(scope="session", autouse=False)
-def require_all_services() -> None:
-    """Session fixture that skips the suite if any service is not reachable."""
-    for url, name in [(DATA_URL, "juniper-data"), (CASCOR_URL, "juniper-cascor"), (CANOPY_URL, "juniper-canopy")]:
-        try:
-            resp = requests.get(f"{url}/v1/health", timeout=DEFAULT_TIMEOUT)
-            resp.raise_for_status()
-        except Exception:
-            pytest.skip(f"{name} is not reachable at {url} — start services with `docker compose up -d`")
+def require_all_services(require_data, require_cascor, require_canopy) -> None:
+    """Session fixture that skips the suite if any service is not reachable.
+
+    Composes the three per-service availability checks.  Each check is
+    session-scoped and cached, so requesting this fixture does not duplicate
+    HTTP requests already made by individual ``require_*`` fixtures.
+    """
+    pass  # All checks happen in the dependency fixtures

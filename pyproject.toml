@@ -6,3 +6,6 @@ markers = [
     "data: JuniperData service tests",
     "full_stack: cross-service integration tests",
 ]
+filterwarnings = [
+    "error",
+]
