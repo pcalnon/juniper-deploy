@@ -110,7 +110,7 @@ class TestCascorJuniperDataIntegration:
         resp = http.post(f"{cascor_url}/v1/training/start", json=payload, timeout=DEFAULT_TIMEOUT)
         assert resp.status_code == 200, f"Training start failed: {resp.text}"
         data = _unwrap(resp)
-        assert data.get("started") is True
+        assert data.get("status") == "training_started"
 
         # Brief pause to let training thread initialise
         time.sleep(0.5)
