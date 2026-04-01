@@ -11,6 +11,10 @@
 !.env.secrets.enc
 secrets/*.txt
 !secrets/.gitkeep
+!secrets/juniper_data_api_keys.txt
+!secrets/juniper_cascor_api_keys.txt
+!secrets/canopy_api_key.txt
+!secrets/grafana_admin_password.txt
 __pycache__/
 *.pyc
 .pytest_cache/
