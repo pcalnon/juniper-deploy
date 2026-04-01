@@ -1,0 +1,197 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Juniper Deploy — Prometheus Alert Rules
+# Defines alerting conditions for service health, performance, and training.
+# ═══════════════════════════════════════════════════════════════════════════
+
+groups:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Service Health — Critical alerts for service availability
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_service_health
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "{{ $labels.job }} is down"
+          description: "{{ $labels.job }} ({{ $labels.instance }}) has been unreachable for more than 1 minute."
+
+      - alert: ServiceRestartLoop
+        expr: changes(process_start_time_seconds[30m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "{{ $labels.job }} is restarting frequently"
+          description: "{{ $labels.job }} has restarted more than 3 times in the last 30 minutes."
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Error Rates — Alerts on HTTP 5xx error rates
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_error_rates
+    rules:
+      - alert: HighErrorRate_JuniperData
+        expr: >
+          (
+            sum(rate(juniper_data_http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(juniper_data_http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: juniper-data
+        annotations:
+          summary: "juniper-data 5xx error rate above 5%"
+          description: "juniper-data is returning server errors at {{ $value | humanizePercentage }} over the last 5 minutes."
+
+      - alert: HighErrorRate_JuniperCascor
+        expr: >
+          (
+            sum(rate(juniper_cascor_http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(juniper_cascor_http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: juniper-cascor
+        annotations:
+          summary: "juniper-cascor 5xx error rate above 5%"
+          description: "juniper-cascor is returning server errors at {{ $value | humanizePercentage }} over the last 5 minutes."
+
+      - alert: HighErrorRate_JuniperCanopy
+        expr: >
+          (
+            sum(rate(juniper_canopy_http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(juniper_canopy_http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: juniper-canopy
+        annotations:
+          summary: "juniper-canopy 5xx error rate above 5%"
+          description: "juniper-canopy is returning server errors at {{ $value | humanizePercentage }} over the last 5 minutes."
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Latency — Alerts on slow response times
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_latency
+    rules:
+      - alert: HighLatency_JuniperData
+        expr: >
+          histogram_quantile(0.95,
+            sum by (le) (rate(juniper_data_http_request_duration_seconds_bucket[5m]))
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          service: juniper-data
+        annotations:
+          summary: "juniper-data P95 latency above 2s"
+          description: "juniper-data P95 response time is {{ $value | humanizeDuration }}."
+
+      - alert: HighLatency_JuniperCascor
+        expr: >
+          histogram_quantile(0.95,
+            sum by (le) (rate(juniper_cascor_http_request_duration_seconds_bucket[5m]))
+          ) > 5.0
+        for: 5m
+        labels:
+          severity: warning
+          service: juniper-cascor
+        annotations:
+          summary: "juniper-cascor P95 latency above 5s"
+          description: "juniper-cascor P95 response time is {{ $value | humanizeDuration }}. Training endpoints may be under heavy load."
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Training — CasCor training health alerts
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_training
+    rules:
+      - alert: TrainingStalled
+        expr: >
+          juniper_cascor_training_sessions_active > 0
+          and rate(juniper_cascor_training_epochs_total[10m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          service: juniper-cascor
+        annotations:
+          summary: "CasCor training stalled"
+          description: "An active training session has not completed any epochs in the last 10 minutes."
+
+      - alert: TrainingLossNotDecreasing
+        expr: >
+          juniper_cascor_training_sessions_active > 0
+          and juniper_cascor_training_loss{phase="output"} > 0
+          and delta(juniper_cascor_training_loss{phase="output"}[30m]) >= 0
+        for: 30m
+        labels:
+          severity: warning
+          service: juniper-cascor
+        annotations:
+          summary: "CasCor training loss not decreasing"
+          description: "Output training loss has not decreased over the last 30 minutes (current: {{ $value | printf \"%.4f\" }})."
+
+      - alert: LowCandidateCorrelation
+        expr: >
+          juniper_cascor_training_sessions_active > 0
+          and juniper_cascor_candidate_correlation < 0.01
+          and juniper_cascor_candidate_correlation > 0
+        for: 15m
+        labels:
+          severity: info
+          service: juniper-cascor
+        annotations:
+          summary: "CasCor candidate correlation is very low"
+          description: "Best candidate correlation is {{ $value | printf \"%.4f\" }}. The network may have reached its capacity for this dataset."
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Dataset Generation — juniper-data operational alerts
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_data_operations
+    rules:
+      - alert: DatasetGenerationFailures
+        expr: >
+          rate(juniper_data_dataset_generations_total{status="error"}[10m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: juniper-data
+        annotations:
+          summary: "Dataset generation failures detected"
+          description: "juniper-data is producing failed dataset generations (generator={{ $labels.generator }})."
+
+      - alert: SlowDatasetGeneration
+        expr: >
+          histogram_quantile(0.95,
+            sum by (le) (rate(juniper_data_dataset_generation_duration_seconds_bucket[10m]))
+          ) > 30.0
+        for: 5m
+        labels:
+          severity: warning
+          service: juniper-data
+        annotations:
+          summary: "Dataset generation P95 latency above 30s"
+          description: "Dataset generation is taking {{ $value | humanizeDuration }} at P95."
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Infrastructure — WebSocket and dashboard health
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_infrastructure
+    rules:
+      - alert: NoWebSocketConnections
+        expr: >
+          juniper_canopy_demo_mode_active == 0
+          and juniper_canopy_websocket_connections_active == 0
+        for: 10m
+        labels:
+          severity: info
+          service: juniper-canopy
+        annotations:
+          summary: "No active WebSocket connections to juniper-canopy"
+          description: "juniper-canopy is in service mode but has no WebSocket connections for 10 minutes."

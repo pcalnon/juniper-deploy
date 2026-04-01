@@ -1,0 +1,44 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Juniper Deploy — AlertManager Configuration
+# Receives alerts from Prometheus and routes them to notification channels.
+# ═══════════════════════════════════════════════════════════════════════════
+
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: "default"
+  group_by: ["alertname", "service"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - receiver: "critical"
+      match:
+        severity: critical
+      group_wait: 10s
+      repeat_interval: 1h
+
+receivers:
+  - name: "default"
+    # Configure notification channels here (email, Slack, PagerDuty, etc.)
+    # See: https://prometheus.io/docs/alerting/latest/configuration/#receiver
+    #
+    # Example — Slack:
+    # slack_configs:
+    #   - api_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+    #     channel: "#juniper-alerts"
+    #     title: '{{ .GroupLabels.alertname }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+  - name: "critical"
+    # Critical alerts use a separate receiver for high-priority routing.
+    # Configure with PagerDuty or similar for on-call escalation.
+
+inhibit_rules:
+  # If a service is down, suppress its latency and error rate alerts.
+  - source_match:
+      alertname: "ServiceDown"
+    target_match_re:
+      alertname: "HighErrorRate|HighLatency"
+    equal: ["service"]

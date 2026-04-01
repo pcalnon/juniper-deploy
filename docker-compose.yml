@@ -53,9 +53,12 @@ services:
       JUNIPER_DATA_PORT: "${JUNIPER_DATA_PORT:-8100}"
       JUNIPER_DATA_LOG_LEVEL: "${JUNIPER_DATA_LOG_LEVEL:-INFO}"
       JUNIPER_DATA_API_KEYS: "${JUNIPER_DATA_API_KEYS:-}"
+      JUNIPER_DATA_API_KEYS_FILE: /run/secrets/juniper_data_api_keys
       JUNIPER_DATA_LOG_FORMAT: "${JUNIPER_DATA_LOG_FORMAT:-text}"
       JUNIPER_DATA_SENTRY_DSN: "${JUNIPER_DATA_SENTRY_DSN:-}"
       JUNIPER_DATA_METRICS_ENABLED: "${JUNIPER_DATA_METRICS_ENABLED:-false}"
+    secrets:
+      - juniper_data_api_keys
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8100/v1/health', timeout=5)"]
@@ -95,9 +98,14 @@ services:
       JUNIPER_CASCOR_RATE_LIMIT_ENABLED: "${JUNIPER_CASCOR_RATE_LIMIT_ENABLED:-true}"
       JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE: "${JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
       JUNIPER_DATA_API_KEY: "${JUNIPER_DATA_API_KEYS:-}"
+      JUNIPER_CASCOR_API_KEYS_FILE: /run/secrets/juniper_cascor_api_keys
+      JUNIPER_DATA_API_KEY_FILE: /run/secrets/juniper_data_api_keys
       JUNIPER_CASCOR_LOG_FORMAT: "${JUNIPER_CASCOR_LOG_FORMAT:-text}"
       JUNIPER_CASCOR_SENTRY_DSN: "${JUNIPER_CASCOR_SENTRY_DSN:-}"
       JUNIPER_CASCOR_METRICS_ENABLED: "${JUNIPER_CASCOR_METRICS_ENABLED:-false}"
+    secrets:
+      - juniper_cascor_api_keys
+      - juniper_data_api_keys
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -221,10 +229,15 @@ services:
       JUNIPER_CANOPY_RATE_LIMIT_ENABLED: "${CANOPY_RATE_LIMIT_ENABLED:-true}"
       JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE: "${CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
       JUNIPER_CASCOR_API_KEY: "${JUNIPER_CASCOR_API_KEYS:-}"
+      CANOPY_API_KEY_FILE: /run/secrets/canopy_api_key
+      JUNIPER_CASCOR_API_KEY_FILE: /run/secrets/juniper_cascor_api_keys
       JUNIPER_CANOPY_LOG_FORMAT: "${CANOPY_LOG_FORMAT:-text}"
       JUNIPER_CANOPY_SENTRY_DSN: "${CANOPY_SENTRY_DSN:-}"
       JUNIPER_CANOPY_METRICS_ENABLED: "${CANOPY_METRICS_ENABLED:-false}"
       REDIS_URL: "redis://redis:6379/0"
+    secrets:
+      - canopy_api_key
+      - juniper_cascor_api_keys
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -332,14 +345,43 @@ services:
     ports:
       - "127.0.0.1:9090:9090"
     networks:
-      - frontend
+      - monitoring
       - backend
       - data
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/recording_rules.yml:/etc/prometheus/recording_rules.yml:ro
+      - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - prometheus_data:/prometheus
+    depends_on:
+      alertmanager:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # AlertManager — Alert Routing and Notification (port 9093)
+  # ═══════════════════════════════════════════════════════════════════════════
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: juniper-alertmanager
+    profiles: ["observability"]
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    ports:
+      - "127.0.0.1:9093:9093"
+    networks:
+      - monitoring
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -355,14 +397,15 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     networks:
-      - frontend
+      - monitoring
     environment:
-      # SECURITY: Set GRAFANA_ADMIN_PASSWORD in .env — no insecure default provided.
-      # GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD}"
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
       GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
       GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: "/etc/grafana/provisioning/dashboards/juniper-overview.json"
+    secrets:
+      - grafana_admin_password
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana_data:/var/lib/grafana
@@ -435,7 +478,25 @@ networks:
   data:
     driver: bridge
     internal: true
+  monitoring:
+    driver: bridge
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Secrets — Docker secrets for sensitive configuration
+# Create secret files in ./secrets/ (see secrets.example/ for reference).
+# Falls back to environment variables when secret files don't exist.
+# ═══════════════════════════════════════════════════════════════════════════
+secrets:
+  juniper_data_api_keys:
+    file: ./secrets/juniper_data_api_keys.txt
+  juniper_cascor_api_keys:
+    file: ./secrets/juniper_cascor_api_keys.txt
+  canopy_api_key:
+    file: ./secrets/canopy_api_key.txt
+  grafana_admin_password:
+    file: ./secrets/grafana_admin_password.txt
 
 volumes:
   prometheus_data:
   grafana_data:
+  alertmanager_data:

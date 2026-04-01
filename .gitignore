@@ -9,6 +9,8 @@
 !.env.secrets.example
 !.env.enc
 !.env.secrets.enc
+secrets/*.txt
+!secrets/.gitkeep
 __pycache__/
 *.pyc
 .pytest_cache/
