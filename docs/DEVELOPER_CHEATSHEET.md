@@ -1,7 +1,7 @@
 # Developer Cheatsheet — juniper-deploy
 
-**Version**: 1.0.0
-**Date**: 2026-03-15
+**Version**: 1.1.0
+**Date**: 2026-04-01
 **Project**: juniper-deploy
 
 ---
@@ -83,9 +83,10 @@ Services are segmented across three Docker bridge networks:
 
 | Network | Type | Services | Purpose |
 |---------|------|----------|---------|
-| `frontend` | bridge | canopy | Public-facing; exposes the dashboard |
-| `backend` | bridge, internal | cascor, canopy | CasCor API; canopy connects here to reach cascor |
-| `data` | bridge, internal | data, cascor, canopy | Dataset service; not reachable from the frontend network directly |
+| `frontend` | bridge | canopy, canopy-demo, canopy-dev | Public-facing; exposes dashboard services |
+| `backend` | bridge, internal | cascor, cascor-demo, canopy, canopy-demo, redis, cassandra, prometheus | CasCor API and internal backend traffic |
+| `data` | bridge, internal | data, cascor, cascor-demo, canopy, canopy-demo, prometheus | Dataset service network; not reachable from frontend directly |
+| `monitoring` | bridge | prometheus, grafana | Observability-only network for monitoring components |
 
 This architecture provides network segmentation: juniper-data is only accessible from the backend services, not directly from the frontend.
 
@@ -94,7 +95,8 @@ This architecture provides network segmentation: juniper-data is only accessible
 | `juniper-data` | `http://juniper-data:8100` | `http://localhost:8100` | data |
 | `juniper-cascor` | `http://juniper-cascor:8200` | `http://localhost:8201` | backend, data |
 | `juniper-canopy` | `http://juniper-canopy:8050` | `http://localhost:8050` | frontend, backend, data |
-| `prometheus` | `http://prometheus:9090` | `http://localhost:9090` | backend |
+| `prometheus` | `http://prometheus:9090` | `http://localhost:9090` | monitoring, backend, data |
+| `grafana` | `http://grafana:3000` | `http://localhost:3000` | monitoring |
 
 Inter-service communication uses container DNS names (e.g., `JUNIPER_DATA_URL=http://juniper-data:8100`). Host-side access uses `localhost` with mapped ports.
 
@@ -112,7 +114,7 @@ make up && make obs
 
 ### Grafana
 
-Access at `http://localhost:3000` (default login: `admin`/`admin`).
+Access at `http://localhost:3000` (default login: `admin` and password from `secrets/grafana_admin_password.txt`, or `GRAFANA_ADMIN_PASSWORD` fallback).
 
 ### Enable Metrics Per Service
 
@@ -147,6 +149,17 @@ curl -s 'http://localhost:9090/api/v1/query?query=juniper_data_requests_total' |
 | `JUNIPER_DATA_LOG_LEVEL` | `INFO` | Log level for juniper-data |
 | `CASCOR_LOG_LEVEL` | `INFO` | Log level for juniper-cascor |
 | `GF_SECURITY_ADMIN_PASSWORD` | `admin` | Grafana admin password |
+
+Docker secret file variables in `docker-compose.yml`:
+
+| Variable | Mounted Path |
+|----------|--------------|
+| `JUNIPER_DATA_API_KEYS_FILE` | `/run/secrets/juniper_data_api_keys` |
+| `JUNIPER_CASCOR_API_KEYS_FILE` | `/run/secrets/juniper_cascor_api_keys` |
+| `JUNIPER_DATA_API_KEY_FILE` | `/run/secrets/juniper_data_api_keys` |
+| `CANOPY_API_KEY_FILE` | `/run/secrets/canopy_api_key` |
+| `JUNIPER_CASCOR_API_KEY_FILE` | `/run/secrets/juniper_cascor_api_keys` |
+| `GF_SECURITY_ADMIN_PASSWORD__FILE` | `/run/secrets/grafana_admin_password` |
 
 Copy `.env.example` to `.env` to override defaults. All values use `${VAR:-default}` substitution.
 

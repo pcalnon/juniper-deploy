@@ -4,7 +4,7 @@
 
 **Version:** 0.1.0
 **Status:** Active
-**Last Updated:** March 3, 2026
+**Last Updated:** April 1, 2026
 **Project:** Juniper - Docker Compose Orchestration
 
 ---
@@ -123,6 +123,24 @@ JUNIPER_CASCOR_API_KEY=your-cascor-api-key  # canopy → cascor
 
 Leave empty to disable authentication.
 
+### Step 4: Configure Docker Secret Files (Optional)
+
+`docker-compose.yml` can also mount secrets from local files in `./secrets/`:
+
+```bash
+mkdir -p secrets
+cp secrets.example/*.txt secrets/
+```
+
+Populate these files with real values:
+
+- `secrets/juniper_data_api_keys.txt`
+- `secrets/juniper_cascor_api_keys.txt`
+- `secrets/canopy_api_key.txt`
+- `secrets/grafana_admin_password.txt`
+
+Compose mounts these as `/run/secrets/*` and passes them via `*_FILE` variables (for example, `JUNIPER_DATA_API_KEYS_FILE` and `GF_SECURITY_ADMIN_PASSWORD__FILE`). The regular `.env` values are still available.
+
 ---
 
 ## Build All Images
@@ -196,9 +214,10 @@ docker compose --profile observability up -d
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | Prometheus | http://localhost:9090 | None |
-| Grafana | http://localhost:3000 | admin / admin |
+| Grafana | http://localhost:3000 | admin / value from `secrets/grafana_admin_password.txt` (or `GRAFANA_ADMIN_PASSWORD`) |
 
 Prometheus scrapes all three services at `/metrics` every 15 seconds.
+Prometheus and Grafana use a dedicated `monitoring` network. Prometheus also joins `backend` and `data` to scrape internal service endpoints.
 
 ---
 
@@ -286,6 +305,6 @@ All containers should show `healthy` status.
 
 ---
 
-**Last Updated:** March 3, 2026
+**Last Updated:** April 1, 2026
 **Version:** 0.1.0
 **Maintainer:** Paul Calnon
