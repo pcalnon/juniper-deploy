@@ -202,6 +202,24 @@ Copy `.env.example` to `.env` to override defaults. All values use `${VAR:-defau
 
 API key authentication can be enabled per service by setting the corresponding environment variable in `.env`. When no key is configured for a service, all endpoints are open (development mode).
 
+### Docker Secret Files
+
+`docker-compose.yml` now mounts Docker secrets for API keys and Grafana admin credentials from local files in `secrets/`:
+
+```bash
+mkdir -p secrets
+cp secrets.example/*.txt secrets/
+```
+
+Expected local files:
+
+- `secrets/juniper_data_api_keys.txt`
+- `secrets/juniper_cascor_api_keys.txt`
+- `secrets/canopy_api_key.txt`
+- `secrets/grafana_admin_password.txt`
+
+These files are consumed via `*_FILE` environment variables (for example, `JUNIPER_DATA_API_KEYS_FILE=/run/secrets/juniper_data_api_keys` and `GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana_admin_password`) while the existing env-var-based settings remain available in `.env`.
+
 ### Enabling API Keys
 
 ```bash
@@ -282,8 +300,10 @@ These targets automatically load `.env.observability`, which enables metrics on 
 
 Access dashboards:
 
-- **Grafana**: <http://localhost:3000> (default login: `admin` / `admin`)
+- **Grafana**: <http://localhost:3000> (default login: `admin` / `admin`, unless overridden via `secrets/grafana_admin_password.txt`)
 - **Prometheus**: <http://localhost:9090>
+
+Prometheus and Grafana are attached to a dedicated `monitoring` Docker network. Prometheus also joins `backend` and `data` so it can scrape internal service endpoints.
 
 ### Grafana Dashboards
 

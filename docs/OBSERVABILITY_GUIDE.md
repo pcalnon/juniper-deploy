@@ -1,7 +1,7 @@
 # Juniper Observability Guide
 
-**Last Updated**: 2026-03-05
-**Version**: 1.0.0
+**Last Updated**: 2026-04-01
+**Version**: 1.1.0
 **Status**: Current
 
 ---
@@ -29,7 +29,7 @@ make obs
 make obs-demo
 
 # Access dashboards
-# Grafana:    http://localhost:3000  (admin / admin)
+# Grafana:    http://localhost:3000  (admin / value from secrets/grafana_admin_password.txt or GRAFANA_ADMIN_PASSWORD)
 # Prometheus: http://localhost:9090
 
 # Stop everything
@@ -40,6 +40,8 @@ The `make obs` and `make obs-demo` targets automatically:
 - Load `.env.observability` which sets `*_METRICS_ENABLED=true` for all services
 - Activate the `observability` profile (Prometheus + Grafana)
 - Activate the `full` or `demo` profile respectively
+
+When the `observability` profile is enabled, Prometheus and Grafana run on a dedicated `monitoring` Docker network. Prometheus also joins `backend` and `data` networks so it can scrape internal service endpoints.
 
 ---
 
@@ -289,7 +291,8 @@ When using `make obs` or `make obs-demo`, these are automatically set to `true` 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GRAFANA_ADMIN_USER` | `admin` | Grafana admin username |
-| `GRAFANA_ADMIN_PASSWORD` | `admin` | Grafana admin password |
+| `GRAFANA_ADMIN_PASSWORD` | `admin` | Grafana admin password fallback value |
+| `GF_SECURITY_ADMIN_PASSWORD__FILE` | `/run/secrets/grafana_admin_password` | Preferred password source via Docker secret |
 
 ### Logging
 

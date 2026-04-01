@@ -4,7 +4,7 @@
 
 **Version:** 0.1.0
 **Status:** Active
-**Last Updated:** March 3, 2026
+**Last Updated:** April 1, 2026
 **Project:** Juniper - Docker Compose Orchestration
 
 ---
@@ -32,8 +32,8 @@
 | Service | Image Source | Host Port | Container Port | Health Endpoint |
 |---------|-------------|-----------|---------------|-----------------|
 | `juniper-data` | `../juniper-data/Dockerfile` | 8100 | 8100 | `/v1/health` |
-| `juniper-cascor` | `../juniper-cascor/Dockerfile` | 8200 | 8200 | `/v1/health` |
-| `juniper-cascor-demo` | `../juniper-cascor/Dockerfile` | 8200 | 8200 | `/v1/health` |
+| `juniper-cascor` | `../juniper-cascor/Dockerfile` | 8201 (default) | 8200 | `/v1/health` |
+| `juniper-cascor-demo` | `../juniper-cascor/Dockerfile` | 8201 (default) | 8200 | `/v1/health` |
 | `juniper-canopy` | `../juniper-canopy/Dockerfile` | 8050 | 8050 | `/v1/health` |
 | `juniper-canopy-demo` | `../juniper-canopy/Dockerfile` | 8050 | 8050 | `/v1/health` |
 | `juniper-canopy-dev` | `../juniper-canopy/Dockerfile` | 8050 | 8050 | `/v1/health` |
@@ -101,6 +101,24 @@
 | `JUNIPER_DATA_API_KEY` | (empty) | Key sent by cascor to data |
 | `JUNIPER_CASCOR_API_KEY` | (empty) | Key sent by canopy to cascor |
 
+### Docker Secret File Variables
+
+| Variable | Service | Secret Name | Mounted Path |
+|----------|---------|-------------|--------------|
+| `JUNIPER_DATA_API_KEYS_FILE` | juniper-data | `juniper_data_api_keys` | `/run/secrets/juniper_data_api_keys` |
+| `JUNIPER_CASCOR_API_KEYS_FILE` | juniper-cascor | `juniper_cascor_api_keys` | `/run/secrets/juniper_cascor_api_keys` |
+| `JUNIPER_DATA_API_KEY_FILE` | juniper-cascor | `juniper_data_api_keys` | `/run/secrets/juniper_data_api_keys` |
+| `CANOPY_API_KEY_FILE` | juniper-canopy | `canopy_api_key` | `/run/secrets/canopy_api_key` |
+| `JUNIPER_CASCOR_API_KEY_FILE` | juniper-canopy | `juniper_cascor_api_keys` | `/run/secrets/juniper_cascor_api_keys` |
+| `GF_SECURITY_ADMIN_PASSWORD__FILE` | grafana | `grafana_admin_password` | `/run/secrets/grafana_admin_password` |
+
+Compose secret definitions reference local files in `secrets/`:
+
+- `secrets/juniper_data_api_keys.txt`
+- `secrets/juniper_cascor_api_keys.txt`
+- `secrets/canopy_api_key.txt`
+- `secrets/grafana_admin_password.txt`
+
 ### Rate Limiting
 
 | Variable | Default | Service |
@@ -145,7 +163,9 @@
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `GF_SECURITY_ADMIN_PASSWORD` | `admin` | Grafana admin password |
+| `GRAFANA_ADMIN_USER` | `admin` | Grafana admin username (mapped to `GF_SECURITY_ADMIN_USER`) |
+| `GRAFANA_ADMIN_PASSWORD` | `admin` | Grafana admin password fallback value |
+| `GF_SECURITY_ADMIN_PASSWORD__FILE` | `/run/secrets/grafana_admin_password` | Preferred password source via Docker secret |
 
 ---
 
@@ -249,12 +269,21 @@
 | `juniper-canopy` | `http://juniper-canopy:8050` |
 | `prometheus` | `http://prometheus:9090` |
 
+### Docker Networks
+
+| Network | Type | Services |
+|---------|------|----------|
+| `frontend` | bridge | juniper-canopy, juniper-canopy-demo, juniper-canopy-dev |
+| `backend` | bridge, internal | juniper-cascor, juniper-cascor-demo, juniper-canopy, juniper-canopy-demo, redis, cassandra, prometheus |
+| `data` | bridge, internal | juniper-data, juniper-cascor, juniper-cascor-demo, juniper-canopy, juniper-canopy-demo, prometheus |
+| `monitoring` | bridge | prometheus, grafana |
+
 ### Host-Side URLs
 
 | Service | URL |
 |---------|-----|
 | juniper-data | http://localhost:8100 |
-| juniper-cascor | http://localhost:8200 |
+| juniper-cascor | http://localhost:8201 |
 | juniper-canopy | http://localhost:8050 |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 |
@@ -344,6 +373,6 @@ numpy>=1.24
 
 ---
 
-**Last Updated:** March 3, 2026
+**Last Updated:** April 1, 2026
 **Version:** 0.1.0
 **Maintainer:** Paul Calnon
