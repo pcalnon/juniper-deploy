@@ -37,7 +37,7 @@ def _extract_two_space_blocks(compose_text: str, section_name: str) -> dict[str,
 
     section_idx = None
     for idx, line in enumerate(lines):
-        if line.strip() == f"{section_name}:":
+        if line == f"{section_name}:":
             section_idx = idx
             break
 
