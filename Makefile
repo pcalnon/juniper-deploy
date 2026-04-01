@@ -48,7 +48,13 @@ endif
 .PHONY: help up down restart logs logs-data logs-cascor logs-canopy \
         status build build-no-cache clean \
         shell-data shell-cascor shell-canopy \
-        health wait ps demo dev obs obs-demo
+        health wait ps demo dev obs obs-demo prepare-secrets
+
+SECRETS_DIR ?= secrets
+SECRETS_FILES := $(SECRETS_DIR)/juniper_data_api_keys.txt \
+                 $(SECRETS_DIR)/juniper_cascor_api_keys.txt \
+                 $(SECRETS_DIR)/canopy_api_key.txt \
+                 $(SECRETS_DIR)/grafana_admin_password.txt
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Help
@@ -67,7 +73,11 @@ help:  ## Show this help message
 # Lifecycle
 # ═══════════════════════════════════════════════════════════════════════════
 
-up:  ## Start all services (--profile full, detached)
+prepare-secrets:  ## Create local placeholder secret files if missing
+	@mkdir -p $(SECRETS_DIR)
+	@touch $(SECRETS_FILES)
+
+up: prepare-secrets ## Start all services (--profile full, detached)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full up -d
 	@echo -e "$(GREEN)Services starting. Run 'make logs' to follow output.$(RESET)"
 
@@ -77,19 +87,19 @@ down:  ## Stop and remove all containers
 restart:  ## Restart all services
 	@$(COMPOSE) -f $(COMPOSE_FILE) restart
 
-demo:  ## Start demo stack (auto-configured CasCor training)
+demo: prepare-secrets ## Start demo stack (auto-configured CasCor training)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile demo up -d
 	@echo -e "$(GREEN)Demo stack starting. Run 'make logs' to follow output.$(RESET)"
 
-dev:  ## Start dev stack (real data + cascor, canopy in demo mode)
+dev: prepare-secrets ## Start dev stack (real data + cascor, canopy in demo mode)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile dev up -d
 	@echo -e "$(GREEN)Dev stack starting. Run 'make logs' to follow output.$(RESET)"
 
-obs:  ## Start full stack with observability (Prometheus + Grafana)
+obs: prepare-secrets ## Start full stack with observability (Prometheus + Grafana)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --env-file .env --env-file .env.observability --profile full --profile observability up -d
 	@echo -e "$(GREEN)Full stack + observability starting. Grafana: http://localhost:3000$(RESET)"
 
-obs-demo:  ## Start demo stack with observability (Prometheus + Grafana)
+obs-demo: prepare-secrets ## Start demo stack with observability (Prometheus + Grafana)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --env-file .env --env-file .env.observability --profile demo --profile observability up -d
 	@echo -e "$(GREEN)Demo stack + observability starting. Grafana: http://localhost:3000$(RESET)"
 
