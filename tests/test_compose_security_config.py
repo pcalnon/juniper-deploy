@@ -135,6 +135,20 @@ def test_observability_services_attach_to_monitoring_network():
     assert not re.search(r"^\s+-\s+frontend\s*$", grafana, flags=re.MULTILINE)
 
 
+def test_grafana_has_no_env_var_password_fallback():
+    """Regression: GF_SECURITY_ADMIN_PASSWORD env var must not exist.
+
+    The password must only be supplied via Docker secret (__FILE variant)
+    to avoid predictable default credentials (issue #11).
+    """
+    compose_text = _read_text(COMPOSE_PATH)
+    services = _extract_two_space_blocks(compose_text, "services")
+    grafana = services["grafana"]
+    assert not re.search(
+        r"^\s+GF_SECURITY_ADMIN_PASSWORD:", grafana, flags=re.MULTILINE
+    ), "GF_SECURITY_ADMIN_PASSWORD env var must not be set — use __FILE variant only"
+
+
 def test_secret_files_are_ignored_but_gitkeep_is_preserved():
     gitignore_text = _read_text(GITIGNORE_PATH)
     assert "secrets/*.txt" in gitignore_text
