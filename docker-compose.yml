@@ -224,10 +224,13 @@ services:
       JUNIPER_CANOPY_LOG_FORMAT: "${CANOPY_LOG_FORMAT:-text}"
       JUNIPER_CANOPY_SENTRY_DSN: "${CANOPY_SENTRY_DSN:-}"
       JUNIPER_CANOPY_METRICS_ENABLED: "${CANOPY_METRICS_ENABLED:-false}"
+      REDIS_URL: "redis://redis:6379/0"
     depends_on:
       juniper-data:
         condition: service_healthy
       juniper-cascor:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c",
@@ -371,6 +374,53 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Redis — Cache and Session Store (port 6379)
+  # Used by juniper-canopy for optional caching. Available in full profile.
+  # ═══════════════════════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: juniper-redis
+    profiles: ["full", "demo"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    networks:
+      - backend
+    command: ["redis-server", "--maxmemory", "${REDIS_MAX_MEMORY:-100mb}", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Cassandra — Time-Series and Metrics Store (port 9042)
+  # Used by juniper-canopy for optional persistent metrics. Available in full profile.
+  # ═══════════════════════════════════════════════════════════════════════════
+  cassandra:
+    image: cassandra:4.1
+    container_name: juniper-cassandra
+    profiles: ["full"]
+    ports:
+      - "127.0.0.1:${CASSANDRA_PORT:-9042}:9042"
+    networks:
+      - backend
+    environment:
+      CASSANDRA_CLUSTER_NAME: "JuniperCluster"
+      CASSANDRA_DC: "dc1"
+      CASSANDRA_RACK: "rack1"
+      MAX_HEAP_SIZE: "${CASSANDRA_MAX_HEAP:-512M}"
+      HEAP_NEWSIZE: "${CASSANDRA_HEAP_NEW:-128M}"
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'SELECT now() FROM system.local' || exit 1"]
+      interval: 30s
+      timeout: 15s
+      start_period: 60s
+      retries: 5
     restart: unless-stopped
 
 # ═══════════════════════════════════════════════════════════════════════════
