@@ -1,10 +1,10 @@
 # AGENTS.md - Juniper Deploy
 
 **Project**: juniper-deploy — Docker Compose Orchestration for Juniper Stack
-**Version**: 0.1.0
+**Version**: 0.2.0
 **License**: MIT License
 **Author**: Paul Calnon
-**Last Updated**: 2026-02-25
+**Last Updated**: 2026-04-02
 
 ---
 
@@ -13,80 +13,285 @@
 ### Essential Commands
 
 ```bash
-# Validate compose configuration
-docker compose --profile full config
+# === Lifecycle (via Makefile) ===
+make up           # Start full stack (all real services, detached)
+make demo         # Start demo stack (auto-configured CasCor training)
+make dev          # Start dev stack (canopy in demo mode)
+make down         # Stop and remove all containers
+make restart      # Restart all services
 
-# Start full stack (all real services)
-make up    # or: docker compose --profile full up -d
+# === Observability ===
+make obs          # Full stack + Prometheus + Grafana
+make obs-demo     # Demo stack + Prometheus + Grafana
 
-# Start demo stack (auto-configured CasCor training)
-make demo  # or: docker compose --profile demo up -d
+# === Monitoring ===
+make health       # Detailed health report for all services
+make wait         # Block until all services are healthy (90s timeout)
+make status       # Show container status
+make ps           # Compact container listing
 
-# Start dev stack (canopy in demo mode)
-make dev   # or: docker compose --profile dev up -d
+# === Logs ===
+make logs         # Tail all service logs (follow)
+make logs-data    # Tail JuniperData logs
+make logs-cascor  # Tail JuniperCascor logs
+make logs-canopy  # Tail JuniperCanopy logs
 
-# View logs
-docker compose logs -f
+# === Build ===
+make build          # Build/rebuild all images
+make build-no-cache # Full rebuild without cache
 
-# Stop all services
-make down
+# === Shell Access ===
+make shell-data     # Shell into JuniperData container
+make shell-cascor   # Shell into JuniperCascor container
+make shell-canopy   # Shell into JuniperCanopy container
 
-# Check service health
-docker compose ps
+# === Cleanup ===
+make clean          # Remove containers, volumes, and local images (interactive)
 
-# Run demo integration test
-bash scripts/test_demo_profile.sh
+# === Direct Docker Compose (when Makefile is insufficient) ===
+docker compose --profile full config    # Validate compose configuration
+docker compose logs -f                  # Follow logs (all profiles)
 
-# Run integration tests
+# === Integration Tests ===
 pip install -r requirements-test.txt
-bash scripts/wait_for_services.sh
-pytest tests/ -v
+bash scripts/wait_for_services.sh       # Poll until services healthy
+pytest tests/ -v                        # Run full test suite
+bash scripts/test_demo_profile.sh       # Demo profile integration test
+bash scripts/test_health_enhanced.sh    # Enhanced health check validation
 ```
 
 ### Service Ports
 
-| Service | Host Port | Container Port | Health Endpoint |
-|---------|-----------|----------------|-----------------|
-| juniper-data | 8100 | 8100 | `/v1/health` |
-| juniper-cascor | 8201 | 8200 | `/v1/health` |
-| juniper-canopy | 8050 | 8050 | `/v1/health` |
+| Service | Host Binding | Container Port | Health Endpoint | Profile(s) |
+|---------|-------------|----------------|-----------------|------------|
+| juniper-data | 127.0.0.1:8100 | 8100 | `/v1/health` | full, demo, dev |
+| juniper-cascor | 0.0.0.0:8201 | 8200 | `/v1/health` | full, dev |
+| juniper-cascor-demo | 0.0.0.0:8201 | 8200 | `/v1/health` | demo |
+| juniper-canopy | 0.0.0.0:8050 | 8050 | `/v1/health` | full |
+| juniper-canopy-demo | 0.0.0.0:8050 | 8050 | `/v1/health` | demo |
+| juniper-canopy-dev | 0.0.0.0:8050 | 8050 | `/v1/health` | dev |
+| Prometheus | 127.0.0.1:9090 | 9090 | `/-/healthy` | observability |
+| AlertManager | 127.0.0.1:9093 | 9093 | `/-/healthy` | observability |
+| Grafana | 127.0.0.1:3000 | 3000 | `/api/health` | observability |
+| Redis | 127.0.0.1:6379 | 6379 | `redis-cli ping` | full, demo |
+| Cassandra | 127.0.0.1:9042 | 9042 | `cqlsh` | full |
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
+| **Core Configuration** | |
 | `docker-compose.yml` | Service orchestration with profiles (`full`, `demo`, `dev`, `observability`) |
-| `.env.example` | All configurable environment variables |
+| `Makefile` | Developer CLI — 23 targets wrapping Docker Compose commands |
+| `.env.example` | All configurable environment variables (copy to `.env`) |
 | `.env.demo` | Demo profile environment overrides |
-| `.env.observability` | Observability profile environment overrides (auto-enables metrics) |
-| `prometheus/prometheus.yml` | Prometheus scrape configuration |
-| `grafana/provisioning/` | Grafana datasource and dashboard provisioning |
-| `docs/OBSERVABILITY_GUIDE.md` | Comprehensive observability documentation |
-| `scripts/wait_for_services.sh` | Polls health endpoints before tests |
-| `scripts/test_demo_profile.sh` | Demo profile integration test script |
+| `.env.observability` | Observability profile overrides (auto-enables metrics) |
+| `pyproject.toml` | Pytest configuration (test paths, markers, pythonpath) |
+| `requirements-test.txt` | Test dependencies (requests, pytest) |
+| `.pre-commit-config.yaml` | Pre-commit hooks (YAML, shell, markdown, Python, Docker Compose) |
+| **Scripts** | |
+| `scripts/health_check.sh` | Health report formatter — queries `/v1/health/ready` with colored output |
+| `scripts/wait_for_services.sh` | Polls health endpoints until ready (default 90s timeout) |
+| `scripts/test_demo_profile.sh` | Demo profile integration test (7-step validation) |
+| `scripts/test_health_enhanced.sh` | Enhanced health check validation (8-step schema checks) |
+| **Tests** | |
 | `tests/conftest.py` | Shared fixtures (configurable via `JUNIPER_TEST_*` env vars) |
+| `tests/constants.py` | Shared test constants (`DEFAULT_TIMEOUT = 10`) |
 | `tests/test_health.py` | Health endpoint + schema validation tests |
 | `tests/test_data_service.py` | Dataset lifecycle integration tests |
 | `tests/test_full_stack.py` | Cross-service end-to-end tests |
-| `README.md` | Quickstart, profiles, service discovery, env var docs |
+| `tests/test_availability.py` | Availability checking fixtures and skip logic |
+| `tests/test_compose_security_config.py` | Docker security regression tests (secrets, networks, hardening) |
+| **Observability Infrastructure** | |
+| `prometheus/prometheus.yml` | Prometheus scrape configuration (3 services + self) |
+| `prometheus/alert_rules.yml` | Prometheus alert rules |
+| `prometheus/recording_rules.yml` | Prometheus recording rules |
+| `grafana/provisioning/dashboards/` | 4 auto-provisioned Grafana dashboards (overview, data, cascor, canopy) |
+| `grafana/provisioning/datasources/prometheus.yml` | Grafana datasource (Prometheus, stable UID) |
+| `alertmanager/alertmanager.yml` | AlertManager alert routing configuration |
+| **Secrets** | |
+| `secrets/` | Docker secret files (git-ignored, created by `make prepare-secrets`) |
+| `secrets.example/` | Secret file templates (copy to `secrets/`) |
+| **Documentation** | |
+| `README.md` | Quickstart, profiles, service discovery |
+| `CHANGELOG.md` | Release history (Keep a Changelog format) |
+| `docs/` | 8 documentation files (see Documentation section) |
+| **CI/CD** | |
+| `.github/workflows/ci.yml` | GitHub Actions pipeline (pre-commit, compose validation, Docker integration) |
+| `.github/CODEOWNERS` | Code ownership rules |
+| `.github/dependabot.yml` | Dependabot configuration |
 
 ---
 
 ## Project Overview
 
-`juniper-deploy` orchestrates the full Juniper stack via Docker Compose. It manages service dependencies, health checks, and environment variable wiring for the three core services: JuniperData, JuniperCascor, and JuniperCanopy.
+`juniper-deploy` orchestrates the full Juniper stack via Docker Compose. It manages service dependencies, health checks, environment variable wiring, security hardening, and observability infrastructure for the Juniper platform.
+
+### Docker Compose Profiles
+
+| Service | full | demo | dev | observability |
+|---------|:----:|:----:|:---:|:-------------:|
+| juniper-data | x | x | x | |
+| juniper-cascor | x | | x | |
+| juniper-cascor-demo | | x | | |
+| demo-seed (init container) | | x | | |
+| juniper-canopy | x | | | |
+| juniper-canopy-demo | | x | | |
+| juniper-canopy-dev | | | x | |
+| redis | x | x | | |
+| cassandra | x | | | |
+| prometheus | | | | x |
+| alertmanager | | | | x |
+| grafana | | | | x |
+
+**Profile descriptions:**
+
+- **full** — All real services with Redis and Cassandra (production-like)
+- **demo** — Auto-configured CasCor training with seeded dataset, Redis
+- **dev** — Real data + cascor services, canopy in demo mode (frontend development)
+- **observability** — Add-on profile: Prometheus, AlertManager, Grafana (combine with `full` or `demo`)
 
 ### Service Dependency Graph
 
 ```text
+# Full profile
 juniper-canopy (8050)
-  └── depends_on: juniper-cascor (healthy), juniper-data (healthy)
+  ├── depends_on: juniper-cascor (healthy)
+  ├── depends_on: juniper-data (healthy)
+  └── depends_on: redis (healthy)
 
 juniper-cascor (8200)
   └── depends_on: juniper-data (healthy)
 
 juniper-data (8100)
   └── no dependencies
+
+redis (6379), cassandra (9042)
+  └── no dependencies
+
+# Demo profile
+juniper-canopy-demo (8050)
+  ├── depends_on: juniper-cascor-demo (healthy)
+  └── depends_on: juniper-data (healthy)
+
+juniper-cascor-demo (8200)
+  ├── depends_on: juniper-data (healthy)
+  └── depends_on: demo-seed (completed_successfully)
+
+demo-seed (init container)
+  └── depends_on: juniper-data (healthy)
+
+# Dev profile
+juniper-canopy-dev (8050)
+  └── depends_on: juniper-data (healthy)
+
+juniper-cascor (8200)
+  └── depends_on: juniper-data (healthy)
+
+# Observability (add-on)
+grafana (3000)
+  └── depends_on: prometheus (healthy)
+
+prometheus (9090)
+  └── depends_on: alertmanager (healthy)
+
+alertmanager (9093)
+  └── no dependencies
+```
+
+---
+
+## Directory Layout
+
+```text
+juniper-deploy/
+├── docker-compose.yml              # Service orchestration (12 services, 4 profiles)
+├── Makefile                        # Developer CLI (23 targets)
+├── .env.example                    # Environment variable template
+├── .env.demo                       # Demo profile overrides
+├── .env.observability              # Observability profile overrides
+├── AGENTS.md                       # Agent instructions (this file)
+├── CLAUDE.md                       # Symlink → AGENTS.md
+├── CHANGELOG.md                    # Release history
+├── README.md                       # Quickstart guide
+├── pyproject.toml                  # Pytest configuration
+├── requirements-test.txt           # Test dependencies
+├── .pre-commit-config.yaml         # Pre-commit hooks
+├── .gitignore                      # Git ignore rules
+│
+├── scripts/
+│   ├── health_check.sh             # Health report formatter
+│   ├── wait_for_services.sh        # Service readiness poller
+│   ├── test_demo_profile.sh        # Demo profile integration test
+│   └── test_health_enhanced.sh     # Enhanced health check validation
+│
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py                 # Shared fixtures (JUNIPER_TEST_* env vars)
+│   ├── constants.py                # Shared constants (DEFAULT_TIMEOUT)
+│   ├── test_health.py              # Health endpoint tests (3 services)
+│   ├── test_data_service.py        # Dataset lifecycle tests
+│   ├── test_full_stack.py          # Cross-service integration tests
+│   ├── test_availability.py        # Availability checking fixtures
+│   └── test_compose_security_config.py  # Docker security regression tests
+│
+├── docs/
+│   ├── DOCUMENTATION_OVERVIEW.md   # Navigation index
+│   ├── QUICK_START.md              # 5-minute quickstart
+│   ├── ENVIRONMENT_SETUP.md        # Complete env var setup guide
+│   ├── USER_MANUAL.md              # Profiles, monitoring, security
+│   ├── DEVELOPER_CHEATSHEET.md     # Common commands reference
+│   ├── OBSERVABILITY_GUIDE.md      # Prometheus/Grafana documentation
+│   ├── REFERENCE.md                # Technical reference
+│   └── testing/
+│       └── TESTING_QUICK_START.md  # Integration test guide
+│
+├── notes/                          # Development notes and procedures
+│   ├── WORKTREE_SETUP_PROCEDURE.md
+│   ├── WORKTREE_CLEANUP_PROCEDURE_V2.md
+│   ├── THREAD_HANDOFF_PROCEDURE.md
+│   ├── FIX_FAILING_TESTS_PLAN.md
+│   ├── CONTAINER_VALIDATION_CI_PLAN.md
+│   ├── JUNIPER-DEPLOY_POST-RELEASE_DEVELOPMENT-ROADMAP.md
+│   ├── history/                    # Archived/completed plans
+│   └── pull_requests/              # PR description archives
+│
+├── prometheus/
+│   ├── prometheus.yml              # Scrape configuration
+│   ├── alert_rules.yml             # Alert rules
+│   └── recording_rules.yml         # Recording rules
+│
+├── grafana/
+│   └── provisioning/
+│       ├── dashboards/
+│       │   ├── dashboard-providers.yml
+│       │   ├── juniper-overview.json
+│       │   ├── juniper-data.json
+│       │   ├── juniper-cascor.json
+│       │   └── juniper-canopy.json
+│       └── datasources/
+│           └── prometheus.yml
+│
+├── alertmanager/
+│   └── alertmanager.yml            # Alert routing configuration
+│
+├── secrets/                        # Docker secret files (git-ignored)
+│   ├── juniper_data_api_keys.txt
+│   ├── juniper_cascor_api_keys.txt
+│   ├── canopy_api_key.txt
+│   └── grafana_admin_password.txt
+│
+├── secrets.example/                # Secret file templates
+│   ├── juniper_data_api_keys.txt
+│   ├── juniper_cascor_api_keys.txt
+│   ├── canopy_api_key.txt
+│   └── grafana_admin_password.txt
+│
+└── .github/
+    ├── workflows/
+    │   └── ci.yml                  # CI/CD pipeline (v0.2.0)
+    ├── CODEOWNERS
+    └── dependabot.yml
 ```
 
 ---
@@ -95,31 +300,51 @@ juniper-data (8100)
 
 Part of the Juniper ecosystem. See the parent directory's `CLAUDE.md` at `/home/pcalnon/Development/python/Juniper/CLAUDE.md` for the full project map, dependency graph, shared conventions, and conda environment details.
 
-### Environment Variables
+---
+
+## Environment Variables
 
 All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.env.example` to `.env` to override.
 
+### Core Service Configuration
+
+| Variable | Service | Default | Notes |
+|----------|---------|---------|-------|
+| `JUNIPER_DATA_HOST` | juniper-data | `0.0.0.0` | |
+| `JUNIPER_DATA_PORT` | juniper-data | `8100` | |
+| `JUNIPER_DATA_LOG_LEVEL` | juniper-data | `INFO` | |
+| `CASCOR_HOST` | juniper-cascor | `0.0.0.0` | Maps to `JUNIPER_CASCOR_HOST` in container |
+| `CASCOR_PORT` | juniper-cascor | `8200` | Internal container port; maps to `JUNIPER_CASCOR_PORT` |
+| `CASCOR_HOST_PORT` | juniper-cascor | `8201` | Host-exposed port (avoids port 8200 conflicts) |
+| `CASCOR_LOG_LEVEL` | juniper-cascor | `INFO` | Maps to `JUNIPER_CASCOR_LOG_LEVEL` in container |
+| `CANOPY_HOST` | juniper-canopy | `0.0.0.0` | |
+| `CANOPY_PORT` | juniper-canopy | `8050` | |
+
+### Inter-Service URLs
+
 | Variable | Service | Default |
 |----------|---------|---------|
-| `JUNIPER_DATA_HOST` | juniper-data | `0.0.0.0` |
-| `JUNIPER_DATA_PORT` | juniper-data | `8100` |
-| `JUNIPER_DATA_LOG_LEVEL` | juniper-data | `INFO` |
-| `JUNIPER_CASCOR_HOST` | juniper-cascor | `0.0.0.0` |
-| `JUNIPER_CASCOR_PORT` | juniper-cascor | `8200` (internal container port) |
-| `CASCOR_HOST_PORT` | juniper-cascor | `8201` (host-exposed port) |
-| `JUNIPER_CASCOR_LOG_LEVEL` | juniper-cascor | `INFO` |
-| `CANOPY_HOST` | juniper-canopy | `0.0.0.0` |
-| `CANOPY_PORT` | juniper-canopy | `8050` |
 | `JUNIPER_DATA_URL` | juniper-cascor, juniper-canopy | `http://juniper-data:8100` |
 | `CASCOR_SERVICE_URL` | juniper-canopy | `http://juniper-cascor:8200` |
-| `JUNIPER_DATA_API_KEYS` | juniper-data | *(unset — auth disabled)* |
-| `JUNIPER_CASCOR_API_KEYS` | juniper-cascor | *(unset — auth disabled)* |
-| `JUNIPER_CASCOR_RATE_LIMIT_ENABLED` | juniper-cascor | `false` |
-| `JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-cascor | `60` |
-| `CANOPY_RATE_LIMIT_ENABLED` | juniper-canopy | `false` |
-| `CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-canopy | `60` |
-| `JUNIPER_DATA_API_KEY` | juniper-cascor | *(from `JUNIPER_DATA_API_KEYS`)* |
-| `JUNIPER_CASCOR_API_KEY` | juniper-canopy | *(from `JUNIPER_CASCOR_API_KEYS`)* |
+
+### API Security
+
+| Variable | Service | Default | Notes |
+|----------|---------|---------|-------|
+| `JUNIPER_DATA_API_KEYS` | juniper-data | *(unset — auth disabled)* | |
+| `JUNIPER_CASCOR_API_KEYS` | juniper-cascor | *(unset — auth disabled)* | |
+| `CANOPY_API_KEY` | juniper-canopy | *(unset — auth disabled)* | Via Docker secret |
+| `JUNIPER_CASCOR_RATE_LIMIT_ENABLED` | juniper-cascor | `true` | |
+| `JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-cascor | `60` | |
+| `CANOPY_RATE_LIMIT_ENABLED` | juniper-canopy | `true` | Maps to `JUNIPER_CANOPY_RATE_LIMIT_ENABLED` |
+| `CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-canopy | `60` | Maps to `JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` |
+| `JUNIPER_DATA_API_KEY` | juniper-cascor | *(from `JUNIPER_DATA_API_KEYS`)* | CasCor's credential for JuniperData |
+| `JUNIPER_CASCOR_API_KEY` | juniper-canopy | *(from `JUNIPER_CASCOR_API_KEYS`)* | Canopy's credential for CasCor |
+
+### Observability
+
+| Variable | Service | Default |
+|----------|---------|---------|
 | `JUNIPER_DATA_LOG_FORMAT` | juniper-data | `text` |
 | `JUNIPER_DATA_SENTRY_DSN` | juniper-data | *(unset)* |
 | `JUNIPER_DATA_METRICS_ENABLED` | juniper-data | `false` |
@@ -129,14 +354,190 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 | `CANOPY_LOG_FORMAT` | juniper-canopy | `text` |
 | `CANOPY_SENTRY_DSN` | juniper-canopy | *(unset)* |
 | `CANOPY_METRICS_ENABLED` | juniper-canopy | `false` |
+
+> **Tip**: Use `.env.observability` to auto-enable metrics when running with the observability profile. See `make obs` and `make obs-demo`.
+
+### Grafana
+
+| Variable | Service | Default | Notes |
+|----------|---------|---------|-------|
+| `GRAFANA_ADMIN_USER` | grafana | `admin` | |
+| `GF_SECURITY_ADMIN_PASSWORD__FILE` | grafana | `/run/secrets/grafana_admin_password` | **Docker secret only** — no env var fallback. Set password in `secrets/grafana_admin_password.txt` |
+
+### Demo Profile
+
+| Variable | Service | Default |
+|----------|---------|---------|
 | `JUNIPER_CANOPY_DEMO_MODE` | juniper-canopy-dev | `true` |
-| `GRAFANA_ADMIN_USER` | grafana | `admin` |
-| `GRAFANA_ADMIN_PASSWORD` | grafana | `admin` |
 | `JUNIPER_CASCOR_AUTO_START` | juniper-cascor-demo | `true` |
 | `JUNIPER_CASCOR_AUTO_DATASET` | juniper-cascor-demo | `spiral` |
 | `JUNIPER_CASCOR_AUTO_DATASET_PARAMS` | juniper-cascor-demo | JSON params |
 | `JUNIPER_CASCOR_AUTO_NETWORK` | juniper-cascor-demo | JSON config |
 | `JUNIPER_CASCOR_AUTO_TRAIN_EPOCHS` | juniper-cascor-demo | `500` |
+
+### Infrastructure Services
+
+| Variable | Service | Default |
+|----------|---------|---------|
+| `REDIS_PORT` | redis | `6379` |
+| `REDIS_MAX_MEMORY` | redis | `100mb` |
+| `CASSANDRA_PORT` | cassandra | `9042` |
+| `CASSANDRA_MAX_HEAP` | cassandra | `512M` |
+| `CASSANDRA_HEAP_NEW` | cassandra | `128M` |
+
+### Docker Secret File Variables
+
+These environment variables point containers to their mounted Docker secret files. They are set automatically in `docker-compose.yml` and should not need manual configuration.
+
+| Variable | Service | Value |
+|----------|---------|-------|
+| `JUNIPER_DATA_API_KEYS_FILE` | juniper-data | `/run/secrets/juniper_data_api_keys` |
+| `JUNIPER_CASCOR_API_KEYS_FILE` | juniper-cascor | `/run/secrets/juniper_cascor_api_keys` |
+| `JUNIPER_DATA_API_KEY_FILE` | juniper-cascor | `/run/secrets/juniper_data_api_keys` |
+| `CANOPY_API_KEY_FILE` | juniper-canopy | `/run/secrets/canopy_api_key` |
+| `JUNIPER_CASCOR_API_KEY_FILE` | juniper-canopy | `/run/secrets/juniper_cascor_api_keys` |
+
+---
+
+## Security Architecture
+
+### Network Isolation
+
+Four Docker networks enforce service-to-service communication boundaries:
+
+| Network | Type | Purpose | Services |
+|---------|------|---------|----------|
+| `frontend` | bridge | Public-facing dashboard | juniper-canopy, juniper-canopy-demo, juniper-canopy-dev |
+| `backend` | **internal** | CasCor + infrastructure (no external access) | juniper-cascor, redis, cassandra, prometheus |
+| `data` | **internal** | JuniperData access (no external access) | juniper-data, juniper-cascor, juniper-canopy, prometheus |
+| `monitoring` | bridge | Observability stack | prometheus, grafana |
+
+Networks marked **internal** have no external connectivity — containers on these networks can only communicate with other containers on the same network.
+
+### Container Hardening
+
+All Juniper application containers (juniper-data, juniper-cascor, juniper-canopy variants) have:
+
+- `security_opt: no-new-privileges:true` — prevents privilege escalation
+- `cap_drop: ALL` — drops all Linux capabilities
+
+### Port Binding Restrictions
+
+Internal and infrastructure services bind to `127.0.0.1` (localhost only):
+
+- `juniper-data` → `127.0.0.1:8100`
+- `prometheus` → `127.0.0.1:9090`
+- `alertmanager` → `127.0.0.1:9093`
+- `grafana` → `127.0.0.1:3000`
+- `redis` → `127.0.0.1:6379`
+- `cassandra` → `127.0.0.1:9042`
+
+External-facing services (cascor host port, canopy) bind to `0.0.0.0` by default.
+
+### Docker Secrets
+
+API keys and the Grafana admin password are managed via Docker secrets (mounted as files at `/run/secrets/`):
+
+| Secret | File | Used By |
+|--------|------|---------|
+| `juniper_data_api_keys` | `secrets/juniper_data_api_keys.txt` | juniper-data, juniper-cascor |
+| `juniper_cascor_api_keys` | `secrets/juniper_cascor_api_keys.txt` | juniper-cascor, juniper-canopy |
+| `canopy_api_key` | `secrets/canopy_api_key.txt` | juniper-canopy |
+| `grafana_admin_password` | `secrets/grafana_admin_password.txt` | grafana |
+
+Run `make prepare-secrets` to create placeholder secret files. See `secrets.example/` for templates.
+
+### Pinned Third-Party Images
+
+| Image | Version | Service |
+|-------|---------|---------|
+| `prom/prometheus` | v3.10.0 | prometheus |
+| `prom/alertmanager` | v0.28.1 | alertmanager |
+| `grafana/grafana` | 12.4.0 | grafana |
+| `redis` | 7-alpine | redis |
+| `cassandra` | 4.1 | cassandra |
+
+---
+
+## CI/CD Pipeline
+
+GitHub Actions workflow (`.github/workflows/ci.yml`, v0.2.0):
+
+**Triggers**: push to `main`, `develop`, `feature/**`, `fix/**`; pull requests; manual dispatch
+
+**Jobs**:
+
+| Job | Purpose | Dependencies |
+|-----|---------|-------------|
+| `pre-commit` | YAML, shell, markdown, Python validation | — |
+| `validate-compose` | Compose config validation (full, demo, dev profiles) | pre-commit |
+| `docker-integration` | Build dev profile, start services, verify health endpoints (15min timeout) | validate-compose |
+| `required-checks` | Quality gate enforcement (all jobs must pass) | all |
+
+**Notes**:
+
+- Multi-repo checkout: CI checks out `juniper-data`, `juniper-cascor`, and `juniper-canopy` as sibling directories (required for `docker compose build`)
+- All GitHub Actions are SHA-pinned (checkout@v6.0.2, setup-python@v6.2.0, cache@v5.0.4)
+- `docker-compose-check` pre-commit hook is skipped in CI (handled by dedicated `validate-compose` job)
+
+---
+
+## Testing
+
+### Python Integration Tests
+
+```bash
+pip install -r requirements-test.txt
+make up                              # or make demo / make dev
+bash scripts/wait_for_services.sh    # Wait for services to be healthy
+pytest tests/ -v                     # Run all tests
+pytest tests/ -v -m health           # Health endpoint tests only
+pytest tests/ -v -m data             # Dataset tests only
+pytest tests/ -v -m full_stack       # Cross-service tests only
+```
+
+**Test files**:
+
+| File | Markers | Tests |
+|------|---------|-------|
+| `test_health.py` | `health` | Liveness, readiness, schema, content-type for all 3 services |
+| `test_data_service.py` | `data` | Generators, dataset lifecycle (create, read, download, delete), stats |
+| `test_full_stack.py` | `full_stack` | CasCor-Data integration, Canopy dashboard, 3-service pipeline |
+| `test_availability.py` | — | Skip mechanism validation, fixture scope checks |
+| `test_compose_security_config.py` | — | Docker secret wiring, network isolation, Grafana secret-only password |
+
+**Configurable service URLs** (via environment variables):
+
+| Variable | Default |
+|----------|---------|
+| `JUNIPER_TEST_DATA_URL` | `http://localhost:8100` |
+| `JUNIPER_TEST_CASCOR_URL` | `http://localhost:8201` |
+| `JUNIPER_TEST_CANOPY_URL` | `http://localhost:8050` |
+| `JUNIPER_TEST_DATA_API_KEY` | *(unset)* |
+| `JUNIPER_TEST_CASCOR_API_KEY` | *(unset)* |
+| `JUNIPER_TEST_CANOPY_API_KEY` | *(unset)* |
+
+### Shell Script Tests
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/test_demo_profile.sh` | 7-step demo profile validation (config, start, wait, seed check, training, canopy, shutdown) |
+| `scripts/test_health_enhanced.sh` | 8-step health check validation (config, start, liveness, readiness, schema, dependencies, Docker healthcheck) |
+
+---
+
+## Documentation
+
+| Document | Purpose |
+|----------|---------|
+| `docs/DOCUMENTATION_OVERVIEW.md` | Navigation index — start here |
+| `docs/QUICK_START.md` | Start the Juniper stack in 5 minutes |
+| `docs/ENVIRONMENT_SETUP.md` | Complete environment configuration guide |
+| `docs/USER_MANUAL.md` | Profiles, monitoring, security, logging, scripts |
+| `docs/DEVELOPER_CHEATSHEET.md` | Common commands quick-reference |
+| `docs/OBSERVABILITY_GUIDE.md` | Prometheus, Grafana, AlertManager, Sentry documentation |
+| `docs/REFERENCE.md` | Technical reference (services, env vars, networks, healthchecks) |
+| `docs/testing/TESTING_QUICK_START.md` | Integration test guide |
 
 ---
 
