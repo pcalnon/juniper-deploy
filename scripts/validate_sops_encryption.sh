@@ -30,8 +30,9 @@ validate_sops_file() {
     fi
 
     # SOPS-encrypted files must contain the "sops" metadata key.
-    # For YAML/JSON this is a top-level "sops:" or "sops" key.
-    # For dotenv format, SOPS adds a trailing comment block with sops metadata.
+    # Supported formats:
+    #   - YAML/JSON: top-level "sops" key (e.g., "sops:", '"sops":' or '"sops"={')
+    #   - dotenv: SOPS appends metadata lines prefixed with "sops_" (e.g., sops_version, sops_mac)
     if grep -qE '^\s*"?sops"?\s*[:={]|^sops_' "$file"; then
         return 0
     fi

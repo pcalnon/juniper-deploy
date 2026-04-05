@@ -72,7 +72,11 @@ class TestPortValidation:
     """Ensure scripts validate port environment variables are numeric."""
 
     def test_scripts_validate_cascor_port(self):
-        """Scripts using CASCOR_HOST_PORT must validate it is numeric."""
+        """Scripts using CASCOR_HOST_PORT must validate it is numeric.
+
+        Checks for the bash regex pattern [0-9]+$ which is used in
+        `[[ "$var" =~ ^[0-9]+$ ]]` validation guards.
+        """
         scripts_using_cascor_port = [
             "wait_for_services.sh",
             "health_check.sh",
@@ -87,7 +91,11 @@ class TestPortValidation:
             )
 
     def test_port_validation_rejects_injection_payload(self):
-        """Port validation must reject a code injection payload."""
+        """Port validation must reject a code injection payload.
+
+        Uses a controlled adversarial payload to verify the numeric check
+        prevents quote-breaking Python code injection.
+        """
         # Write a small test script to a temp file to avoid heredoc quoting issues
         import tempfile
         test_script = (
