@@ -23,8 +23,15 @@ TIMEOUT=${1:-90}
 POLL_INTERVAL=3
 ELAPSED=0
 
+# Validate port values are numeric to prevent injection
+cascor_port="${CASCOR_HOST_PORT:-8201}"
+if ! [[ "$cascor_port" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: CASCOR_HOST_PORT contains non-numeric value: ${cascor_port}"
+    exit 1
+fi
+
 DATA_URL="http://localhost:8100/v1/health/live"
-CASCOR_URL="http://localhost:${CASCOR_HOST_PORT:-8201}/v1/health/live"
+CASCOR_URL="http://localhost:${cascor_port}/v1/health/live"
 CANOPY_URL="http://localhost:8050/v1/health/live"
 
 echo "Waiting for Juniper services (timeout: ${TIMEOUT}s)..."
@@ -32,7 +39,7 @@ echo "Waiting for Juniper services (timeout: ${TIMEOUT}s)..."
 check_service() {
     local name="$1"
     local url="$2"
-    if python3 -c "import urllib.request; urllib.request.urlopen('${url}', timeout=3)" 2>/dev/null; then
+    if python3 -c "import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=3)" "$url" 2>/dev/null; then
         echo "  ✓ ${name} is healthy"
         return 0
     fi

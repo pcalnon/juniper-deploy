@@ -25,10 +25,17 @@ POLL_INTERVAL=3
 ELAPSED=0
 EXIT_CODE=0
 
+# Validate port values are numeric to prevent injection
+cascor_port="${CASCOR_HOST_PORT:-8201}"
+if ! [[ "$cascor_port" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: CASCOR_HOST_PORT contains non-numeric value: ${cascor_port}"
+    exit 1
+fi
+
 DATA_URL="http://localhost:8100/v1/health"
-CASCOR_URL="http://localhost:${CASCOR_HOST_PORT:-8201}/v1/health"
+CASCOR_URL="http://localhost:${cascor_port}/v1/health"
 CANOPY_URL="http://localhost:8050/v1/health"
-TRAINING_STATUS_URL="http://localhost:${CASCOR_HOST_PORT:-8201}/v1/training/status"
+TRAINING_STATUS_URL="http://localhost:${cascor_port}/v1/training/status"
 
 # Colors (disabled if NO_COLOR is set)
 if [[ -z "${NO_COLOR:-}" ]]; then
@@ -65,7 +72,7 @@ docker compose --profile demo up -d
 echo -e "${CYAN}[3/7]${RESET} Waiting for services to become healthy (timeout: ${TIMEOUT}s)..."
 
 check_service() {
-    python3 -c "import urllib.request; urllib.request.urlopen('$1', timeout=3)" 2>/dev/null
+    python3 -c "import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=3)" "$1" 2>/dev/null
 }
 
 while true; do
@@ -110,13 +117,13 @@ echo -e "${CYAN}[5/7]${RESET} Checking training status..."
 # Allow a few seconds for auto-start to kick in
 sleep 5
 TRAINING_JSON=$(python3 -c "
-import urllib.request, json
+import urllib.request, json, sys
 try:
-    resp = urllib.request.urlopen('${TRAINING_STATUS_URL}', timeout=5)
+    resp = urllib.request.urlopen(sys.argv[1], timeout=5)
     print(resp.read().decode())
 except Exception as e:
     print(json.dumps({'error': str(e)}))
-" 2>/dev/null)
+" "$TRAINING_STATUS_URL" 2>/dev/null)
 
 if echo "${TRAINING_JSON}" | python3 -c "
 import sys, json
