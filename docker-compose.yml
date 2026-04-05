@@ -365,11 +365,11 @@ print(f'Demo dataset created: {json.loads(resp.read())}')
 # ═══════════════════════════════════════════════════════════════════════════
 secrets:
   juniper_data_api_key:
-    file: ./secrets/juniper_data_api_key.txt
+    file: "${JUNIPER_DATA_API_KEY_FILE:-./secrets.example/juniper_data_api_key.txt}"
   juniper_cascor_api_key:
-    file: ./secrets/juniper_cascor_api_key.txt
+    file: "${JUNIPER_CASCOR_API_KEY_FILE:-./secrets.example/juniper_cascor_api_key.txt}"
   cascor_sentry_dsn:
-    file: ./secrets/cascor_sentry_dsn.txt
+    file: "${CASCOR_SENTRY_DSN_FILE:-./secrets.example/cascor_sentry_dsn.txt}"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Networks
