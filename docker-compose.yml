@@ -396,6 +396,22 @@ services:
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
+  # Redis — Session/cache store for juniper-canopy
+  # ═══════════════════════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: juniper-redis
+    profiles: ["full", "test"]
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
   # Test Runner — Integration test container (runs once and exits)
   # Packages the test suite for containerized execution.
   # ═══════════════════════════════════════════════════════════════════════════
@@ -429,8 +445,14 @@ secrets:
     file: "${JUNIPER_DATA_API_KEY_FILE:-./secrets.example/juniper_data_api_key.txt}"
   juniper_cascor_api_key:
     file: "${JUNIPER_CASCOR_API_KEY_FILE:-./secrets.example/juniper_cascor_api_key.txt}"
+  juniper_cascor_api_keys:
+    file: "${JUNIPER_CASCOR_API_KEYS_FILE:-./secrets.example/juniper_cascor_api_keys.txt}"
   cascor_sentry_dsn:
     file: "${CASCOR_SENTRY_DSN_FILE:-./secrets.example/cascor_sentry_dsn.txt}"
+  canopy_api_key:
+    file: "${CANOPY_API_KEY_FILE:-./secrets.example/canopy_api_key.txt}"
+  grafana_admin_password:
+    file: "${GRAFANA_ADMIN_PASSWORD_FILE:-./secrets.example/grafana_admin_password.txt}"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Networks
