@@ -38,6 +38,15 @@ else
     RESET=''
 fi
 
+# Validate port values are numeric (defense against env injection)
+for port_var in JUNIPER_DATA_PORT CASCOR_PORT CANOPY_PORT; do
+    port_val="${!port_var:-}"
+    if [[ -n "$port_val" && ! "$port_val" =~ ^[0-9]+$ ]]; then
+        echo "ERROR: ${port_var}='${port_val}' is not a valid port number"
+        exit 1
+    fi
+done
+
 SERVICES=(
     "juniper-data:${JUNIPER_DATA_PORT:-8100}"
     "juniper-cascor:${CASCOR_HOST_PORT:-8201}"
@@ -58,9 +67,10 @@ for entry in "${SERVICES[@]}"; do
 
     result=$(python3 -c "
 import urllib.request, json, time, sys
+url = sys.argv[1]
 try:
     start = time.monotonic()
-    resp = urllib.request.urlopen('${url}', timeout=5)
+    resp = urllib.request.urlopen(url, timeout=5)
     elapsed = (time.monotonic() - start) * 1000
     data = json.loads(resp.read().decode())
     status = data.get('status', 'unknown')
@@ -76,7 +86,7 @@ try:
     print(f'ok|{status}|{version}|{elapsed:.0f}ms|{dep_str}')
 except Exception as e:
     print(f'error|unreachable|n/a|—|')
-" 2>/dev/null)
+" "$url" 2>/dev/null)
 
     IFS='|' read -r ok status version latency deps <<< "$result"
 

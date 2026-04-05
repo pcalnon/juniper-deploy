@@ -48,7 +48,8 @@ Docker Compose profiles control which services start for each operational mode:
 | `full` | `make up` | juniper-data, juniper-cascor, juniper-canopy | Production-like stack |
 | `demo` | `make demo` | juniper-data, demo-seed, juniper-cascor-demo, juniper-canopy-demo | Self-running demo with auto-configured training |
 | `dev` | `make dev` | juniper-data, juniper-cascor, juniper-canopy-dev | Frontend development (canopy in demo mode) |
-| `observability` | `make obs` | Adds prometheus, grafana to any profile | Monitoring and dashboards |
+| `test` | `make test` | juniper-data, juniper-cascor, juniper-canopy, test-runner | Integration test suite |
+| `observability` | `make monitor` | prometheus, grafana (additive — use with `full`) | Prometheus + Grafana monitoring |
 
 ### Demo Profile
 
@@ -73,6 +74,8 @@ make logs
 make down
 ```
 
+The demo auto-start parameters (dataset, network config, epochs) can be customized in `.env.demo`.
+
 ### Dev Profile
 
 The dev profile runs real data and CasCor services with Canopy in demo mode (no backend dependency). Useful for frontend development on juniper-canopy.
@@ -83,19 +86,20 @@ make dev
 
 ### Profile Service Matrix
 
-| Service | `full` | `demo` | `dev` | `observability` |
-|---------|--------|--------|-------|-----------------|
-| juniper-data | yes | yes | yes | — |
-| juniper-cascor | yes | — | yes | — |
-| juniper-cascor-demo | — | yes | — | — |
-| juniper-canopy | yes | — | — | — |
-| juniper-canopy-demo | — | yes | — | — |
-| juniper-canopy-dev | — | — | yes | — |
-| demo-seed | — | yes | — | — |
-| prometheus | — | — | — | yes |
-| grafana | — | — | — | yes |
+| Service | `full` | `demo` | `dev` | `test` | `observability` |
+|---------|--------|--------|-------|--------|-----------------|
+| juniper-data | yes | yes | yes | yes | — |
+| juniper-cascor | yes | — | yes | yes | — |
+| juniper-cascor-demo | — | yes | — | — | — |
+| juniper-canopy | yes | — | — | yes | — |
+| juniper-canopy-demo | — | yes | — | — | — |
+| juniper-canopy-dev | — | — | yes | — | — |
+| demo-seed | — | yes | — | — | — |
+| test-runner | — | — | — | yes | — |
+| prometheus | — | — | — | — | yes |
+| grafana | — | — | — | — | yes |
 
-> **Note**: Do not run `demo` and `full` profiles simultaneously — they bind to the same host ports.
+> **Note**: Do not run `demo` and `full` profiles simultaneously — they bind to the same host ports. The `observability` profile is additive — combine it with `full` or `demo`.
 
 ### Available Targets
 
@@ -105,6 +109,8 @@ make dev
 | `make up` | Start full stack (detached) |
 | `make demo` | Start demo stack (auto-configured training) |
 | `make dev` | Start dev stack (canopy in demo mode) |
+| `make test` | Run integration tests (starts services + test-runner) |
+| `make monitor` | Start full stack with observability (Prometheus + Grafana) |
 | `make down` | Stop and remove all containers |
 | `make restart` | Restart all services |
 | `make logs` | Tail logs from all services (follow) |
@@ -148,6 +154,17 @@ curl http://localhost:8050/v1/health/ready  # juniper-canopy readiness
 ```
 
 ## Integration Tests
+
+### Containerized (recommended)
+
+```bash
+# Build and run tests in a container — services start automatically
+make test
+```
+
+The `test` profile starts juniper-data, juniper-cascor, and juniper-canopy, waits for healthy status, then runs the test suite in a `test-runner` container.
+
+### Host-based
 
 ```bash
 # Start services and wait for healthy
@@ -270,6 +287,22 @@ JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE=60
 
 JuniperCascor WebSocket endpoints (`/ws/*`) require the `X-API-Key` header during the connection handshake when authentication is enabled. Connections without a valid key are closed with code `4001`.
 
+### Docker Compose Secrets
+
+For production deployments, sensitive values (API keys, DSNs) can be provided via Docker Compose file-based secrets instead of environment variables:
+
+1. Copy the template directory:
+
+   ```bash
+   cp -r secrets.example/ secrets/
+   ```
+
+2. Edit each file in `secrets/` with real values
+
+3. Secrets are mounted at `/run/secrets/<name>` inside the container
+
+The `secrets/` directory is git-ignored. See `secrets.example/` for the available secret files.
+
 ### Integration Tests with Authentication
 
 When running tests against services with authentication enabled, pass API keys via environment variables:
@@ -280,6 +313,16 @@ JUNIPER_TEST_CASCOR_API_KEY=my-cascor-secret-key \
 JUNIPER_TEST_JUNIPER_CANOPY_API_KEY=my-canopy-secret-key \
 pytest tests/ -v
 ```
+
+## Development
+
+For local development with hot-reloading, copy the override template:
+
+```bash
+cp docker-compose.override.yml.example docker-compose.override.yml
+```
+
+Edit the override file to bind-mount source directories from sibling repos. Docker Compose automatically merges `docker-compose.override.yml` with `docker-compose.yml`. The override file is git-ignored.
 
 ## Observability
 
@@ -368,7 +411,7 @@ JUNIPER_CANOPY_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
 
 **Port conflicts**: If default ports are in use, copy `.env.example` to `.env` and change port values. The juniper-cascor host port defaults to 8201 (via `CASCOR_HOST_PORT`) to avoid conflicts with other services commonly bound to 8200. Set `CASCOR_HOST_PORT=8200` in `.env` if port 8200 is available.
 
-**`make clean` won't release disk**: Named volumes may persist. Use `docker volume prune` to clean orphaned volumes.
+**`make clean` won't release disk**: Named volumes (`juniper-data-datasets`, `juniper-cascor-snapshots`, `juniper-cascor-logs`, `grafana-data`) may persist after `make down`. Use `docker volume prune` to clean orphaned volumes, or `make clean` to remove everything including volumes.
 
 ## Ecosystem Compatibility
 

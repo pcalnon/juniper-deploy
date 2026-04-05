@@ -1,0 +1,41 @@
+---
+######################################################################################################################################################################################################
+# Project:       Juniper
+# Application:   juniper-deploy
+# File Name:     docker-compose.override.yml.example
+# Author:        Paul Calnon
+#
+# Date Created:  2026-03-02
+# Last Modified: 2026-03-02
+#
+# License:       MIT License
+# Copyright:     Copyright (c) 2024-2026 Paul Calnon
+#
+# Description:
+#    Development override template for hot-reloading source code.
+#    Copy to docker-compose.override.yml and uncomment the sections you need.
+#    Docker Compose automatically merges this file with docker-compose.yml.
+#
+# Usage:
+#    cp docker-compose.override.yml.example docker-compose.override.yml
+#    # Edit as needed, then:
+#    docker compose --profile full up -d
+#
+######################################################################################################################################################################################################
+
+services:
+  # --- JuniperData: bind-mount source for hot-reload ---
+  # juniper-data:
+  #   volumes:
+  #     - ../juniper-data/juniper_data:/app/juniper_data:ro
+  #   command: ["uvicorn", "juniper_data.main:app", "--host", "0.0.0.0", "--port", "8100", "--reload"]
+
+  # --- JuniperCascor: bind-mount source ---
+  # juniper-cascor:
+  #   volumes:
+  #     - ../juniper-cascor/src:/app/src:ro
+
+  # --- JuniperCanopy: bind-mount source ---
+  # juniper-canopy:
+  #   volumes:
+  #     - ../juniper-canopy/src:/app/src:ro

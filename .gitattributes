@@ -1,0 +1,11 @@
+# =============================================================================
+# SOPS Encrypted Files — Diff and Merge Configuration
+#
+# Diff driver setup (one-time per clone/worktree):
+#   git config diff.sopsdiffer.textconv "sops -d"
+#
+# This enables `git diff` to show decrypted plaintext diffs for encrypted files.
+# =============================================================================
+
+*.env.enc diff=sopsdiffer merge=binary
+*.env.secrets.enc diff=sopsdiffer merge=binary

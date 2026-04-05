@@ -5,7 +5,7 @@
 # Author:        Paul Calnon
 #
 # Date Created:  2026-02-26
-# Last Modified: 2026-02-26
+# Last Modified: 2026-03-02
 #
 # License:       MIT License
 # Copyright:     Copyright (c) 2024-2026 Paul Calnon
@@ -48,13 +48,7 @@ endif
 .PHONY: help up down restart logs logs-data logs-cascor logs-canopy \
         status build build-no-cache clean \
         shell-data shell-cascor shell-canopy \
-        health wait ps demo dev obs obs-demo prepare-secrets
-
-SECRETS_DIR ?= secrets
-SECRETS_FILES := $(SECRETS_DIR)/juniper_data_api_keys.txt \
-                 $(SECRETS_DIR)/juniper_cascor_api_keys.txt \
-                 $(SECRETS_DIR)/canopy_api_key.txt \
-                 $(SECRETS_DIR)/grafana_admin_password.txt
+        health wait ps demo dev test monitor
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Help
@@ -82,7 +76,7 @@ up: prepare-secrets ## Start all services (--profile full, detached)
 	@echo -e "$(GREEN)Services starting. Run 'make logs' to follow output.$(RESET)"
 
 down:  ## Stop and remove all containers
-	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev --profile observability down
+	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev --profile test --profile observability down
 
 restart:  ## Restart all services
 	@$(COMPOSE) -f $(COMPOSE_FILE) restart
@@ -95,13 +89,12 @@ dev: prepare-secrets ## Start dev stack (real data + cascor, canopy in demo mode
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile dev up -d
 	@echo -e "$(GREEN)Dev stack starting. Run 'make logs' to follow output.$(RESET)"
 
-obs: prepare-secrets ## Start full stack with observability (Prometheus + Grafana)
-	@$(COMPOSE) -f $(COMPOSE_FILE) --env-file .env --env-file .env.observability --profile full --profile observability up -d
-	@echo -e "$(GREEN)Full stack + observability starting. Grafana: http://localhost:3000$(RESET)"
+test:  ## Run integration tests (starts services + test-runner)
+	@$(COMPOSE) -f $(COMPOSE_FILE) --profile test up --abort-on-container-exit --exit-code-from test-runner
 
-obs-demo: prepare-secrets ## Start demo stack with observability (Prometheus + Grafana)
-	@$(COMPOSE) -f $(COMPOSE_FILE) --env-file .env --env-file .env.observability --profile demo --profile observability up -d
-	@echo -e "$(GREEN)Demo stack + observability starting. Grafana: http://localhost:3000$(RESET)"
+monitor:  ## Start full stack with observability (Prometheus + Grafana)
+	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile observability up -d
+	@echo -e "$(GREEN)Full stack + observability starting. Prometheus: http://localhost:9090, Grafana: http://localhost:3000$(RESET)"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Logs
@@ -140,10 +133,10 @@ wait:  ## Block until all services are healthy
 # ═══════════════════════════════════════════════════════════════════════════
 
 build:  ## Build/rebuild all images
-	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev build
+	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev --profile test --profile observability build
 
 build-no-cache:  ## Full rebuild without cache
-	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev build --no-cache
+	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev --profile test --profile observability build --no-cache
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Cleanup

@@ -8,8 +8,10 @@
 # Copyright:     Copyright (c) 2024-2026 Paul Calnon
 #
 # Description:
-#    Polls all three Juniper service health endpoints until they are ready
-#    or a timeout is reached. Used before running integration tests.
+#    Polls all three Juniper service /v1/health/ready endpoints until they
+#    report ready status or a timeout is reached. Parses ReadinessResponse
+#    JSON to verify status and dependency health. Used before running
+#    integration tests.
 #
 # Usage:
 #    bash scripts/wait_for_services.sh
@@ -23,18 +25,50 @@ TIMEOUT=${1:-90}
 POLL_INTERVAL=3
 ELAPSED=0
 
-DATA_URL="http://localhost:8100/v1/health/live"
-CASCOR_URL="http://localhost:${CASCOR_HOST_PORT:-8201}/v1/health/live"
-CANOPY_URL="http://localhost:8050/v1/health/live"
+# Validate port values are numeric (defense against env injection)
+for port_var in JUNIPER_DATA_PORT CASCOR_PORT CANOPY_PORT; do
+    port_val="${!port_var:-}"
+    if [[ -n "$port_val" && ! "$port_val" =~ ^[0-9]+$ ]]; then
+        echo "ERROR: ${port_var}='${port_val}' is not a valid port number"
+        exit 1
+    fi
+done
+
+DATA_URL="http://localhost:${JUNIPER_DATA_PORT:-8100}/v1/health/ready"
+CASCOR_URL="http://localhost:${CASCOR_PORT:-8200}/v1/health/ready"
+CANOPY_URL="http://localhost:${CANOPY_PORT:-8050}/v1/health/ready"
 
 echo "Waiting for Juniper services (timeout: ${TIMEOUT}s)..."
 
 check_service() {
     local name="$1"
     local url="$2"
-    if python3 -c "import urllib.request; urllib.request.urlopen('${url}', timeout=3)" 2>/dev/null; then
-        echo "  ✓ ${name} is healthy"
+    local result
+    result=$(python3 -c "
+import urllib.request, json, sys
+url = sys.argv[1]
+try:
+    resp = urllib.request.urlopen(url, timeout=3)
+    data = json.loads(resp.read().decode())
+    status = data.get('status', 'unknown')
+    version = data.get('version', 'n/a')
+    service = data.get('service', 'unknown')
+    if status in ('healthy', 'ok', 'ready'):
+        print(f'ok|{status}|{version}')
+    else:
+        print(f'degraded|{status}|{version}')
+except Exception:
+    print('error|unreachable|n/a')
+" "$url" 2>/dev/null)
+
+    IFS='|' read -r ok status version <<< "$result"
+
+    if [[ "$ok" == "ok" ]]; then
+        echo "  ✓ ${name} is ready (status=${status}, version=${version})"
         return 0
+    elif [[ "$ok" == "degraded" ]]; then
+        echo "  ⚠ ${name} responded but status=${status}"
+        return 1
     fi
     return 1
 }
@@ -50,13 +84,13 @@ while true; do
 
     if [[ $data_ok -eq 1 && $cascor_ok -eq 1 && $canopy_ok -eq 1 ]]; then
         echo ""
-        echo "All services are healthy. Ready to run integration tests."
+        echo "All services are ready. Ready to run integration tests."
         exit 0
     fi
 
     if [[ $ELAPSED -ge $TIMEOUT ]]; then
         echo ""
-        echo "ERROR: Services did not become healthy within ${TIMEOUT}s"
+        echo "ERROR: Services did not become ready within ${TIMEOUT}s"
         exit 1
     fi
 

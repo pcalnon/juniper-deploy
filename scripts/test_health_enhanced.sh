@@ -62,8 +62,8 @@ TIMEOUT=90
 ELAPSED=0
 while true; do
     all_ok=true
-    for port in 8100 ${CASCOR_HOST_PORT:-8201} 8050; do
-        if ! python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:${port}/v1/health/live', timeout=3)" 2>/dev/null; then
+    for port in 8100 8200 8050; do
+        if ! python3 -c "import urllib.request, sys; urllib.request.urlopen(sys.argv[1], timeout=3)" "http://localhost:${port}/v1/health/live" 2>/dev/null; then
             all_ok=false
         fi
     done
