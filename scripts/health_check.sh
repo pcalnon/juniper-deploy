@@ -69,7 +69,6 @@ for entry in "${SERVICES[@]}"; do
 import urllib.request, json, time, sys
 url = sys.argv[1]
 try:
-    url = sys.argv[1]
     start = time.monotonic()
     resp = urllib.request.urlopen(url, timeout=5)
     elapsed = (time.monotonic() - start) * 1000

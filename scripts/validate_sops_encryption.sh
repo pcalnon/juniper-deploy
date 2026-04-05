@@ -29,17 +29,30 @@ validate_sops_file() {
         return 0
     fi
 
-    # SOPS-encrypted files must contain the "sops" metadata key.
-    # Supported formats:
-    #   - YAML/JSON: top-level "sops" key (e.g., "sops:", '"sops":' or '"sops"={')
-    #   - dotenv: SOPS appends metadata lines prefixed with "sops_" (e.g., sops_version, sops_mac)
-    if grep -qE '^\s*"?sops"?\s*[:={]|^sops_' "$file"; then
-        return 0
+    # Require multiple SOPS metadata fields (not just one prefix match).
+    # A single "sops_" prefix is trivially spoofed — require all three.
+    local sops_fields_found=0
+    grep -q "^sops_version=" "$file" 2>/dev/null && sops_fields_found=$((sops_fields_found + 1))
+    grep -q "^sops_lastmodified=" "$file" 2>/dev/null && sops_fields_found=$((sops_fields_found + 1))
+    grep -q "^sops_age__" "$file" 2>/dev/null && sops_fields_found=$((sops_fields_found + 1))
+
+    if [[ $sops_fields_found -lt 3 ]]; then
+        echo "ERROR: $file has insufficient SOPS metadata (${sops_fields_found}/3 required fields)."
+        echo "       Encrypt with: sops --encrypt --in-place $file"
+        EXIT_CODE=1
+        return
     fi
 
-    echo "ERROR: $file does not contain valid SOPS metadata."
-    echo "       Encrypt with: sops --encrypt --in-place $file"
-    EXIT_CODE=1
+    # Verify all non-metadata, non-comment lines contain ENC[AES256_GCM,...] values
+    local plaintext_lines
+    plaintext_lines=$(grep -v "^#" "$file" | grep -v "^sops_" | grep -v "^$" | grep -cv "ENC\[AES256_GCM," 2>/dev/null) || plaintext_lines=0
+    if [[ "$plaintext_lines" -gt 0 ]]; then
+        echo "ERROR: $file contains ${plaintext_lines} non-encrypted value(s)."
+        echo "       All values must use SOPS encryption."
+        echo "       Re-encrypt with: sops -e -i $file"
+        EXIT_CODE=1
+        return
+    fi
 }
 
 if [[ $# -gt 0 ]]; then
