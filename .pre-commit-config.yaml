@@ -52,3 +52,20 @@ repos:
         language: system
         files: \.env
         types: [file]
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SOPS: Validate .enc files contain SOPS metadata
+  # ═══════════════════════════════════════════════════════════════════════════
+  - repo: local
+    hooks:
+      - id: validate-sops-encryption
+        name: Validate SOPS encryption metadata
+        entry: bash scripts/validate_sops_encryption.sh
+        language: system
+        files: '\.enc$'
+        types: [file]
+
+# CI configuration (for pre-commit.ci service, if used)
+ci:
+  autofix_prs: false
+  autoupdate_schedule: monthly

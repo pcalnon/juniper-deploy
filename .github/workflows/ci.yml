@@ -85,6 +85,11 @@ jobs:
           echo "╚════════════════════════════════════════════════════════════╝"
           pre-commit run --all-files --show-diff-on-failure
 
+      - name: Validate SOPS encryption on .enc files
+        run: |
+          echo "Checking for .enc files that lack SOPS metadata..."
+          bash scripts/validate_sops_encryption.sh
+
   # ═══════════════════════════════════════════════════════════════════════════
   # SOPS Encryption Validation
   # ═══════════════════════════════════════════════════════════════════════════

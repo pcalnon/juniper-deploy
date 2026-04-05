@@ -38,11 +38,11 @@ else
     RESET=''
 fi
 
-# Validate port values are numeric (defense against env injection)
-for port_var in JUNIPER_DATA_PORT CASCOR_PORT CANOPY_PORT; do
-    port_val="${!port_var:-}"
-    if [[ -n "$port_val" && ! "$port_val" =~ ^[0-9]+$ ]]; then
-        echo "ERROR: ${port_var}='${port_val}' is not a valid port number"
+# Validate port values are numeric to prevent injection
+for varname in JUNIPER_DATA_PORT CASCOR_HOST_PORT CANOPY_PORT; do
+    val="${!varname:-}"
+    if [[ -n "$val" ]] && ! [[ "$val" =~ ^[0-9]+$ ]]; then
+        echo "ERROR: ${varname} contains non-numeric value: ${val}"
         exit 1
     fi
 done
@@ -69,6 +69,7 @@ for entry in "${SERVICES[@]}"; do
 import urllib.request, json, time, sys
 url = sys.argv[1]
 try:
+    url = sys.argv[1]
     start = time.monotonic()
     resp = urllib.request.urlopen(url, timeout=5)
     elapsed = (time.monotonic() - start) * 1000
