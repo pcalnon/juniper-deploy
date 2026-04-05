@@ -67,6 +67,7 @@ for entry in "${SERVICES[@]}"; do
 
     result=$(python3 -c "
 import urllib.request, json, time, sys
+url = sys.argv[1]
 try:
     url = sys.argv[1]
     start = time.monotonic()

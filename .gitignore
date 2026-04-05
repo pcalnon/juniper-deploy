@@ -9,13 +9,9 @@
 !.env.secrets.example
 !.env.enc
 !.env.secrets.enc
-secrets/*.txt
-!secrets/.gitkeep
-!secrets/juniper_data_api_keys.txt
-!secrets/juniper_cascor_api_keys.txt
-!secrets/canopy_api_key.txt
-!secrets/grafana_admin_password.txt
+docker-compose.override.yml
 __pycache__/
 *.pyc
+secrets/
 .pytest_cache/
 .coverage

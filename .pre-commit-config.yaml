@@ -1,179 +1,45 @@
-#####################################################################################################################################################################################################
-# Project:       Juniper
-# Application:   juniper-deploy
-# File Name:     .pre-commit-config.yaml
-# Author:        Paul Calnon
-# Version:       0.1.0
+---
+# =============================================================================
+# Pre-commit Configuration — juniper-deploy
 #
-# Date Created:  2026-03-11
-# Last Modified: 2026-03-11
-#
-# License:       MIT License
-# Copyright:     Copyright (c) 2024-2026 Paul Calnon
-#
-# Description:
-#    Pre-commit hooks configuration for juniper-deploy
-#    Validates Docker Compose YAML, shell scripts, markdown, and Python test files
-#
-# Setup:
-#    pip install pre-commit
-#    pre-commit install
-#    pre-commit run --all-files
-#
-# References:
-#    - https://pre-commit.com/
-#####################################################################################################################################################################################################
-
-# Minimum pre-commit version required
-minimum_pre_commit_version: "3.0.0"
-
-# Default settings for all hooks
-default_language_version:
-  python: python3
-
-# Exclude patterns (files/directories to skip)
-exclude: |
-  (?x)^(
-      \.git/|
-      \.venv/|
-      venv/|
-      __pycache__/|
-      \.pytest_cache/|
-      \.mypy_cache/|
-      data/|
-      prompts/|
-      reports/|
-      resources/|
-      logs/|
-      images/|
-      .*\.egg-info/|
-      .*\.ipynb_checkpoints/.*|
-      .*/backups/.*|
-      .*-ORIG\.py$|
-      .*\.bak$|
-      .*\.orig$|
-      .*~$
-  )$
+# Install: pre-commit install
+# Run all: pre-commit run --all-files
+# =============================================================================
 
 repos:
   # ═══════════════════════════════════════════════════════════════════════════
   # General file checks
   # ═══════════════════════════════════════════════════════════════════════════
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
-      - id: check-yaml
-        name: Check YAML syntax
-        args: [--allow-multiple-documents]
-      - id: check-toml
-        name: Check TOML syntax
-      - id: check-json
-        name: Check JSON syntax
-      - id: end-of-file-fixer
-        name: Fix end of files
       - id: trailing-whitespace
-        name: Trim trailing whitespace
-        args: [--markdown-linebreak-ext=md]
-      - id: check-merge-conflict
-        name: Check for merge conflicts
+        exclude: (\.env\.enc$|\.env\.secrets\.enc$)
+      - id: end-of-file-fixer
+        exclude: (\.env\.enc$|\.env\.secrets\.enc$)
+      - id: check-yaml
       - id: check-added-large-files
-        name: Check for large files
-        args: [--maxkb=1000]
-      - id: check-case-conflict
-        name: Check case conflicts
-      - id: check-ast
-        name: Check Python AST
-      - id: debug-statements
-        name: Check for debug statements
-      - id: detect-private-key
-        name: Detect private keys
+        args: ['--maxkb=500']
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # Python Linting - Flake8 (Tests and Scripts)
-  # juniper-deploy has Python test files and integration test scripts
-  # ═══════════════════════════════════════════════════════════════════════════
-  - repo: https://github.com/pycqa/flake8
-    rev: 7.1.1
-    hooks:
-      - id: flake8
-        name: Lint Python files with Flake8
-        args:
-          - --max-line-length=512
-          - --extend-ignore=E203,E265,E266,E501,W503,E722,E402,E226,C409,C901,B008,B904,B905,B907,F401,F811
-          - --max-complexity=20
-          - --select=B,C,E,F,W,T4,B9
-        additional_dependencies:
-          - flake8-bugbear>=24.0.0
-          - flake8-comprehensions>=3.14.0
-          - flake8-simplify>=0.21.0
-        files: ^tests/.*\.py$
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Security Scanning - Bandit (Python tests)
-  # ═══════════════════════════════════════════════════════════════════════════
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.9.4
-    hooks:
-      - id: bandit
-        name: Security scan Python files with Bandit
-        args:
-          - -q
-          - --skip=B101,B104,B108,B110,B311
-          # B101: assert_used (tests use assertions extensively)
-          # B104: hardcoded_bind_all_interfaces (service URLs)
-          # B108: hardcoded_tmp_directory (test fixtures)
-          # B110: try_except_pass (test cleanup)
-          # B311: random (not used for security)
-        files: ^tests/.*\.py$
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Shell Script Linting - shellcheck
+  # Shell script linting
   # ═══════════════════════════════════════════════════════════════════════════
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.10.0.1
     hooks:
       - id: shellcheck
-        name: Lint shell scripts
-        args:
-          - --severity=warning
+        args: ['--severity=warning']
         files: \.(sh|bash)$
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # Markdown Linting
-  # ═══════════════════════════════════════════════════════════════════════════
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.42.0
-    hooks:
-      - id: markdownlint
-        name: Lint Markdown files
-        args:
-          - --config=./.markdownlint.yaml
-          - --fix
-        files: \.(md|markdown)$
-        exclude: ^(CHANGELOG\.md|notes/|docs/)
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # YAML Linting - yamllint
+  # YAML linting
   # ═══════════════════════════════════════════════════════════════════════════
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.35.1
     hooks:
       - id: yamllint
-        name: Lint YAML files
-        args: [--format, parsable, -d, relaxed]
+        args: ['--strict', '-d', '{extends: default, rules: {line-length: {max: 512}, truthy: disable}}']
         types: [yaml]
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Docker Compose Validation
-  # ═══════════════════════════════════════════════════════════════════════════
-  - repo: local
-    hooks:
-      - id: docker-compose-check
-        name: Validate docker-compose.yml syntax
-        entry: 'bash -c "docker compose config --quiet 2>/dev/null || echo WARNING: docker compose not available for validation"'
-        language: system
-        files: ^docker-compose\.yml$
-        pass_filenames: false
 
   # ═══════════════════════════════════════════════════════════════════════════
   # SOPS: Block unencrypted .env files from being committed
@@ -181,10 +47,10 @@ repos:
   - repo: local
     hooks:
       - id: no-unencrypted-env
-        name: Block unencrypted .env files
-        entry: 'bash -c "echo ERROR: Unencrypted .env file detected. Use sops to encrypt. && exit 1"'
+        name: SOPS — block unencrypted secrets
+        entry: bash util/sops-pre-commit-hook.sh
         language: system
-        files: '^\.env(\.secrets)?$'
+        files: \.env
         types: [file]
 
   # ═══════════════════════════════════════════════════════════════════════════

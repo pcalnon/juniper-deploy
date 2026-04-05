@@ -10,7 +10,8 @@
 # Description:
 #    Integration test for the demo Docker Compose profile.
 #    Validates that the demo stack starts, seeds a dataset, auto-starts
-#    training, and Canopy connects successfully.
+#    training, and Canopy connects successfully. Validates ReadinessResponse
+#    schema on all health endpoints.
 #
 # Usage:
 #    bash scripts/test_demo_profile.sh
@@ -68,8 +69,8 @@ fi
 echo -e "${CYAN}[2/7]${RESET} Starting demo stack..."
 docker compose --profile demo up -d
 
-# ── Step 3: Wait for services ────────────────────────────────────────────────
-echo -e "${CYAN}[3/7]${RESET} Waiting for services to become healthy (timeout: ${TIMEOUT}s)..."
+# ── Step 3: Wait for services and validate ReadinessResponse ─────────────────
+echo -e "${CYAN}[3/7]${RESET} Waiting for services to become ready (timeout: ${TIMEOUT}s)..."
 
 check_service() {
     python3 -c "import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=3)" "$1" 2>/dev/null
@@ -78,9 +79,9 @@ check_service() {
 while true; do
     data_ok=0; cascor_ok=0; canopy_ok=0
 
-    check_service "${DATA_URL}"   && data_ok=1   || true
-    check_service "${CASCOR_URL}" && cascor_ok=1 || true
-    check_service "${CANOPY_URL}" && canopy_ok=1 || true
+    check_service_ready "${DATA_READY_URL}"   && data_ok=1   || true
+    check_service_ready "${CASCOR_READY_URL}" && cascor_ok=1 || true
+    check_service_ready "${CANOPY_READY_URL}" && canopy_ok=1 || true
 
     if [[ $data_ok -eq 1 && $cascor_ok -eq 1 && $canopy_ok -eq 1 ]]; then
         pass "All services healthy"
@@ -102,6 +103,48 @@ while true; do
     sleep ${POLL_INTERVAL}
     ELAPSED=$((ELAPSED + POLL_INTERVAL))
 done
+
+# ── Step 3b: Validate ReadinessResponse schema ───────────────────────────────
+echo -e "${CYAN}[3b/7]${RESET} Validating ReadinessResponse schema..."
+
+validate_readiness_schema() {
+    local name="$1"
+    local url="$2"
+    local result
+    result=$(python3 -c "
+import urllib.request, json, sys
+try:
+    resp = urllib.request.urlopen('${url}', timeout=5)
+    data = json.loads(resp.read().decode())
+    errors = []
+    # Required fields: status, version, service
+    for field in ('status', 'version', 'service'):
+        if field not in data:
+            errors.append(f'missing field: {field}')
+        elif not isinstance(data[field], str):
+            errors.append(f'{field} is not a string')
+    # Optional field: dependencies (must be dict if present)
+    if 'dependencies' in data and not isinstance(data['dependencies'], dict):
+        errors.append('dependencies is not an object')
+    if errors:
+        print('FAIL|' + '; '.join(errors))
+    else:
+        print(f'PASS|status={data[\"status\"]}, version={data[\"version\"]}, service={data[\"service\"]}')
+except Exception as e:
+    print(f'FAIL|{e}')
+" 2>/dev/null)
+
+    IFS='|' read -r verdict detail <<< "$result"
+    if [[ "$verdict" == "PASS" ]]; then
+        pass "${name} ReadinessResponse schema valid (${detail})"
+    else
+        fail "${name} ReadinessResponse schema invalid: ${detail}"
+    fi
+}
+
+validate_readiness_schema "juniper-data"   "${DATA_READY_URL}"
+validate_readiness_schema "juniper-cascor" "${CASCOR_READY_URL}"
+validate_readiness_schema "juniper-canopy" "${CANOPY_READY_URL}"
 
 # ── Step 4: Verify demo-seed completed ───────────────────────────────────────
 echo -e "${CYAN}[4/7]${RESET} Verifying demo-seed container..."
@@ -141,12 +184,28 @@ else
     fail "Training does not appear to be active"
 fi
 
-# ── Step 6: Verify Canopy dashboard is accessible ────────────────────────────
+# ── Step 6: Verify Canopy dashboard with ReadinessResponse ───────────────────
 echo -e "${CYAN}[6/7]${RESET} Verifying Canopy dashboard..."
-if check_service "${CANOPY_URL}"; then
-    pass "Canopy dashboard is accessible"
+CANOPY_RESULT=$(python3 -c "
+import urllib.request, json, sys
+try:
+    resp = urllib.request.urlopen('${CANOPY_READY_URL}', timeout=5)
+    data = json.loads(resp.read().decode())
+    status = data.get('status', 'unknown')
+    service = data.get('service', 'unknown')
+    if status in ('healthy', 'ok', 'ready') and service:
+        print(f'PASS|{service} status={status}')
+    else:
+        print(f'FAIL|status={status}, service={service}')
+except Exception as e:
+    print(f'FAIL|{e}')
+" 2>/dev/null)
+
+IFS='|' read -r canopy_verdict canopy_detail <<< "$CANOPY_RESULT"
+if [[ "$canopy_verdict" == "PASS" ]]; then
+    pass "Canopy dashboard is accessible (${canopy_detail})"
 else
-    fail "Canopy dashboard health check failed"
+    fail "Canopy dashboard health check failed: ${canopy_detail}"
 fi
 
 # ── Step 7: Clean shutdown ───────────────────────────────────────────────────

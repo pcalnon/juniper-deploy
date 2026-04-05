@@ -6,7 +6,7 @@
 # Author:        Paul Calnon
 #
 # Date Created:  2026-02-25
-# Last Modified: 2026-03-01
+# Last Modified: 2026-03-02
 #
 # License:       MIT License
 # Copyright:     Copyright (c) 2024-2026 Paul Calnon
@@ -15,26 +15,30 @@
 #    Docker Compose configuration for the Juniper full-stack deployment.
 #    Supports multiple profiles for different operational modes:
 #
-#      full  — All real services (production-like)
-#      demo  — Real services with auto-configured CasCor training
-#      dev   — Real data + cascor, canopy in demo mode (frontend dev)
+#      full           — All real services (production-like)
+#      demo           — Real services with auto-configured CasCor training
+#      dev            — Real data + cascor, canopy in demo mode (frontend dev)
+#      test           — Integration test suite (starts services + test-runner)
+#      observability  — Prometheus + Grafana monitoring stack
 #
 # Usage:
-#    docker compose --profile full up -d     # Full production-like stack
-#    docker compose --profile demo up -d     # Self-running demo stack
-#    docker compose --profile dev up -d      # Development stack
-#    docker compose down                     # Stop all services
-#    docker compose logs -f                  # Follow logs
+#    docker compose --profile full up -d                          # Full production-like stack
+#    docker compose --profile demo up -d                          # Self-running demo stack
+#    docker compose --profile dev up -d                           # Development stack
+#    docker compose --profile test up                             # Run integration tests
+#    docker compose --profile full --profile observability up -d  # Full + monitoring
+#    docker compose down                                          # Stop all services
+#    docker compose logs -f                                       # Follow logs
 #
 #####################################################################################################################################################################################################
 
 services:
   # ═══════════════════════════════════════════════════════════════════════════
   # JuniperData — Dataset Generation Service (port 8100)
-  # Shared across all profiles: full, demo, dev
+  # Shared across all profiles: full, demo, dev, test
   # ═══════════════════════════════════════════════════════════════════════════
   juniper-data:
-    profiles: ["full", "demo", "dev"]
+    profiles: ["full", "demo", "dev", "test"]
     build:
       context: ../juniper-data
       dockerfile: Dockerfile
@@ -57,8 +61,8 @@ services:
       JUNIPER_DATA_LOG_FORMAT: "${JUNIPER_DATA_LOG_FORMAT:-text}"
       JUNIPER_DATA_SENTRY_DSN: "${JUNIPER_DATA_SENTRY_DSN:-}"
       JUNIPER_DATA_METRICS_ENABLED: "${JUNIPER_DATA_METRICS_ENABLED:-false}"
-    secrets:
-      - juniper_data_api_keys
+    volumes:
+      - juniper-data-datasets:/app/data/datasets
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8100/v1/health', timeout=5)"]
@@ -66,6 +70,10 @@ services:
       timeout: 10s
       start_period: 10s
       retries: 5
+    secrets:
+      - juniper_data_api_key
+    networks:
+      - backend
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -73,7 +81,7 @@ services:
   # Used in full + dev profiles (standard configuration)
   # ═══════════════════════════════════════════════════════════════════════════
   juniper-cascor:
-    profiles: ["full", "dev"]
+    profiles: ["full", "dev", "test"]
     build:
       context: ../juniper-cascor
       dockerfile: Dockerfile
@@ -103,9 +111,12 @@ services:
       JUNIPER_CASCOR_LOG_FORMAT: "${JUNIPER_CASCOR_LOG_FORMAT:-text}"
       JUNIPER_CASCOR_SENTRY_DSN: "${JUNIPER_CASCOR_SENTRY_DSN:-}"
       JUNIPER_CASCOR_METRICS_ENABLED: "${JUNIPER_CASCOR_METRICS_ENABLED:-false}"
+    volumes:
+      - juniper-cascor-snapshots:/app/data
+      - juniper-cascor-logs:/app/logs
     secrets:
-      - juniper_cascor_api_keys
-      - juniper_data_api_keys
+      - juniper_cascor_api_key
+      - cascor_sentry_dsn
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -116,6 +127,9 @@ services:
       timeout: 10s
       start_period: 15s
       retries: 5
+    networks:
+      - backend
+      - frontend
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -150,6 +164,9 @@ services:
       JUNIPER_CASCOR_AUTO_DATASET_PARAMS: '{"n_spirals": 2, "n_points_per_spiral": 200, "noise": 0.15, "seed": 42}'
       JUNIPER_CASCOR_AUTO_NETWORK: '{"input_size": 2, "output_size": 2, "learning_rate": 0.01}'
       JUNIPER_CASCOR_AUTO_TRAIN_EPOCHS: "500"
+    volumes:
+      - juniper-cascor-snapshots:/app/data
+      - juniper-cascor-logs:/app/logs
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -162,6 +179,9 @@ services:
       timeout: 10s
       start_period: 15s
       retries: 5
+    networks:
+      - backend
+      - frontend
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -198,6 +218,8 @@ services:
     depends_on:
       juniper-data:
         condition: service_healthy
+    networks:
+      - backend
     restart: "no"
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -205,7 +227,7 @@ services:
   # Full profile only: connects to real CasCor service
   # ═══════════════════════════════════════════════════════════════════════════
   juniper-canopy:
-    profiles: ["full"]
+    profiles: ["full", "test"]
     build:
       context: ../juniper-canopy
       dockerfile: Dockerfile
@@ -252,6 +274,9 @@ services:
       timeout: 10s
       start_period: 20s
       retries: 5
+    networks:
+      - backend
+      - frontend
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -292,6 +317,9 @@ services:
       timeout: 10s
       start_period: 20s
       retries: 5
+    networks:
+      - backend
+      - frontend
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -350,41 +378,10 @@ services:
       - data
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./prometheus/recording_rules.yml:/etc/prometheus/recording_rules.yml:ro
-      - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
-      - prometheus_data:/prometheus
-    depends_on:
-      alertmanager:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-    restart: unless-stopped
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # AlertManager — Alert Routing and Notification (port 9093)
-  # ═══════════════════════════════════════════════════════════════════════════
-  alertmanager:
-    image: prom/alertmanager:v0.28.1
-    container_name: juniper-alertmanager
-    profiles: ["observability"]
-    command:
-      - "--config.file=/etc/alertmanager/alertmanager.yml"
-      - "--storage.path=/alertmanager"
-    ports:
-      - "127.0.0.1:9093:9093"
     networks:
+      - backend
+      - frontend
       - monitoring
-    volumes:
-      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - alertmanager_data:/alertmanager
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -407,95 +404,66 @@ services:
       - grafana_admin_password
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
-      - grafana_data:/var/lib/grafana
+      - grafana-data:/var/lib/grafana
     depends_on:
-      prometheus:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      - prometheus
+    networks:
+      - monitoring
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # Redis — Cache and Session Store (port 6379)
-  # Used by juniper-canopy for optional caching. Available in full profile.
+  # Test Runner — Integration test container (runs once and exits)
+  # Packages the test suite for containerized execution.
   # ═══════════════════════════════════════════════════════════════════════════
-  redis:
-    image: redis:7-alpine
-    container_name: juniper-redis
-    profiles: ["full", "demo"]
-    ports:
-      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
-    networks:
-      - backend
-    command: ["redis-server", "--maxmemory", "${REDIS_MAX_MEMORY:-100mb}", "--maxmemory-policy", "allkeys-lru"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      start_period: 5s
-      retries: 3
-    restart: unless-stopped
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Cassandra — Time-Series and Metrics Store (port 9042)
-  # Used by juniper-canopy for optional persistent metrics. Available in full profile.
-  # ═══════════════════════════════════════════════════════════════════════════
-  cassandra:
-    image: cassandra:4.1
-    container_name: juniper-cassandra
-    profiles: ["full"]
-    ports:
-      - "127.0.0.1:${CASSANDRA_PORT:-9042}:9042"
-    networks:
-      - backend
+  test-runner:
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: juniper-test-runner
     environment:
-      CASSANDRA_CLUSTER_NAME: "JuniperCluster"
-      CASSANDRA_DC: "dc1"
-      CASSANDRA_RACK: "rack1"
-      MAX_HEAP_SIZE: "${CASSANDRA_MAX_HEAP:-512M}"
-      HEAP_NEWSIZE: "${CASSANDRA_HEAP_NEW:-128M}"
-    healthcheck:
-      test: ["CMD-SHELL", "cqlsh -e 'SELECT now() FROM system.local' || exit 1"]
-      interval: 30s
-      timeout: 15s
-      start_period: 60s
-      retries: 5
-    restart: unless-stopped
+      JUNIPER_TEST_DATA_URL: http://juniper-data:8100
+      JUNIPER_TEST_CASCOR_URL: http://juniper-cascor:8200
+      JUNIPER_TEST_CANOPY_URL: http://juniper-canopy:8050
+    depends_on:
+      juniper-data:
+        condition: service_healthy
+      juniper-cascor:
+        condition: service_healthy
+      juniper-canopy:
+        condition: service_healthy
+    networks:
+      - backend
+      - frontend
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Networks — Isolated communication channels
+# Secrets — File-based secrets mounted at /run/secrets/<name>
+# Copy secrets.example/ to secrets/ and fill in real values.
+# ═══════════════════════════════════════════════════════════════════════════
+secrets:
+  juniper_data_api_key:
+    file: "${JUNIPER_DATA_API_KEY_FILE:-./secrets.example/juniper_data_api_key.txt}"
+  juniper_cascor_api_key:
+    file: "${JUNIPER_CASCOR_API_KEY_FILE:-./secrets.example/juniper_cascor_api_key.txt}"
+  cascor_sentry_dsn:
+    file: "${CASCOR_SENTRY_DSN_FILE:-./secrets.example/cascor_sentry_dsn.txt}"
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Networks
 # ═══════════════════════════════════════════════════════════════════════════
 networks:
-  frontend:
-    driver: bridge
   backend:
     driver: bridge
-    internal: true
-  data:
+  frontend:
     driver: bridge
-    internal: true
   monitoring:
     driver: bridge
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Secrets — Docker secrets for sensitive configuration
-# Create secret files in ./secrets/ (see secrets.example/ for reference).
-# Falls back to environment variables when secret files don't exist.
+# Volumes
 # ═══════════════════════════════════════════════════════════════════════════
-secrets:
-  juniper_data_api_keys:
-    file: ./secrets/juniper_data_api_keys.txt
-  juniper_cascor_api_keys:
-    file: ./secrets/juniper_cascor_api_keys.txt
-  canopy_api_key:
-    file: ./secrets/canopy_api_key.txt
-  grafana_admin_password:
-    file: ./secrets/grafana_admin_password.txt
-
 volumes:
-  prometheus_data:
-  grafana_data:
-  alertmanager_data:
+  juniper-data-datasets:
+  juniper-cascor-snapshots:
+  juniper-cascor-logs:
+  grafana-data:

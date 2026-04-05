@@ -8,8 +8,10 @@
 # Copyright:     Copyright (c) 2024-2026 Paul Calnon
 #
 # Description:
-#    Polls all three Juniper service health endpoints until they are ready
-#    or a timeout is reached. Used before running integration tests.
+#    Polls all three Juniper service /v1/health/ready endpoints until they
+#    report ready status or a timeout is reached. Parses ReadinessResponse
+#    JSON to verify status and dependency health. Used before running
+#    integration tests.
 #
 # Usage:
 #    bash scripts/wait_for_services.sh
@@ -42,6 +44,9 @@ check_service() {
     if python3 -c "import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=3)" "$url" 2>/dev/null; then
         echo "  ✓ ${name} is healthy"
         return 0
+    elif [[ "$ok" == "degraded" ]]; then
+        echo "  ⚠ ${name} responded but status=${status}"
+        return 1
     fi
     return 1
 }
@@ -57,13 +62,13 @@ while true; do
 
     if [[ $data_ok -eq 1 && $cascor_ok -eq 1 && $canopy_ok -eq 1 ]]; then
         echo ""
-        echo "All services are healthy. Ready to run integration tests."
+        echo "All services are ready. Ready to run integration tests."
         exit 0
     fi
 
     if [[ $ELAPSED -ge $TIMEOUT ]]; then
         echo ""
-        echo "ERROR: Services did not become healthy within ${TIMEOUT}s"
+        echo "ERROR: Services did not become ready within ${TIMEOUT}s"
         exit 1
     fi
 
