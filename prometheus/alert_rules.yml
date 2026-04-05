@@ -1,3 +1,4 @@
+---
 # ═══════════════════════════════════════════════════════════════════════════
 # Juniper Deploy — Prometheus Alert Rules
 # Defines alerting conditions for service health, performance, and training.

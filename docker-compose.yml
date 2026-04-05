@@ -50,8 +50,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    networks:
-      - data
     environment:
       JUNIPER_DATA_HOST: "${JUNIPER_DATA_HOST:-0.0.0.0}"
       JUNIPER_DATA_PORT: "${JUNIPER_DATA_PORT:-8100}"
@@ -74,6 +72,7 @@ services:
       - juniper_data_api_key
     networks:
       - backend
+      - data
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -94,9 +93,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    networks:
-      - backend
-      - data
     environment:
       JUNIPER_DATA_URL: "${JUNIPER_DATA_URL:-http://juniper-data:8100}"
       JUNIPER_CASCOR_HOST: "${CASCOR_HOST:-0.0.0.0}"
@@ -129,6 +125,7 @@ services:
       retries: 5
     networks:
       - backend
+      - data
       - frontend
     restart: unless-stopped
 
@@ -150,9 +147,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    networks:
-      - backend
-      - data
     environment:
       JUNIPER_DATA_URL: "http://juniper-data:8100"
       JUNIPER_CASCOR_HOST: "0.0.0.0"
@@ -181,6 +175,7 @@ services:
       retries: 5
     networks:
       - backend
+      - data
       - frontend
     restart: unless-stopped
 
@@ -239,10 +234,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    networks:
-      - frontend
-      - backend
-      - data
     environment:
       JUNIPER_CANOPY_JUNIPER_DATA_URL: "${JUNIPER_DATA_URL:-http://juniper-data:8100}"
       JUNIPER_CANOPY_CASCOR_SERVICE_URL: "${CASCOR_SERVICE_URL:-http://juniper-cascor:8200}"
@@ -276,6 +267,7 @@ services:
       retries: 5
     networks:
       - backend
+      - data
       - frontend
     restart: unless-stopped
 
@@ -296,10 +288,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    networks:
-      - frontend
-      - backend
-      - data
     environment:
       JUNIPER_CANOPY_JUNIPER_DATA_URL: "http://juniper-data:8100"
       JUNIPER_CANOPY_CASCOR_SERVICE_URL: "http://juniper-cascor-demo:8200"
@@ -319,6 +307,7 @@ services:
       retries: 5
     networks:
       - backend
+      - data
       - frontend
     restart: unless-stopped
 
@@ -372,14 +361,11 @@ services:
       - "--web.enable-lifecycle"
     ports:
       - "127.0.0.1:9090:9090"
-    networks:
-      - monitoring
-      - backend
-      - data
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     networks:
       - backend
+      - data
       - frontend
       - monitoring
     restart: unless-stopped
@@ -407,8 +393,6 @@ services:
       - grafana-data:/var/lib/grafana
     depends_on:
       - prometheus
-    networks:
-      - monitoring
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -453,6 +437,8 @@ secrets:
 # ═══════════════════════════════════════════════════════════════════════════
 networks:
   backend:
+    driver: bridge
+  data:
     driver: bridge
   frontend:
     driver: bridge
