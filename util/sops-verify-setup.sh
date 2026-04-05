@@ -60,8 +60,9 @@ info() {
 # --- Version comparison ---
 version_ge() {
     # Returns 0 if $1 >= $2 (semver comparison)
-    local IFS=.
-    local i ver1=($1) ver2=($2)
+    local i ver1 ver2
+    IFS='.' read -ra ver1 <<< "$1"
+    IFS='.' read -ra ver2 <<< "$2"
     for ((i = 0; i < ${#ver2[@]}; i++)); do
         if [[ -z "${ver1[i]:-}" ]]; then
             return 1
