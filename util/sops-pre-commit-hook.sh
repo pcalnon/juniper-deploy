@@ -33,13 +33,29 @@ for file in "$@"; do
             ;;
     esac
 
-    # Allow encrypted files only if they have SOPS metadata
+    # Allow encrypted files only if they have valid SOPS metadata
     case "$basename" in
         *.env.enc|*.env.secrets.enc)
-            if grep -q "^sops_" "$file" 2>/dev/null; then
-                continue
+            # Require multiple SOPS metadata fields (not just one prefix match)
+            sops_fields_found=0
+            grep -q "^sops_version=" "$file" 2>/dev/null && sops_fields_found=$((sops_fields_found + 1))
+            grep -q "^sops_lastmodified=" "$file" 2>/dev/null && sops_fields_found=$((sops_fields_found + 1))
+            grep -q "^sops_age__" "$file" 2>/dev/null && sops_fields_found=$((sops_fields_found + 1))
+
+            if [[ $sops_fields_found -ge 3 ]]; then
+                # Verify all non-metadata, non-comment lines contain ENC[AES256_GCM,...] values
+                plaintext_lines=$(grep -v "^#" "$file" | grep -v "^sops_" | grep -v "^$" | grep -cv "ENC\[AES256_GCM," 2>/dev/null) || plaintext_lines=0
+                if [[ "$plaintext_lines" -gt 0 ]]; then
+                    echo "ERROR: ${file} contains ${plaintext_lines} non-encrypted value(s)."
+                    echo "  All values in encrypted files must use SOPS encryption."
+                    echo "  Re-encrypt with: sops -e -i ${file}"
+                    exit_code=1
+                else
+                    continue
+                fi
             else
-                echo "ERROR: ${file} is named as encrypted but has no SOPS metadata."
+                echo "ERROR: ${file} is named as encrypted but has insufficient SOPS metadata."
+                echo "  Found ${sops_fields_found}/3 required metadata fields."
                 echo "  Encrypt it with: bash util/sops-encrypt.sh <source> ${file}"
                 exit_code=1
             fi

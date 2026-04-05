@@ -25,6 +25,15 @@ TIMEOUT=${1:-90}
 POLL_INTERVAL=3
 ELAPSED=0
 
+# Validate port values are numeric (defense against env injection)
+for port_var in JUNIPER_DATA_PORT CASCOR_PORT CANOPY_PORT; do
+    port_val="${!port_var:-}"
+    if [[ -n "$port_val" && ! "$port_val" =~ ^[0-9]+$ ]]; then
+        echo "ERROR: ${port_var}='${port_val}' is not a valid port number"
+        exit 1
+    fi
+done
+
 DATA_URL="http://localhost:${JUNIPER_DATA_PORT:-8100}/v1/health/ready"
 CASCOR_URL="http://localhost:${CASCOR_PORT:-8200}/v1/health/ready"
 CANOPY_URL="http://localhost:${CANOPY_PORT:-8050}/v1/health/ready"
@@ -37,8 +46,9 @@ check_service() {
     local result
     result=$(python3 -c "
 import urllib.request, json, sys
+url = sys.argv[1]
 try:
-    resp = urllib.request.urlopen('${url}', timeout=3)
+    resp = urllib.request.urlopen(url, timeout=3)
     data = json.loads(resp.read().decode())
     status = data.get('status', 'unknown')
     version = data.get('version', 'n/a')
@@ -49,7 +59,7 @@ try:
         print(f'degraded|{status}|{version}')
 except Exception:
     print('error|unreachable|n/a')
-" 2>/dev/null)
+" "$url" 2>/dev/null)
 
     IFS='|' read -r ok status version <<< "$result"
 

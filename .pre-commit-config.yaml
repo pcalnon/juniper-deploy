@@ -51,7 +51,3 @@ repos:
         language: system
         files: \.env
         types: [file]
-
-# CI configuration (for pre-commit.ci service, if used)
-ci:
-  skip: [no-unencrypted-env]

@@ -13,16 +13,16 @@
 
 title = "Juniper Gitleaks Configuration"
 
-[allowlist]
-  description = "Allowlisted files and patterns"
+# Do NOT use [allowlist].paths to exempt .env.enc files — this would
+# skip ALL rules for those files, including plaintext secret detection.
+# See: https://github.com/gitleaks/gitleaks/issues/1790
 
-  # SOPS-encrypted files contain encrypted secrets, not plaintext
-  paths = [
-    '''\.env\.enc$''',
-    '''\.env\.secrets\.enc$''',
-  ]
+[allowlist]
+  description = "Allowlisted patterns"
 
   # age public keys are not secrets (only the private key is sensitive)
+  # SOPS-encrypted ciphertext values (ENC[AES256_GCM,...]) are safe to commit
   regexes = [
     '''age1[a-z0-9]{58}''',
+    '''ENC\[AES256_GCM,data:[A-Za-z0-9+/=]+,''',
   ]
