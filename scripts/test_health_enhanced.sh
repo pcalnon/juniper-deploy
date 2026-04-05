@@ -104,7 +104,7 @@ fi
 
 # ─── Step 5: Verify JuniperCascor readiness response ────────────────────────
 echo -e "\n${BOLD}Step 5: Verify JuniperCascor /v1/health/ready${RESET}"
-CASCOR_READY=$(curl -sf http://localhost:8200/v1/health/ready 2>/dev/null || echo '{}')
+CASCOR_READY=$(curl -sf http://localhost:${CASCOR_HOST_PORT:-8201}/v1/health/ready 2>/dev/null || echo '{}')
 
 if echo "$CASCOR_READY" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('service')=='juniper-cascor'" 2>/dev/null; then
     pass_test "service field is 'juniper-cascor'"

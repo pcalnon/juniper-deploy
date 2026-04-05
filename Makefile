@@ -67,7 +67,11 @@ help:  ## Show this help message
 # Lifecycle
 # ═══════════════════════════════════════════════════════════════════════════
 
-up:  ## Start all services (--profile full, detached)
+prepare-secrets:  ## Create local placeholder secret files if missing
+	@mkdir -p $(SECRETS_DIR)
+	@touch $(SECRETS_FILES)
+
+up: prepare-secrets ## Start all services (--profile full, detached)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full up -d
 	@echo -e "$(GREEN)Services starting. Run 'make logs' to follow output.$(RESET)"
 
@@ -77,11 +81,11 @@ down:  ## Stop and remove all containers
 restart:  ## Restart all services
 	@$(COMPOSE) -f $(COMPOSE_FILE) restart
 
-demo:  ## Start demo stack (auto-configured CasCor training)
+demo: prepare-secrets ## Start demo stack (auto-configured CasCor training)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile demo up -d
 	@echo -e "$(GREEN)Demo stack starting. Run 'make logs' to follow output.$(RESET)"
 
-dev:  ## Start dev stack (real data + cascor, canopy in demo mode)
+dev: prepare-secrets ## Start dev stack (real data + cascor, canopy in demo mode)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile dev up -d
 	@echo -e "$(GREEN)Dev stack starting. Run 'make logs' to follow output.$(RESET)"
 

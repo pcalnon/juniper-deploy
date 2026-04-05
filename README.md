@@ -11,7 +11,8 @@ This repository provides a single `make up` command that boots the entire Junipe
 - [Docker](https://docs.docker.com/get-docker/) >= 24.0 with Compose v2 >= 2.20
 - [GNU Make](https://www.gnu.org/software/make/) >= 4.0
 - All Juniper service repositories cloned as siblings of this directory:
-  ```
+
+  ```text
   Juniper/
   ├── juniper-deploy/          ← this repo
   ├── juniper-data/
@@ -123,6 +124,8 @@ make dev
 | `make build` | Build/rebuild all images |
 | `make build-no-cache` | Full rebuild without cache |
 | `make clean` | Remove containers, volumes, and local images |
+| `make obs` | Start full stack with observability (Prometheus + Grafana) |
+| `make obs-demo` | Start demo stack with observability (Prometheus + Grafana) |
 | `make shell-data` | Shell into JuniperData container |
 | `make shell-cascor` | Shell into JuniperCascor container |
 | `make shell-canopy` | Shell into juniper-canopy container |
@@ -133,9 +136,9 @@ You can also use `docker compose` commands directly — the Makefile is a conven
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| JuniperData | http://localhost:8100 | Dataset generation REST API |
-| JuniperCascor | http://localhost:8200 | CasCor neural network training service |
-| juniper-canopy | http://localhost:8050 | Real-time monitoring dashboard |
+| JuniperData | <http://localhost:8100> | Dataset generation REST API |
+| JuniperCascor | <http://localhost:8201> | CasCor neural network training service |
+| juniper-canopy | <http://localhost:8050> | Real-time monitoring dashboard |
 
 ## Health Endpoints
 
@@ -144,8 +147,8 @@ All services expose standardized health endpoints:
 ```bash
 curl http://localhost:8100/v1/health        # juniper-data liveness
 curl http://localhost:8100/v1/health/ready  # juniper-data readiness
-curl http://localhost:8200/v1/health        # juniper-cascor liveness
-curl http://localhost:8200/v1/health/ready  # juniper-cascor readiness
+curl http://localhost:8201/v1/health        # juniper-cascor liveness
+curl http://localhost:8201/v1/health/ready  # juniper-cascor readiness
 curl http://localhost:8050/v1/health        # juniper-canopy liveness
 curl http://localhost:8050/v1/health/ready  # juniper-canopy readiness
 ```
@@ -197,7 +200,8 @@ Copy `.env.example` to `.env` to override defaults. All values use `${VAR:-defau
 | `JUNIPER_DATA_PORT` | `8100` | JuniperData port |
 | `JUNIPER_DATA_LOG_LEVEL` | `INFO` | JuniperData log level |
 | `CASCOR_HOST` | `0.0.0.0` | JuniperCascor bind address |
-| `CASCOR_PORT` | `8200` | JuniperCascor port |
+| `CASCOR_PORT` | `8200` | JuniperCascor internal container port |
+| `CASCOR_HOST_PORT` | `8201` | JuniperCascor host-exposed port (avoids conflicts with other services on 8200) |
 | `CASCOR_LOG_LEVEL` | `INFO` | JuniperCascor log level |
 | `CANOPY_HOST` | `0.0.0.0` | juniper-canopy bind address |
 | `CANOPY_PORT` | `8050` | juniper-canopy port |
@@ -214,6 +218,24 @@ Copy `.env.example` to `.env` to override defaults. All values use `${VAR:-defau
 ## Authentication
 
 API key authentication can be enabled per service by setting the corresponding environment variable in `.env`. When no key is configured for a service, all endpoints are open (development mode).
+
+### Docker Secret Files
+
+`docker-compose.yml` now mounts Docker secrets for API keys and Grafana admin credentials from local files in `secrets/`:
+
+```bash
+mkdir -p secrets
+cp secrets.example/*.txt secrets/
+```
+
+Expected local files:
+
+- `secrets/juniper_data_api_keys.txt`
+- `secrets/juniper_cascor_api_keys.txt`
+- `secrets/canopy_api_key.txt`
+- `secrets/grafana_admin_password.txt`
+
+These files are consumed via `*_FILE` environment variables (for example, `JUNIPER_DATA_API_KEYS_FILE=/run/secrets/juniper_data_api_keys` and `GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana_admin_password`) while the existing env-var-based settings remain available in `.env`.
 
 ### Enabling API Keys
 
@@ -304,7 +326,44 @@ Edit the override file to bind-mount source directories from sibling repos. Dock
 
 ## Observability
 
-The Juniper stack supports structured JSON logging, Prometheus metrics, and Sentry error tracking. These features are disabled by default and can be enabled per service via environment variables.
+The Juniper stack supports structured JSON logging, Prometheus metrics with 23 custom application metrics, auto-provisioned Grafana dashboards, and Sentry error tracking. These features are disabled by default and can be enabled per service via environment variables.
+
+For comprehensive documentation, see [docs/OBSERVABILITY_GUIDE.md](docs/OBSERVABILITY_GUIDE.md).
+
+### Quick Start (Recommended)
+
+Use Makefile targets to start the stack with observability enabled:
+
+```bash
+make obs        # Full stack + Prometheus + Grafana
+make obs-demo   # Demo stack + Prometheus + Grafana
+```
+
+These targets automatically load `.env.observability`, which enables metrics on all services.
+
+Access dashboards:
+
+- **Grafana**: <http://localhost:3000> (default login: `admin` / `admin`, unless overridden via `secrets/grafana_admin_password.txt`)
+- **Prometheus**: <http://localhost:9090>
+
+Prometheus and Grafana are attached to a dedicated `monitoring` Docker network. Prometheus also joins `backend` and `data` so it can scrape internal service endpoints.
+
+### Grafana Dashboards
+
+Four dashboards auto-provision into the "Juniper" folder on startup:
+
+| Dashboard | Description |
+|-----------|-------------|
+| **Juniper Overview** (home) | Cross-service health, request rates, error rates, latency percentiles |
+| **JuniperData** | Dataset generation metrics, cache status, HTTP breakdown |
+| **JuniperCascor** | Training sessions, loss/accuracy, hidden units, inference metrics |
+| **JuniperCanopy** | WebSocket connections/messages, demo mode status |
+
+Dashboard JSON files are in `grafana/provisioning/dashboards/`.
+
+### Custom Metrics
+
+Each service exposes namespaced metrics (e.g., `juniper_data_dataset_generations_total`, `juniper_cascor_training_loss`, `juniper_canopy_websocket_connections_active`). See [docs/OBSERVABILITY_GUIDE.md](docs/OBSERVABILITY_GUIDE.md) for the full metrics catalog.
 
 ### Structured JSON Logging
 
@@ -316,7 +375,9 @@ JUNIPER_CASCOR_LOG_FORMAT=json
 JUNIPER_CANOPY_LOG_FORMAT=json
 ```
 
-### Prometheus Metrics
+### Manual Metrics Setup
+
+If not using `make obs`, enable metrics manually:
 
 1. Enable the `/metrics` endpoint on each service:
 
@@ -326,15 +387,11 @@ JUNIPER_CANOPY_LOG_FORMAT=json
    JUNIPER_CANOPY_METRICS_ENABLED=true
    ```
 
-2. Start the observability stack (Prometheus + Grafana):
+2. Start the observability stack:
 
    ```bash
-   docker compose --profile observability up -d
+   docker compose --profile full --profile observability up -d
    ```
-
-3. Access dashboards:
-   - **Prometheus**: http://localhost:9090
-   - **Grafana**: http://localhost:3000 (default login: `admin` / `admin`)
 
 ### Sentry Error Tracking
 
@@ -352,7 +409,7 @@ JUNIPER_CANOPY_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
 
 **Health check fails**: Run `make status` to see container state. Check logs with `make logs-<service>` for the failing service.
 
-**Port conflicts**: If default ports are in use, copy `.env.example` to `.env` and change port values.
+**Port conflicts**: If default ports are in use, copy `.env.example` to `.env` and change port values. The juniper-cascor host port defaults to 8201 (via `CASCOR_HOST_PORT`) to avoid conflicts with other services commonly bound to 8200. Set `CASCOR_HOST_PORT=8200` in `.env` if port 8200 is available.
 
 **`make clean` won't release disk**: Named volumes (`juniper-data-datasets`, `juniper-cascor-snapshots`, `juniper-cascor-logs`, `grafana-data`) may persist after `make down`. Use `docker volume prune` to clean orphaned volumes, or `make clean` to remove everything including volumes.
 

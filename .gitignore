@@ -14,3 +14,4 @@ __pycache__/
 *.pyc
 secrets/
 .pytest_cache/
+.coverage

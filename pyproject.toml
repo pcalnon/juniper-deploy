@@ -1,0 +1,11 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+markers = [
+    "health: health endpoint checks",
+    "data: JuniperData service tests",
+    "full_stack: cross-service integration tests",
+]
+filterwarnings = [
+    "error",
+]

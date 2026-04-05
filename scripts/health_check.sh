@@ -49,7 +49,7 @@ done
 
 SERVICES=(
     "juniper-data:${JUNIPER_DATA_PORT:-8100}"
-    "juniper-cascor:${CASCOR_PORT:-8200}"
+    "juniper-cascor:${CASCOR_HOST_PORT:-8201}"
     "juniper-canopy:${CANOPY_PORT:-8050}"
 )
 

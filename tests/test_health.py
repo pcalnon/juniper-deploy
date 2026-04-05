@@ -23,7 +23,7 @@
 import pytest
 import requests
 
-from conftest import DEFAULT_TIMEOUT
+from constants import DEFAULT_TIMEOUT
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +47,7 @@ def _assert_cascor_envelope(body: dict) -> dict:
 # juniper-data health tests
 # ---------------------------------------------------------------------------
 @pytest.mark.health
+@pytest.mark.usefixtures("require_data")
 class TestJuniperDataHealth:
     def test_liveness(self, data_url: str, http: requests.Session):
         resp = http.get(f"{data_url}/v1/health", timeout=DEFAULT_TIMEOUT)
@@ -83,55 +84,51 @@ class TestJuniperDataHealth:
 # juniper-cascor health tests
 # ---------------------------------------------------------------------------
 @pytest.mark.health
+@pytest.mark.usefixtures("require_cascor")
 class TestJuniperCascorHealth:
     def test_liveness(self, cascor_url: str, http: requests.Session):
         resp = http.get(f"{cascor_url}/v1/health", timeout=DEFAULT_TIMEOUT)
         assert resp.status_code == 200
         body = resp.json()
-        # CasCor wraps all responses in {status, data, meta}
-        assert body.get("status") == "success"
-        data = body.get("data", {})
-        assert data.get("status") in ("ok", "healthy")
+        assert body.get("status") == "ok"
+        assert "version" in body
 
     def test_liveness_alias(self, cascor_url: str, http: requests.Session):
         resp = http.get(f"{cascor_url}/v1/health/live", timeout=DEFAULT_TIMEOUT)
         assert resp.status_code == 200
         body = resp.json()
-        assert body.get("status") == "success"
-        data = body.get("data", {})
-        assert data.get("status") == "alive"
+        assert body.get("status") == "alive"
 
     def test_readiness(self, cascor_url: str, http: requests.Session):
         resp = http.get(f"{cascor_url}/v1/health/ready", timeout=DEFAULT_TIMEOUT)
         assert resp.status_code == 200
         body = resp.json()
-        assert body.get("status") == "success"
-        data = body.get("data", {})
-        assert data.get("status") == "ready"
+        assert body.get("status") == "ready"
 
     def test_response_envelope(self, cascor_url: str, http: requests.Session):
-        """All CasCor responses have {status, data, meta} envelope."""
+        """CasCor health endpoints return flat JSON (no envelope)."""
         resp = http.get(f"{cascor_url}/v1/health", timeout=DEFAULT_TIMEOUT)
         body = resp.json()
-        _assert_cascor_envelope(body)
+        _assert_keys(body, {"status", "version"}, "CasCor /v1/health")
 
     def test_liveness_schema(self, cascor_url: str, http: requests.Session):
-        """Validate CasCor /v1/health data payload schema."""
+        """Validate CasCor /v1/health returns expected fields."""
         resp = http.get(f"{cascor_url}/v1/health", timeout=DEFAULT_TIMEOUT)
-        data = _assert_cascor_envelope(resp.json())
-        _assert_keys(data, {"status"}, "CasCor /v1/health data")
+        body = resp.json()
+        _assert_keys(body, {"status", "version"}, "CasCor /v1/health")
 
     def test_readiness_schema(self, cascor_url: str, http: requests.Session):
-        """Validate CasCor /v1/health/ready data payload schema."""
+        """Validate CasCor /v1/health/ready returns expected fields."""
         resp = http.get(f"{cascor_url}/v1/health/ready", timeout=DEFAULT_TIMEOUT)
-        data = _assert_cascor_envelope(resp.json())
-        _assert_keys(data, {"status"}, "CasCor /v1/health/ready data")
+        body = resp.json()
+        _assert_keys(body, {"status", "version", "service", "timestamp"}, "CasCor /v1/health/ready")
 
 
 # ---------------------------------------------------------------------------
 # juniper-canopy health tests
 # ---------------------------------------------------------------------------
 @pytest.mark.health
+@pytest.mark.usefixtures("require_canopy")
 class TestJuniperCanopyHealth:
     def test_liveness(self, canopy_url: str, http: requests.Session):
         resp = http.get(f"{canopy_url}/v1/health", timeout=DEFAULT_TIMEOUT)
