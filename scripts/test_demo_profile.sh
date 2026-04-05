@@ -33,9 +33,9 @@ if ! [[ "$cascor_port" =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 
-DATA_URL="http://localhost:8100/v1/health"
-CASCOR_URL="http://localhost:${cascor_port}/v1/health"
-CANOPY_URL="http://localhost:8050/v1/health"
+DATA_READY_URL="http://localhost:8100/v1/health"
+CASCOR_READY_URL="http://localhost:${cascor_port}/v1/health"
+CANOPY_READY_URL="http://localhost:8050/v1/health"
 TRAINING_STATUS_URL="http://localhost:${cascor_port}/v1/training/status"
 
 # Colors (disabled if NO_COLOR is set)
@@ -72,7 +72,7 @@ docker compose --profile demo up -d
 # ── Step 3: Wait for services and validate ReadinessResponse ─────────────────
 echo -e "${CYAN}[3/7]${RESET} Waiting for services to become ready (timeout: ${TIMEOUT}s)..."
 
-check_service() {
+check_service_ready() {
     python3 -c "import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=3)" "$1" 2>/dev/null
 }
 

@@ -44,9 +44,6 @@ check_service() {
     if python3 -c "import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=3)" "$url" 2>/dev/null; then
         echo "  ✓ ${name} is healthy"
         return 0
-    elif [[ "$ok" == "degraded" ]]; then
-        echo "  ⚠ ${name} responded but status=${status}"
-        return 1
     fi
     return 1
 }

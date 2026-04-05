@@ -1,3 +1,4 @@
+---
 # ═══════════════════════════════════════════════════════════════════════════
 # Juniper Deploy — Prometheus Recording Rules
 # Pre-compute expensive queries for dashboard performance and alert rules.
