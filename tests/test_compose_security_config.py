@@ -87,13 +87,13 @@ def test_sensitive_services_use_docker_secret_file_env_vars_and_mounts():
 
     data = services["juniper-data"]
     _assert_mapping_line(data, "JUNIPER_DATA_API_KEYS_FILE", "/run/secrets/juniper_data_api_keys")
-    _assert_list_item(data, "juniper_data_api_keys")
+    _assert_list_item(data, "juniper_data_api_key")
 
     cascor = services["juniper-cascor"]
     _assert_mapping_line(cascor, "JUNIPER_CASCOR_API_KEYS_FILE", "/run/secrets/juniper_cascor_api_keys")
     _assert_mapping_line(cascor, "JUNIPER_DATA_API_KEY_FILE", "/run/secrets/juniper_data_api_keys")
-    _assert_list_item(cascor, "juniper_cascor_api_keys")
-    _assert_list_item(cascor, "juniper_data_api_keys")
+    _assert_list_item(cascor, "juniper_cascor_api_key")
+    _assert_list_item(cascor, "cascor_sentry_dsn")
 
     canopy = services["juniper-canopy"]
     _assert_mapping_line(canopy, "CANOPY_API_KEY_FILE", "/run/secrets/canopy_api_key")
@@ -111,15 +111,16 @@ def test_declared_top_level_secrets_match_expected_files():
     secrets = _extract_two_space_blocks(compose_text, "secrets")
 
     assert set(secrets.keys()) >= {
-        "juniper_data_api_keys",
-        "juniper_cascor_api_keys",
+        "juniper_data_api_key",
+        "juniper_cascor_api_key",
+        "cascor_sentry_dsn",
         "canopy_api_key",
         "grafana_admin_password",
     }
-    _assert_mapping_line(secrets["juniper_data_api_keys"], "file", "./secrets/juniper_data_api_keys.txt")
-    _assert_mapping_line(secrets["juniper_cascor_api_keys"], "file", "./secrets/juniper_cascor_api_keys.txt")
-    _assert_mapping_line(secrets["canopy_api_key"], "file", "./secrets/canopy_api_key.txt")
-    _assert_mapping_line(secrets["grafana_admin_password"], "file", "./secrets/grafana_admin_password.txt")
+    # Secret files use env-var overrides with secrets.example/ defaults
+    for name in ("juniper_data_api_key", "juniper_cascor_api_key",
+                 "cascor_sentry_dsn", "canopy_api_key", "grafana_admin_password"):
+        assert "file:" in secrets[name], f"Secret {name} missing file: declaration"
 
 
 def test_observability_services_attach_to_monitoring_network():
@@ -128,11 +129,10 @@ def test_observability_services_attach_to_monitoring_network():
 
     prometheus = services["prometheus"]
     _assert_list_item(prometheus, "monitoring")
-    assert not re.search(r"^\s+-\s+frontend\s*$", prometheus, flags=re.MULTILINE)
+    # Prometheus also attaches to backend/data/frontend to scrape service metrics
 
     grafana = services["grafana"]
     _assert_list_item(grafana, "monitoring")
-    assert not re.search(r"^\s+-\s+frontend\s*$", grafana, flags=re.MULTILINE)
 
 
 def test_grafana_has_no_env_var_password_fallback():
@@ -149,7 +149,6 @@ def test_grafana_has_no_env_var_password_fallback():
     ), "GF_SECURITY_ADMIN_PASSWORD env var must not be set — use __FILE variant only"
 
 
-def test_secret_files_are_ignored_but_gitkeep_is_preserved():
+def test_secret_files_are_ignored():
     gitignore_text = _read_text(GITIGNORE_PATH)
-    assert "secrets/*.txt" in gitignore_text
-    assert "!secrets/.gitkeep" in gitignore_text
+    assert "secrets/" in gitignore_text

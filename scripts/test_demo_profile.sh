@@ -113,8 +113,9 @@ validate_readiness_schema() {
     local result
     result=$(python3 -c "
 import urllib.request, json, sys
+url = sys.argv[1]
 try:
-    resp = urllib.request.urlopen('${url}', timeout=5)
+    resp = urllib.request.urlopen(url, timeout=5)
     data = json.loads(resp.read().decode())
     errors = []
     # Required fields: status, version, service
@@ -132,7 +133,7 @@ try:
         print(f'PASS|status={data[\"status\"]}, version={data[\"version\"]}, service={data[\"service\"]}')
 except Exception as e:
     print(f'FAIL|{e}')
-" 2>/dev/null)
+" "$url" 2>/dev/null)
 
     IFS='|' read -r verdict detail <<< "$result"
     if [[ "$verdict" == "PASS" ]]; then
@@ -188,8 +189,9 @@ fi
 echo -e "${CYAN}[6/7]${RESET} Verifying Canopy dashboard..."
 CANOPY_RESULT=$(python3 -c "
 import urllib.request, json, sys
+url = sys.argv[1]
 try:
-    resp = urllib.request.urlopen('${CANOPY_READY_URL}', timeout=5)
+    resp = urllib.request.urlopen(url, timeout=5)
     data = json.loads(resp.read().decode())
     status = data.get('status', 'unknown')
     service = data.get('service', 'unknown')
@@ -199,7 +201,7 @@ try:
         print(f'FAIL|status={status}, service={service}')
 except Exception as e:
     print(f'FAIL|{e}')
-" 2>/dev/null)
+" "$CANOPY_READY_URL" 2>/dev/null)
 
 IFS='|' read -r canopy_verdict canopy_detail <<< "$CANOPY_RESULT"
 if [[ "$canopy_verdict" == "PASS" ]]; then

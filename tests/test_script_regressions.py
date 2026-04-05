@@ -18,36 +18,37 @@ WAIT_SCRIPT = REPO_ROOT / "scripts" / "wait_for_services.sh"
 PRE_COMMIT_SCRIPT = REPO_ROOT / "util" / "sops-pre-commit-hook.sh"
 
 
-class _ReadyHandler(BaseHTTPRequestHandler):
+class _LiveHandler(BaseHTTPRequestHandler):
+    """Minimal handler: returns 200 on /v1/health/live if server.healthy is True."""
+
     def do_GET(self) -> None:  # noqa: N802 (BaseHTTPRequestHandler API)
-        if self.path != "/v1/health/ready":
+        if self.path != "/v1/health/live":
             self.send_response(404)
             self.end_headers()
             return
 
-        body = json.dumps(self.server.payload).encode("utf-8")  # type: ignore[attr-defined]
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
+        if self.server.healthy:  # type: ignore[attr-defined]
+            self.send_response(200)
+        else:
+            self.send_response(503)
         self.end_headers()
-        self.wfile.write(body)
 
     def log_message(self, fmt: str, *args: object) -> None:  # noqa: A003
-        # Keep test output deterministic and quiet.
         return
 
 
-class _ReadyServer(ThreadingHTTPServer):
+class _LiveServer(ThreadingHTTPServer):
     allow_reuse_address = True
 
-    def __init__(self, server_address: tuple[str, int], payload: dict[str, str]) -> None:
-        super().__init__(server_address, _ReadyHandler)
-        self.payload = payload
+    def __init__(self, server_address: tuple[str, int], healthy: bool = True) -> None:
+        super().__init__(server_address, _LiveHandler)
+        self.healthy = healthy
 
 
 @contextmanager
-def _health_server(payload: dict[str, str]) -> Iterator[int]:
-    server = _ReadyServer(("localhost", 0), payload)
+def _health_server(port: int, healthy: bool = True) -> Iterator[int]:
+    """Start a server on a specific port (the script uses hardcoded ports)."""
+    server = _LiveServer(("localhost", port), healthy)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -58,15 +59,9 @@ def _health_server(payload: dict[str, str]) -> Iterator[int]:
         thread.join(timeout=2)
 
 
-def _run_wait_script(timeout: int, data_port: int, cascor_port: int, canopy_port: int) -> subprocess.CompletedProcess[str]:
+def _run_wait_script(timeout: int, cascor_port: int = 8200) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
-    env.update(
-        {
-            "JUNIPER_DATA_PORT": str(data_port),
-            "CASCOR_PORT": str(cascor_port),
-            "CANOPY_PORT": str(canopy_port),
-        }
-    )
+    env["CASCOR_HOST_PORT"] = str(cascor_port)
     return subprocess.run(
         ["bash", str(WAIT_SCRIPT), str(timeout)],
         cwd=REPO_ROOT,
@@ -79,31 +74,31 @@ def _run_wait_script(timeout: int, data_port: int, cascor_port: int, canopy_port
 
 
 def test_wait_for_services_succeeds_when_all_ready_statuses() -> None:
+    """Script reports success when all three liveness endpoints return 200."""
     with ExitStack() as stack:
-        data_port = stack.enter_context(_health_server({"status": "ready", "version": "1.0.0", "service": "data"}))
-        cascor_port = stack.enter_context(_health_server({"status": "ok", "version": "1.1.0", "service": "cascor"}))
-        canopy_port = stack.enter_context(_health_server({"status": "healthy", "version": "1.2.0", "service": "canopy"}))
+        stack.enter_context(_health_server(8100, healthy=True))
+        cascor_port = stack.enter_context(_health_server(0, healthy=True))
+        stack.enter_context(_health_server(8050, healthy=True))
 
-        result = _run_wait_script(timeout=0, data_port=data_port, cascor_port=cascor_port, canopy_port=canopy_port)
+        result = _run_wait_script(timeout=5, cascor_port=cascor_port)
 
     combined = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, combined
-    assert "All services are ready. Ready to run integration tests." in combined
+    assert "All services are ready" in combined
     assert "juniper-data" in combined
-    assert "status=ready" in combined
 
 
 def test_wait_for_services_fails_when_service_reports_non_ready_status() -> None:
+    """Script times out when a service returns non-200 on liveness."""
     with ExitStack() as stack:
-        data_port = stack.enter_context(_health_server({"status": "ready", "version": "1.0.0", "service": "data"}))
-        cascor_port = stack.enter_context(_health_server({"status": "starting", "version": "1.1.0", "service": "cascor"}))
-        canopy_port = stack.enter_context(_health_server({"status": "ready", "version": "1.2.0", "service": "canopy"}))
+        stack.enter_context(_health_server(8100, healthy=True))
+        cascor_port = stack.enter_context(_health_server(0, healthy=False))
+        stack.enter_context(_health_server(8050, healthy=True))
 
-        result = _run_wait_script(timeout=0, data_port=data_port, cascor_port=cascor_port, canopy_port=canopy_port)
+        result = _run_wait_script(timeout=0, cascor_port=cascor_port)
 
     combined = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 1, combined
-    assert "responded but status=starting" in combined
     assert "Services did not become ready within 0s" in combined
 
 
@@ -123,7 +118,13 @@ def test_sops_pre_commit_allows_templates_and_encrypted_files(tmp_path: Path) ->
     env_example.write_text("FOO=bar\n", encoding="utf-8")
 
     encrypted = tmp_path / ".env.enc"
-    encrypted.write_text("sops_version=3.9.4\nKEY=ENC[AES256_GCM,data:abc]\n", encoding="utf-8")
+    encrypted.write_text(
+        "sops_version=3.9.4\n"
+        "sops_lastmodified=2026-04-05T00:00:00Z\n"
+        "sops_age__list_0__map_recipient=age1abc\n"
+        "KEY=ENC[AES256_GCM,data:abc,iv:def,tag:ghi,type:str]\n",
+        encoding="utf-8",
+    )
 
     result = _run_pre_commit_hook(str(env_example), str(encrypted))
     assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
@@ -136,7 +137,7 @@ def test_sops_pre_commit_rejects_fake_encrypted_file_without_sops_metadata(tmp_p
     result = _run_pre_commit_hook(str(fake_encrypted))
     combined = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 1, combined
-    assert "has no SOPS metadata" in combined
+    assert "insufficient SOPS metadata" in combined
 
 
 def test_sops_pre_commit_rejects_unencrypted_sensitive_env_files(tmp_path: Path) -> None:

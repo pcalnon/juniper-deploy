@@ -141,16 +141,17 @@ class TestSopsValidation:
             assert result.returncode != 0, (
                 "SOPS validation accepted a file without SOPS metadata"
             )
-            assert "does not contain valid SOPS metadata" in result.stdout
+            assert "insufficient SOPS metadata" in result.stdout
             Path(f.name).unlink()
 
     def test_validate_sops_accepts_encrypted_file(self):
         """SOPS validation must accept files with SOPS metadata."""
         import tempfile
         with tempfile.NamedTemporaryFile(suffix=".env.enc", mode="w", delete=False) as f:
-            f.write("KEY=ENC[AES256_GCM,data:abc]\n")
+            f.write("KEY=ENC[AES256_GCM,data:abc,iv:def,tag:ghi,type:str]\n")
             f.write("sops_version=3.7.3\n")
-            f.write("sops_mac=ENC[AES256_GCM,data:xyz]\n")
+            f.write("sops_lastmodified=2026-04-05T00:00:00Z\n")
+            f.write("sops_age__list_0__map_recipient=age1abc\n")
             f.flush()
             result = subprocess.run(
                 ["bash", str(SCRIPTS_DIR / "validate_sops_encryption.sh"), f.name],
