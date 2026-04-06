@@ -130,6 +130,40 @@ services:
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
+  # JuniperCascorWorker — Distributed Training Worker (no exposed port)
+  # WebSocket client that connects to JuniperCascor for remote training tasks.
+  # Used in full + test profiles. Scales via deploy.replicas.
+  # ═══════════════════════════════════════════════════════════════════════════
+  juniper-cascor-worker:
+    profiles: ["full", "test"]
+    build:
+      context: ../juniper-cascor-worker
+      dockerfile: Dockerfile
+    image: juniper-cascor-worker:latest
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      CASCOR_SERVER_URL: "${CASCOR_WORKER_SERVER_URL:-ws://juniper-cascor:8200/ws/v1/workers}"
+      CASCOR_HEARTBEAT_INTERVAL: "${CASCOR_WORKER_HEARTBEAT_INTERVAL:-10.0}"
+      CASCOR_AUTH_TOKEN: "${CASCOR_WORKER_AUTH_TOKEN:-}"
+    depends_on:
+      juniper-cascor:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1 2>/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    networks:
+      - backend
+    deploy:
+      replicas: 2
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
   # JuniperCascor Demo — Auto-start CasCor training (port 8200)
   # Used in demo profile only. Starts with auto-configured training session.
   # ═══════════════════════════════════════════════════════════════════════════
