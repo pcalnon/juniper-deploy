@@ -77,7 +77,7 @@ This file would pass the pre-commit hook because `grep -q "^sops_"` matches `sop
 
 #### Combined Attack Path
 
-```
+```bash
 Attacker creates .env.enc with spoofed sops_ prefix + plaintext secrets
   ├── Gitleaks:        SKIPPED (path allowlist)
   ├── Pre-commit hook: PASSED  (grep "^sops_" matches spoofed line)
@@ -111,7 +111,12 @@ title = "Juniper Gitleaks Configuration"
   ]
 ```
 
-**Why not use `[[rules]]` with per-rule allowlists?** A `[[rules]]` block defines a *detection rule* — it tells Gitleaks to find a pattern and report it as a finding. Adding a per-rule `[rules.allowlist]` to suppress its own findings creates a no-op rule. Critically, per-rule allowlists do not affect findings from *other* rules (the built-in defaults). The actual goal is to suppress false positives when SOPS ciphertext triggers default rules like `generic-api-key`. The global `[allowlist].regexes` achieves this: when any finding's matched text contains the SOPS ciphertext pattern, it is suppressed across all rules.
+**Why not use `[[rules]]` with per-rule allowlists?**
+A `[[rules]]` block defines a *detection rule* — it tells Gitleaks to find a pattern and report it as a finding.
+Adding a per-rule `[rules.allowlist]` to suppress its own findings creates a no-op rule.
+Critically, per-rule allowlists do not affect findings from *other* rules (the built-in defaults).
+The actual goal is to suppress false positives when SOPS ciphertext triggers default rules like `generic-api-key`.
+The global `[allowlist].regexes` achieves this: when any finding's matched text contains the SOPS ciphertext pattern, it is suppressed across all rules.
 
 **Rationale**: SOPS-encrypted dotenv files store values in `ENC[AES256_GCM,data:...,iv:...,tag:...,type:...]` format. With the path allowlist removed, Gitleaks will now scan `.env.enc` files. The global regex allowlist suppresses only findings whose matched text looks like SOPS ciphertext, so any plaintext secret in the file will still be detected by Gitleaks default rules.
 
@@ -122,12 +127,14 @@ title = "Juniper Gitleaks Configuration"
 **Change**: Remove the `ci:` section entirely, or remove `no-unencrypted-env` from the skip list.
 
 **Before**:
+
 ```yaml
 ci:
   skip: [no-unencrypted-env]
 ```
 
 **After**:
+
 ```yaml
 # ci:
 #   No hooks are skipped — SOPS validation runs everywhere.
@@ -283,6 +290,7 @@ export JUNIPER_DATA_PORT="8100/v1/health/ready', timeout=3); import os; os.syste
 ```
 
 This would produce the Python code:
+
 ```python
 resp = urllib.request.urlopen('http://localhost:8100/v1/health/ready', timeout=3); import os; os.system('id'); #/v1/health/ready', timeout=3)
 ```
