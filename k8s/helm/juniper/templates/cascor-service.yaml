@@ -1,0 +1,18 @@
+{{- if .Values.cascor.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "juniper.cascor.fullname" . }}
+  labels:
+    {{- include "juniper.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cascor
+spec:
+  type: {{ .Values.cascor.service.type }}
+  ports:
+    - port: {{ .Values.cascor.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "juniper.selectorLabels" (dict "ctx" . "component" "cascor") | nindent 4 }}
+{{- end }}

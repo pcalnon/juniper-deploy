@@ -1,0 +1,103 @@
+{{- if .Values.data.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "juniper.data.fullname" . }}
+  labels:
+    {{- include "juniper.labels" . | nindent 4 }}
+    app.kubernetes.io/component: data
+spec:
+  replicas: {{ .Values.data.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "juniper.selectorLabels" (dict "ctx" . "component" "data") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "juniper.labels" . | nindent 8 }}
+        {{- include "juniper.selectorLabels" (dict "ctx" . "component" "data") | nindent 8 }}
+      {{- with .Values.data.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- include "juniper.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: juniper-data
+          image: {{ include "juniper.image" (dict "image" .Values.data.image "global" .Values.global) }}
+          imagePullPolicy: {{ .Values.data.image.pullPolicy }}
+          securityContext:
+            {{- include "juniper.containerSecurityContext" . | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.data.service.port }}
+              protocol: TCP
+          env:
+            {{- range $key, $value := .Values.data.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            - name: JUNIPER_DATA_API_KEYS_FILE
+              value: "/etc/juniper/secrets/juniper_data_api_keys"
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.data.healthcheck.liveness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.data.healthcheck.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.data.healthcheck.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.data.healthcheck.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.data.healthcheck.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.data.healthcheck.readiness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.data.healthcheck.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.data.healthcheck.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.data.healthcheck.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.data.healthcheck.readiness.failureThreshold }}
+          resources:
+            {{- toYaml .Values.data.resources | nindent 12 }}
+          volumeMounts:
+            - name: secrets
+              mountPath: /etc/juniper/secrets
+              readOnly: true
+            {{- if .Values.data.persistence.datasets.enabled }}
+            - name: datasets
+              mountPath: /app/data/datasets
+            {{- end }}
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: secrets
+          secret:
+            secretName: {{ include "juniper.secretName" . }}
+            items:
+              - key: juniper_data_api_keys
+                path: juniper_data_api_keys
+        {{- if .Values.data.persistence.datasets.enabled }}
+        - name: datasets
+          persistentVolumeClaim:
+            claimName: {{ include "juniper.data.fullname" . }}-datasets
+        {{- end }}
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.data.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.data.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.data.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

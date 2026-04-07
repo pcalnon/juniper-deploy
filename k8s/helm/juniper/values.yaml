@@ -1,0 +1,333 @@
+# =============================================================================
+# Juniper Helm Chart — Default Values
+# =============================================================================
+
+nameOverride: ""
+fullnameOverride: ""
+
+# =============================================================================
+# Global
+# =============================================================================
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+
+# =============================================================================
+# juniper-data — Dataset Generation Service
+# =============================================================================
+data:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    registry: ""
+    repository: juniper-data
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8100
+
+  env:
+    JUNIPER_DATA_HOST: "0.0.0.0"
+    JUNIPER_DATA_PORT: "8100"
+    JUNIPER_DATA_LOG_LEVEL: "INFO"
+    JUNIPER_DATA_LOG_FORMAT: "text"
+    JUNIPER_DATA_SENTRY_DSN: ""
+    JUNIPER_DATA_METRICS_ENABLED: "false"
+
+  persistence:
+    datasets:
+      enabled: true
+      size: 5Gi
+      storageClass: ""
+      accessMode: ReadWriteOnce
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  healthcheck:
+    liveness:
+      path: /v1/health
+      initialDelaySeconds: 10
+      periodSeconds: 15
+      timeoutSeconds: 10
+      failureThreshold: 5
+    readiness:
+      path: /v1/health
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+# =============================================================================
+# juniper-cascor — CasCor Training Service
+# =============================================================================
+cascor:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    registry: ""
+    repository: juniper-cascor
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8200
+
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: cascor.juniper.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+  env:
+    JUNIPER_CASCOR_HOST: "0.0.0.0"
+    JUNIPER_CASCOR_PORT: "8200"
+    JUNIPER_CASCOR_LOG_LEVEL: "INFO"
+    JUNIPER_CASCOR_RATE_LIMIT_ENABLED: "true"
+    JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE: "60"
+    JUNIPER_CASCOR_LOG_FORMAT: "text"
+    JUNIPER_CASCOR_SENTRY_DSN: ""
+    JUNIPER_CASCOR_METRICS_ENABLED: "false"
+
+  persistence:
+    snapshots:
+      enabled: true
+      size: 10Gi
+      storageClass: ""
+      accessMode: ReadWriteOnce
+    logs:
+      enabled: true
+      size: 2Gi
+      storageClass: ""
+      accessMode: ReadWriteOnce
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+  healthcheck:
+    liveness:
+      path: /v1/health
+      initialDelaySeconds: 15
+      periodSeconds: 15
+      timeoutSeconds: 10
+      failureThreshold: 5
+    readiness:
+      path: /v1/health/ready
+      initialDelaySeconds: 15
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+# =============================================================================
+# juniper-canopy — Monitoring Dashboard
+# =============================================================================
+canopy:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    registry: ""
+    repository: juniper-canopy
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8050
+
+  ingress:
+    enabled: true
+    className: ""
+    annotations: {}
+    hosts:
+      - host: canopy.juniper.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+  env:
+    JUNIPER_CANOPY_SERVER__HOST: "0.0.0.0"
+    JUNIPER_CANOPY_SERVER__PORT: "8050"
+    JUNIPER_CANOPY_RATE_LIMIT_ENABLED: "true"
+    JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE: "60"
+    JUNIPER_CANOPY_LOG_FORMAT: "text"
+    JUNIPER_CANOPY_SENTRY_DSN: ""
+    JUNIPER_CANOPY_METRICS_ENABLED: "false"
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  healthcheck:
+    liveness:
+      path: /v1/health
+      initialDelaySeconds: 20
+      periodSeconds: 15
+      timeoutSeconds: 10
+      failureThreshold: 5
+    readiness:
+      path: /v1/health
+      initialDelaySeconds: 15
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+# =============================================================================
+# juniper-cascor-worker — Distributed Training Worker
+# =============================================================================
+worker:
+  enabled: true
+  replicaCount: 2
+
+  image:
+    registry: ""
+    repository: juniper-cascor-worker
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  env:
+    CASCOR_HEARTBEAT_INTERVAL: "10.0"
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+    # targetMemoryUtilizationPercentage: 80
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+# =============================================================================
+# Secrets
+# =============================================================================
+secrets:
+  # create: true  — chart creates a Kubernetes Secret from secrets.data
+  # create: false — provide existingSecret name (e.g., from Vault / Sealed Secrets)
+  create: true
+  existingSecret: ""
+  data:
+    juniper_data_api_keys: ""
+    juniper_cascor_api_keys: ""
+    canopy_api_key: ""
+    cascor_sentry_dsn: ""
+    grafana_admin_password: ""
+    juniper_data_api_key: ""
+    cascor_auth_token: ""
+
+# =============================================================================
+# Pod Security Context (shared defaults for all Juniper pods)
+# =============================================================================
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# =============================================================================
+# Network Policies
+# =============================================================================
+networkPolicies:
+  enabled: true
+
+# =============================================================================
+# Service Monitors (Prometheus Operator)
+# =============================================================================
+serviceMonitor:
+  enabled: false
+  interval: 10s
+  scrapeTimeout: 10s
+  labels: {}
+
+# =============================================================================
+# Subchart: Redis (Bitnami)
+# =============================================================================
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: false
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+
+# =============================================================================
+# Subchart: Cassandra (Bitnami)
+# =============================================================================
+cassandra:
+  enabled: false
+
+# =============================================================================
+# Subchart: kube-prometheus-stack
+# =============================================================================
+kube-prometheus-stack:
+  enabled: false
+  prometheus:
+    prometheusSpec:
+      serviceMonitorSelectorNilUsesHelmValues: false
+      retention: 30d
+  grafana:
+    adminPassword: ""

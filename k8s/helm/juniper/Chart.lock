@@ -1,0 +1,12 @@
+dependencies:
+- name: redis
+  repository: oci://registry-1.docker.io/bitnamicharts
+  version: 20.7.1
+- name: cassandra
+  repository: oci://registry-1.docker.io/bitnamicharts
+  version: 12.1.4
+- name: kube-prometheus-stack
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 72.6.3
+digest: sha256:572c4afb93784ad5d95d27e26e5338c9cb861044456cae13b4312894078ccf39
+generated: "2026-04-06T18:47:12.874861094-05:00"

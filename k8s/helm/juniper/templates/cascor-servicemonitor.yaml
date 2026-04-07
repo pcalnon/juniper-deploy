@@ -1,0 +1,21 @@
+{{- if and .Values.cascor.enabled .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "juniper.cascor.fullname" . }}
+  labels:
+    {{- include "juniper.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cascor
+    {{- with .Values.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "juniper.selectorLabels" (dict "ctx" . "component" "cascor") | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+{{- end }}

@@ -1,0 +1,59 @@
+# =============================================================================
+# Juniper Helm Chart — Production Values Overlay
+# Usage: helm install juniper ./k8s/helm/juniper -f ./k8s/helm/juniper/values-production.yaml
+# =============================================================================
+
+data:
+  env:
+    JUNIPER_DATA_LOG_FORMAT: "json"
+    JUNIPER_DATA_METRICS_ENABLED: "true"
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+cascor:
+  env:
+    JUNIPER_CASCOR_LOG_FORMAT: "json"
+    JUNIPER_CASCOR_METRICS_ENABLED: "true"
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "4"
+      memory: 4Gi
+
+canopy:
+  env:
+    JUNIPER_CANOPY_LOG_FORMAT: "json"
+    JUNIPER_CANOPY_METRICS_ENABLED: "true"
+  ingress:
+    enabled: true
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    tls:
+      - secretName: canopy-tls
+        hosts:
+          - canopy.juniper.example.com
+    hosts:
+      - host: canopy.juniper.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+
+worker:
+  replicaCount: 4
+  autoscaling:
+    enabled: true
+    minReplicas: 4
+    maxReplicas: 16
+
+serviceMonitor:
+  enabled: true
+
+kube-prometheus-stack:
+  enabled: true
