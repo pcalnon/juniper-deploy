@@ -2,10 +2,10 @@
 
 ## Navigation Guide to juniper-deploy Documentation
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Status:** Active
-**Last Updated:** March 3, 2026
-**Project:** Juniper - Docker Compose Orchestration
+**Last Updated:** April 6, 2026
+**Project:** Juniper - Docker Compose & Kubernetes Orchestration
 
 ---
 
@@ -28,6 +28,8 @@
 | **Set up the full environment** | [ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md) | docs/ |
 | **Understand all features** | [USER_MANUAL.md](USER_MANUAL.md) | docs/ |
 | **Look up profiles, env vars, ports** | [REFERENCE.md](REFERENCE.md) | docs/ |
+| **Deploy to Kubernetes** | [USER_MANUAL.md — Kubernetes](USER_MANUAL.md#kubernetes-deployment) | docs/ |
+| **Helm chart reference** | [REFERENCE.md — Helm](REFERENCE.md#helm-chart-reference) | docs/ |
 | **Run integration tests** | [TESTING_QUICK_START.md](testing/TESTING_QUICK_START.md) | docs/testing/ |
 | **See development conventions** | [AGENTS.md](../AGENTS.md) | Root |
 | **Quick-reference dev tasks** | [DEVELOPER_CHEATSHEET.md](DEVELOPER_CHEATSHEET.md) | docs/ |
@@ -67,7 +69,7 @@
 
 ## Ecosystem Context
 
-`juniper-deploy` orchestrates the full Juniper stack using Docker Compose. It builds and runs all three core services plus optional monitoring infrastructure.
+`juniper-deploy` orchestrates the full Juniper stack using Docker Compose and Kubernetes (Helm). It builds and runs all four application services plus optional monitoring infrastructure.
 
 ### Services Orchestrated
 
@@ -76,6 +78,7 @@
 | **juniper-data** | `../juniper-data/` | 8100 |
 | **juniper-cascor** | `../juniper-cascor/` | 8200 |
 | **juniper-canopy** | `../juniper-canopy/` | 8050 |
+| **juniper-cascor-worker** | `../juniper-cascor-worker/` | -- (WebSocket client) |
 | **Prometheus** | Official image | 9090 |
 | **Grafana** | Official image | 3000 |
 
@@ -83,7 +86,7 @@
 
 | Profile | Services | Use Case |
 |---------|----------|----------|
-| `full` | data + cascor + canopy | Production-like deployment |
+| `full` | data + cascor + canopy + worker | Production-like deployment |
 | `demo` | data + cascor-demo + canopy-demo + seed | Self-running demonstration |
 | `dev` | data + cascor + canopy-dev (demo mode) | Frontend development |
 | `observability` | prometheus + grafana | Monitoring add-on |
@@ -95,6 +98,8 @@ juniper-canopy (8050)
   └── depends_on: juniper-cascor (healthy), juniper-data (healthy)
 juniper-cascor (8200)
   └── depends_on: juniper-data (healthy)
+juniper-cascor-worker (no port)
+  └── depends_on: juniper-cascor (healthy)
 juniper-data (8100)
   └── no dependencies (starts first)
 ```
@@ -122,8 +127,8 @@ juniper-data (8100)
 
 ---
 
-**Last Updated:** March 3, 2026
-**Version:** 0.1.0
+**Last Updated:** April 6, 2026
+**Version:** 0.2.0
 **Maintainer:** Paul Calnon
 
 > See the [Juniper Ecosystem Guide](../../CLAUDE.md) for the full project map and dependency graph.

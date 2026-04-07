@@ -1,7 +1,7 @@
 # Developer Cheatsheet — juniper-deploy
 
-**Version**: 1.1.0
-**Date**: 2026-04-01
+**Version**: 1.2.0
+**Date**: 2026-04-06
 **Project**: juniper-deploy
 
 ---
@@ -34,7 +34,7 @@
 
 | Profile | Command | Services |
 |---------|---------|----------|
-| `full` | `make up` | juniper-data, juniper-cascor, juniper-canopy |
+| `full` | `make up` | juniper-data, juniper-cascor, juniper-canopy, juniper-cascor-worker |
 | `demo` | `make demo` | juniper-data, juniper-cascor-demo, juniper-canopy-demo, demo-seed |
 | `dev` | `make dev` | juniper-data, juniper-cascor, juniper-canopy-dev |
 | `observability` | `make obs` | prometheus (9090), grafana (3000) |
@@ -63,6 +63,7 @@ Profiles can be combined: `docker compose --profile full --profile observability
 juniper-canopy (8050) --> juniper-cascor (8200) --> juniper-data (8100)
                       \                         /
                        +-------> juniper-data --+
+juniper-cascor-worker  --> juniper-cascor (8200, WebSocket)
 ```
 
 All `depends_on` use `condition: service_healthy` so containers wait for upstream health checks.
@@ -199,6 +200,42 @@ bash scripts/test_demo_profile.sh
 | Services can't reach each other | Wrong internal URL | Verify `JUNIPER_DATA_URL` uses container name, not `localhost` |
 | Prometheus shows no targets | Metrics not enabled | Set `*_METRICS_ENABLED=true` in `.env` |
 | Grafana no data | Prometheus not scraping | Check `http://localhost:9090/targets` for scrape status |
+
+---
+
+## Kubernetes / Helm
+
+### Helm Commands
+
+| Command | Description |
+|---------|-------------|
+| `helm dependency build k8s/helm/juniper/` | Download subchart dependencies |
+| `helm lint k8s/helm/juniper/` | Lint the chart |
+| `helm template test k8s/helm/juniper/` | Render templates locally (no cluster) |
+| `helm install juniper k8s/helm/juniper/` | Install to current cluster |
+| `helm install juniper k8s/helm/juniper/ -f k8s/helm/juniper/values-production.yaml` | Install with production values |
+| `helm install juniper k8s/helm/juniper/ -f k8s/helm/juniper/values-demo.yaml` | Install demo mode |
+| `helm upgrade juniper k8s/helm/juniper/` | Upgrade existing release |
+| `helm test juniper` | Run connectivity tests |
+| `helm uninstall juniper` | Remove release |
+
+### Integration Test (Local Cluster)
+
+```bash
+bash scripts/test_k8s.sh --driver kind         # Auto-create kind cluster, test, teardown
+bash scripts/test_k8s.sh --driver minikube      # Use minikube instead
+bash scripts/test_k8s.sh --no-teardown          # Keep cluster for debugging
+```
+
+### Value Overlays
+
+| File | Use Case |
+|------|----------|
+| `values.yaml` | Defaults (development) |
+| `values-production.yaml` | JSON logs, metrics, TLS ingress, 4-16 workers |
+| `values-demo.yaml` | Auto-start training, no workers, no network policies |
+
+> See: [docs/REFERENCE.md](REFERENCE.md#helm-chart-reference) for the full Helm chart reference.
 
 ---
 

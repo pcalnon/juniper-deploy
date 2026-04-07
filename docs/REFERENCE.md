@@ -2,10 +2,10 @@
 
 ## juniper-deploy Technical Reference
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Status:** Active
-**Last Updated:** April 1, 2026
-**Project:** Juniper - Docker Compose Orchestration
+**Last Updated:** April 6, 2026
+**Project:** Juniper - Docker Compose & Kubernetes Orchestration
 
 ---
 
@@ -18,6 +18,7 @@
 - [Health Endpoints](#health-endpoints)
 - [Docker Healthcheck Configuration](#docker-healthcheck-configuration)
 - [Network Architecture](#network-architecture)
+- [Helm Chart Reference](#helm-chart-reference)
 - [Scripts Reference](#scripts-reference)
 - [Prometheus Configuration](#prometheus-configuration)
 - [Grafana Configuration](#grafana-configuration)
@@ -37,6 +38,7 @@
 | `juniper-canopy` | `../juniper-canopy/Dockerfile` | 8050 | 8050 | `/v1/health` |
 | `juniper-canopy-demo` | `../juniper-canopy/Dockerfile` | 8050 | 8050 | `/v1/health` |
 | `juniper-canopy-dev` | `../juniper-canopy/Dockerfile` | 8050 | 8050 | `/v1/health` |
+| `juniper-cascor-worker` | `../juniper-cascor-worker/Dockerfile` | -- | -- | process (`kill -0 1`) |
 | `demo-seed` | `python:3.12-slim` | -- | -- | -- |
 
 ### Observability Services
@@ -54,6 +56,7 @@
 | `juniper-cascor-demo` | `juniper-data`, `demo-seed` | `service_healthy`, `service_completed_successfully` |
 | `juniper-canopy` | `juniper-data`, `juniper-cascor` | `service_healthy` |
 | `juniper-canopy-demo` | `juniper-data`, `juniper-cascor-demo` | `service_healthy` |
+| `juniper-cascor-worker` | `juniper-cascor` | `service_healthy` |
 | `demo-seed` | `juniper-data` | `service_healthy` |
 | `grafana` | `prometheus` | `service_started` |
 
@@ -63,7 +66,7 @@
 
 | Profile | Services Included |
 |---------|-------------------|
-| `full` | juniper-data, juniper-cascor, juniper-canopy |
+| `full` | juniper-data, juniper-cascor, juniper-canopy, juniper-cascor-worker |
 | `demo` | juniper-data, juniper-cascor-demo, juniper-canopy-demo, demo-seed |
 | `dev` | juniper-data, juniper-cascor, juniper-canopy-dev |
 | `observability` | prometheus, grafana |
@@ -274,7 +277,7 @@ Compose secret definitions reference local files in `secrets/`:
 | Network | Type | Services |
 |---------|------|----------|
 | `frontend` | bridge | juniper-canopy, juniper-canopy-demo, juniper-canopy-dev |
-| `backend` | bridge, internal | juniper-cascor, juniper-cascor-demo, juniper-canopy, juniper-canopy-demo, redis, cassandra, prometheus |
+| `backend` | bridge, internal | juniper-cascor, juniper-cascor-demo, juniper-canopy, juniper-canopy-demo, juniper-cascor-worker, redis, cassandra, prometheus |
 | `data` | bridge, internal | juniper-data, juniper-cascor, juniper-cascor-demo, juniper-canopy, juniper-canopy-demo, prometheus |
 | `monitoring` | bridge | prometheus, grafana |
 
@@ -290,6 +293,89 @@ Compose secret definitions reference local files in `secrets/`:
 
 ---
 
+## Helm Chart Reference
+
+The Kubernetes Helm chart is located at `k8s/helm/juniper/`.
+
+### Chart Metadata
+
+| Field | Value |
+|-------|-------|
+| Chart name | `juniper` |
+| API version | v2 |
+| App version | 0.4.0 |
+| Chart version | 0.1.0 |
+
+### Kubernetes Resources
+
+| Resource | Name Pattern | Condition |
+|----------|-------------|-----------|
+| Deployment | `<release>-juniper-data` | `data.enabled` |
+| Deployment | `<release>-juniper-cascor` | `cascor.enabled` |
+| Deployment | `<release>-juniper-canopy` | `canopy.enabled` |
+| Deployment | `<release>-juniper-worker` | `worker.enabled` |
+| Service | `<release>-juniper-data` (:8100) | `data.enabled` |
+| Service | `<release>-juniper-cascor` (:8200) | `cascor.enabled` |
+| Service | `<release>-juniper-canopy` (:8050) | `canopy.enabled` |
+| Ingress | `<release>-juniper` | `canopy.ingress.enabled` |
+| Secret | `<release>-juniper` | `secrets.create` |
+| PVC | `<release>-juniper-data-datasets` | `data.persistence.datasets.enabled` |
+| PVC | `<release>-juniper-cascor-snapshots` | `cascor.persistence.snapshots.enabled` |
+| PVC | `<release>-juniper-cascor-logs` | `cascor.persistence.logs.enabled` |
+| HPA | `<release>-juniper-worker` | `worker.autoscaling.enabled` |
+| NetworkPolicy | `<release>-juniper-deny-all` | `networkPolicies.enabled` |
+| NetworkPolicy | `<release>-juniper-data` | `networkPolicies.enabled` + `data.enabled` |
+| NetworkPolicy | `<release>-juniper-cascor` | `networkPolicies.enabled` + `cascor.enabled` |
+| NetworkPolicy | `<release>-juniper-canopy` | `networkPolicies.enabled` + `canopy.enabled` |
+| NetworkPolicy | `<release>-juniper-worker` | `networkPolicies.enabled` + `worker.enabled` |
+| ServiceMonitor | `<release>-juniper-data` | `serviceMonitor.enabled` + `data.enabled` |
+| ServiceMonitor | `<release>-juniper-cascor` | `serviceMonitor.enabled` + `cascor.enabled` |
+| ServiceMonitor | `<release>-juniper-canopy` | `serviceMonitor.enabled` + `canopy.enabled` |
+
+### Subchart Dependencies
+
+| Subchart | Repository | Condition | Default |
+|----------|-----------|-----------|---------|
+| redis (Bitnami) | `oci://registry-1.docker.io/bitnamicharts` | `redis.enabled` | true |
+| cassandra (Bitnami) | `oci://registry-1.docker.io/bitnamicharts` | `cassandra.enabled` | false |
+| kube-prometheus-stack | `https://prometheus-community.github.io/helm-charts` | `kube-prometheus-stack.enabled` | false |
+
+### Value Files
+
+| File | Purpose |
+|------|---------|
+| `values.yaml` | Default configuration for all services and subcharts |
+| `values-production.yaml` | Production overlay: JSON logs, metrics, TLS, scaled workers |
+| `values-demo.yaml` | Demo overlay: auto-start training, no workers |
+
+### Kubernetes Secret Keys
+
+| Key | Mounted By | Env Var |
+|-----|-----------|---------|
+| `juniper_data_api_keys` | data, cascor | `JUNIPER_DATA_API_KEYS_FILE` |
+| `juniper_cascor_api_keys` | cascor, canopy | `JUNIPER_CASCOR_API_KEYS_FILE` |
+| `canopy_api_key` | canopy | `CANOPY_API_KEY_FILE` |
+| `cascor_sentry_dsn` | cascor | file-mounted |
+| `juniper_data_api_key` | cascor | `JUNIPER_DATA_API_KEY_FILE` |
+| `cascor_auth_token` | worker | `CASCOR_AUTH_TOKEN` (env, not file) |
+| `grafana_admin_password` | grafana (subchart) | -- |
+
+All file-based secrets are mounted at `/etc/juniper/secrets/` (read-only).
+
+### Security Context (All Pods)
+
+| Setting | Value |
+|---------|-------|
+| `runAsNonRoot` | true |
+| `runAsUser` | 1000 |
+| `runAsGroup` | 1000 |
+| `fsGroup` | 1000 |
+| `readOnlyRootFilesystem` | true |
+| `allowPrivilegeEscalation` | false |
+| `capabilities.drop` | ALL |
+
+---
+
 ## Scripts Reference
 
 | Script | Purpose | Default Timeout |
@@ -298,6 +384,7 @@ Compose secret definitions reference local files in `secrets/`:
 | `scripts/wait_for_services.sh [TIMEOUT]` | Block until all services healthy | 90s |
 | `scripts/test_demo_profile.sh` | End-to-end demo profile test (7 steps) | 120s |
 | `scripts/test_health_enhanced.sh` | Enhanced health response validation (8 steps) | -- |
+| `scripts/test_k8s.sh [--driver kind\|minikube] [--no-teardown]` | Kubernetes integration test (local cluster) | 300s |
 
 ---
 
@@ -373,6 +460,6 @@ numpy>=1.24
 
 ---
 
-**Last Updated:** April 1, 2026
-**Version:** 0.1.0
+**Last Updated:** April 6, 2026
+**Version:** 0.2.0
 **Maintainer:** Paul Calnon

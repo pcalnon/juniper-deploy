@@ -2,22 +2,23 @@
 
 ## Start the Juniper Stack in 5 Minutes
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Status:** Active
-**Last Updated:** March 3, 2026
-**Project:** Juniper - Docker Compose Orchestration
+**Last Updated:** April 6, 2026
+**Project:** Juniper - Docker Compose & Kubernetes Orchestration
 
 ---
 
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
-- [Start the Stack](#1-start-the-stack)
+- [Start the Stack (Docker Compose)](#1-start-the-stack-docker-compose)
 - [Verify Services](#2-verify-services)
 - [Access Services](#3-access-services)
 - [Stop the Stack](#4-stop-the-stack)
 - [Other Profiles](#5-other-profiles)
-- [Next Steps](#6-next-steps)
+- [Kubernetes Deployment](#6-kubernetes-deployment)
+- [Next Steps](#7-next-steps)
 
 ---
 
@@ -28,7 +29,7 @@
 
 ---
 
-## 1. Start the Stack
+## 1. Start the Stack (Docker Compose)
 
 ### Full Stack (Production-Like)
 
@@ -99,7 +100,48 @@ docker compose --profile observability up -d
 
 ---
 
-## 6. Next Steps
+## 6. Kubernetes Deployment
+
+### Prerequisites
+
+- **Helm** >= 3.0
+- A Kubernetes cluster (or [kind](https://kind.sigs.k8s.io/) / [minikube](https://minikube.sigs.k8s.io/) for local testing)
+- Container images built and available to the cluster
+
+### Install via Helm
+
+```bash
+# Build dependencies (Redis subchart)
+helm dependency build k8s/helm/juniper/
+
+# Install with default values
+helm install juniper k8s/helm/juniper/
+
+# Install with production values (JSON logs, metrics, TLS, scaled workers)
+helm install juniper k8s/helm/juniper/ -f k8s/helm/juniper/values-production.yaml
+
+# Install demo mode (auto-start training, no workers)
+helm install juniper k8s/helm/juniper/ -f k8s/helm/juniper/values-demo.yaml
+```
+
+### Verify
+
+```bash
+kubectl get pods -l app.kubernetes.io/part-of=juniper
+helm test juniper
+```
+
+### Run Integration Tests (Local Cluster)
+
+```bash
+bash scripts/test_k8s.sh --driver kind
+```
+
+See the [User Manual](USER_MANUAL.md#kubernetes-deployment) for full Kubernetes configuration details.
+
+---
+
+## 7. Next Steps
 
 - [Documentation Overview](DOCUMENTATION_OVERVIEW.md) -- navigation index
 - [Environment Setup](ENVIRONMENT_SETUP.md) -- complete environment configuration
@@ -109,6 +151,6 @@ docker compose --profile observability up -d
 
 ---
 
-**Last Updated:** March 3, 2026
-**Version:** 0.1.0
+**Last Updated:** April 6, 2026
+**Version:** 0.2.0
 **Status:** Active

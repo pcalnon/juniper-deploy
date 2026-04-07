@@ -2,10 +2,10 @@
 
 ## Comprehensive Guide to juniper-deploy
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Status:** Active
-**Last Updated:** March 3, 2026
-**Project:** Juniper - Docker Compose Orchestration
+**Last Updated:** April 6, 2026
+**Project:** Juniper - Docker Compose & Kubernetes Orchestration
 
 ---
 
@@ -15,6 +15,7 @@
 - [Profiles](#profiles)
 - [Service Management](#service-management)
 - [Demo Mode](#demo-mode)
+- [Kubernetes Deployment](#kubernetes-deployment)
 - [Monitoring and Observability](#monitoring-and-observability)
 - [Security](#security)
 - [Logging](#logging)
@@ -29,15 +30,23 @@
 
 ## Introduction
 
-juniper-deploy orchestrates the full Juniper stack using Docker Compose. It provides multiple deployment profiles, health monitoring, observability infrastructure, and integration testing.
+juniper-deploy orchestrates the full Juniper stack using Docker Compose and Kubernetes (Helm). It provides multiple deployment profiles, health monitoring, observability infrastructure, and integration testing.
 
 ### What It Manages
 
 - **juniper-data** (port 8100) -- Dataset generation REST API
 - **juniper-cascor** (port 8200) -- CasCor neural network training service
 - **juniper-canopy** (port 8050) -- Real-time monitoring dashboard
+- **juniper-cascor-worker** -- Distributed training workers (WebSocket clients, no exposed port)
 - **Prometheus** (port 9090) -- Metrics collection
 - **Grafana** (port 3000) -- Metrics visualization
+
+### Deployment Modes
+
+| Mode | Tool | Location |
+|------|------|----------|
+| **Docker Compose** | `docker compose` / `make` | `docker-compose.yml` |
+| **Kubernetes** | `helm` | `k8s/helm/juniper/` |
 
 ---
 
@@ -94,6 +103,7 @@ Adds Prometheus and Grafana. Can be combined with any other profile.
 | juniper-canopy | Y | -- | -- | -- |
 | juniper-canopy-demo | -- | Y | -- | -- |
 | juniper-canopy-dev | -- | -- | Y | -- |
+| juniper-cascor-worker | Y | -- | -- | -- |
 | demo-seed | -- | Y | -- | -- |
 | prometheus | -- | -- | -- | Y |
 | grafana | -- | -- | -- | Y |
@@ -169,6 +179,134 @@ docker compose --profile demo ps demo-seed
 
 # Check training is active
 curl http://localhost:8200/v1/training/status
+```
+
+---
+
+## Kubernetes Deployment
+
+The Juniper stack can be deployed to Kubernetes using the Helm chart at `k8s/helm/juniper/`.
+
+### Prerequisites
+
+- Helm >= 3.0
+- A Kubernetes cluster (kind, minikube, EKS, GKE, AKS, etc.)
+- Container images built and accessible to the cluster
+
+### Installation
+
+```bash
+# Build subchart dependencies (Redis, etc.)
+helm dependency build k8s/helm/juniper/
+
+# Install with defaults
+helm install juniper k8s/helm/juniper/
+
+# Install with production overlay (JSON logs, metrics, TLS, scaled workers)
+helm install juniper k8s/helm/juniper/ -f k8s/helm/juniper/values-production.yaml
+
+# Install in demo mode (auto-start training, no workers)
+helm install juniper k8s/helm/juniper/ -f k8s/helm/juniper/values-demo.yaml
+```
+
+### What Gets Deployed
+
+| Resource | Count | Details |
+|----------|-------|---------|
+| Deployments | 4 | data, cascor, canopy, worker |
+| Services | 3 | ClusterIP for data (:8100), cascor (:8200), canopy (:8050) |
+| Ingress | 1 | canopy (public) + optional cascor |
+| PVCs | 3 | datasets (5Gi), snapshots (10Gi), logs (2Gi) |
+| Secret | 1 | 7 keys, file-mounted at `/etc/juniper/secrets/` |
+| HPA | 1 | Worker auto-scaling (2-8 replicas, CPU-based) |
+| NetworkPolicies | 5 | Default deny + per-service allowlists |
+| ServiceMonitors | 3 | Prometheus Operator (conditional) |
+
+### Dependency Ordering
+
+Kubernetes does not have Docker Compose's `depends_on`. Instead, each Deployment uses **initContainers** that poll upstream health endpoints before the main container starts:
+
+| Service | Waits For |
+|---------|-----------|
+| juniper-data | Nothing (starts first) |
+| juniper-cascor | juniper-data `/v1/health` |
+| juniper-canopy | juniper-data + juniper-cascor `/v1/health` |
+| juniper-cascor-worker | juniper-cascor `/v1/health` |
+
+### Secrets
+
+The Helm chart preserves the existing `_FILE` env var pattern from Docker Compose. Secrets are mounted as files at `/etc/juniper/secrets/` (instead of Docker's `/run/secrets/`):
+
+```bash
+# Provide secrets at install time
+helm install juniper k8s/helm/juniper/ \
+  --set-file secrets.data.juniper_data_api_keys=secrets/juniper_data_api_keys.txt \
+  --set-file secrets.data.juniper_cascor_api_keys=secrets/juniper_cascor_api_keys.txt
+
+# Or use a pre-existing Kubernetes Secret
+helm install juniper k8s/helm/juniper/ \
+  --set secrets.create=false \
+  --set secrets.existingSecret=my-vault-secret
+```
+
+### Worker Auto-Scaling
+
+Workers scale automatically via HPA based on CPU utilization:
+
+```yaml
+# values.yaml (defaults)
+worker:
+  replicaCount: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+```
+
+### Network Policies
+
+When `networkPolicies.enabled: true` (default), the chart enforces network segmentation matching the Docker Compose network topology:
+
+| Pod | Ingress From | Egress To |
+|-----|-------------|-----------|
+| data | cascor, canopy, prometheus | DNS |
+| cascor | canopy, worker, prometheus | data, DNS |
+| canopy | all (ingress controller) | data, cascor, redis, DNS |
+| worker | none | cascor, DNS |
+
+### Subchart Dependencies
+
+| Subchart | Default | Purpose |
+|----------|---------|---------|
+| Redis (Bitnami) | enabled | Session/cache for canopy |
+| Cassandra (Bitnami) | disabled | Metrics storage |
+| kube-prometheus-stack | disabled | Prometheus + Grafana |
+
+### Managing the Release
+
+```bash
+# Check status
+helm status juniper
+
+# Upgrade with new values
+helm upgrade juniper k8s/helm/juniper/ -f k8s/helm/juniper/values-production.yaml
+
+# Run connectivity tests
+helm test juniper
+
+# Uninstall
+helm uninstall juniper
+```
+
+### Local Cluster Testing
+
+```bash
+# Automated test with kind (builds images, installs chart, validates health)
+bash scripts/test_k8s.sh --driver kind
+
+# Keep cluster running after test for debugging
+bash scripts/test_k8s.sh --driver kind --no-teardown
 ```
 
 ---
@@ -448,6 +586,6 @@ If services are killed by OOM, increase Docker's memory limit. The full stack re
 
 ---
 
-**Last Updated:** March 3, 2026
-**Version:** 0.1.0
+**Last Updated:** April 6, 2026
+**Version:** 0.2.0
 **Maintainer:** Paul Calnon
