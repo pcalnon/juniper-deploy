@@ -1,0 +1,19 @@
+{{- if and .Values.data.enabled .Values.data.persistence.datasets.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "juniper.data.fullname" . }}-datasets
+  labels:
+    {{- include "juniper.labels" . | nindent 4 }}
+    app.kubernetes.io/component: data
+spec:
+  accessModes:
+    - {{ .Values.data.persistence.datasets.accessMode }}
+  {{- $storageClass := .Values.data.persistence.datasets.storageClass | default .Values.global.storageClass }}
+  {{- if $storageClass }}
+  storageClassName: {{ $storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.data.persistence.datasets.size }}
+{{- end }}

@@ -1,0 +1,133 @@
+{{- if .Values.cascor.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "juniper.cascor.fullname" . }}
+  labels:
+    {{- include "juniper.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cascor
+spec:
+  replicas: {{ .Values.cascor.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "juniper.selectorLabels" (dict "ctx" . "component" "cascor") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "juniper.labels" . | nindent 8 }}
+        {{- include "juniper.selectorLabels" (dict "ctx" . "component" "cascor") | nindent 8 }}
+      {{- with .Values.cascor.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- include "juniper.podSecurityContext" . | nindent 8 }}
+      initContainers:
+        - name: wait-for-data
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- {{ include "juniper.data.serviceUrl" . }}/v1/health >/dev/null 2>&1; do
+                echo "Waiting for juniper-data..."
+                sleep 2
+              done
+          securityContext:
+            {{- include "juniper.containerSecurityContext" . | nindent 12 }}
+      containers:
+        - name: juniper-cascor
+          image: {{ include "juniper.image" (dict "image" .Values.cascor.image "global" .Values.global) }}
+          imagePullPolicy: {{ .Values.cascor.image.pullPolicy }}
+          securityContext:
+            {{- include "juniper.containerSecurityContext" . | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.cascor.service.port }}
+              protocol: TCP
+          env:
+            {{- range $key, $value := .Values.cascor.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            - name: JUNIPER_DATA_URL
+              value: {{ include "juniper.data.serviceUrl" . | quote }}
+            - name: JUNIPER_CASCOR_API_KEYS_FILE
+              value: "/etc/juniper/secrets/juniper_cascor_api_keys"
+            - name: JUNIPER_DATA_API_KEY_FILE
+              value: "/etc/juniper/secrets/juniper_data_api_key"
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.cascor.healthcheck.liveness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.cascor.healthcheck.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.cascor.healthcheck.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.cascor.healthcheck.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.cascor.healthcheck.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.cascor.healthcheck.readiness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.cascor.healthcheck.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.cascor.healthcheck.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.cascor.healthcheck.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.cascor.healthcheck.readiness.failureThreshold }}
+          resources:
+            {{- toYaml .Values.cascor.resources | nindent 12 }}
+          volumeMounts:
+            - name: secrets
+              mountPath: /etc/juniper/secrets
+              readOnly: true
+            {{- if .Values.cascor.persistence.snapshots.enabled }}
+            - name: snapshots
+              mountPath: /app/data
+            {{- end }}
+            {{- if .Values.cascor.persistence.logs.enabled }}
+            - name: logs
+              mountPath: /app/logs
+            {{- end }}
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: secrets
+          secret:
+            secretName: {{ include "juniper.secretName" . }}
+            items:
+              - key: juniper_cascor_api_keys
+                path: juniper_cascor_api_keys
+              - key: juniper_data_api_key
+                path: juniper_data_api_key
+              - key: cascor_sentry_dsn
+                path: cascor_sentry_dsn
+        {{- if .Values.cascor.persistence.snapshots.enabled }}
+        - name: snapshots
+          persistentVolumeClaim:
+            claimName: {{ include "juniper.cascor.fullname" . }}-snapshots
+        {{- end }}
+        {{- if .Values.cascor.persistence.logs.enabled }}
+        - name: logs
+          persistentVolumeClaim:
+            claimName: {{ include "juniper.cascor.fullname" . }}-logs
+        {{- end }}
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.cascor.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.cascor.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.cascor.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

@@ -1,0 +1,42 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/chart.json
+apiVersion: v2
+name: juniper
+description: >-
+  Juniper ML Research Platform — Cascade Correlation Neural Network.
+  Deploys juniper-data, juniper-cascor, juniper-canopy, and
+  juniper-cascor-worker with supporting infrastructure.
+type: application
+version: 0.1.0
+appVersion: "0.4.0"
+
+maintainers:
+  - name: Paul Calnon
+
+home: https://github.com/pcalnon/juniper-deploy
+sources:
+  - https://github.com/pcalnon/juniper-data
+  - https://github.com/pcalnon/juniper-cascor
+  - https://github.com/pcalnon/juniper-canopy
+  - https://github.com/pcalnon/juniper-cascor-worker
+
+keywords:
+  - machine-learning
+  - neural-network
+  - cascade-correlation
+
+dependencies:
+  - name: redis
+    version: "~20.7.0"
+    repository: "oci://registry-1.docker.io/bitnamicharts"
+    condition: redis.enabled
+
+  - name: cassandra
+    version: "~12.1.0"
+    repository: "oci://registry-1.docker.io/bitnamicharts"
+    condition: cassandra.enabled
+
+  - name: kube-prometheus-stack
+    version: "72.6.3"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: kube-prometheus-stack.enabled

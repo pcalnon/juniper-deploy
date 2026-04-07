@@ -1,0 +1,19 @@
+{{- if and .Values.cascor.enabled .Values.cascor.persistence.logs.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "juniper.cascor.fullname" . }}-logs
+  labels:
+    {{- include "juniper.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cascor
+spec:
+  accessModes:
+    - {{ .Values.cascor.persistence.logs.accessMode }}
+  {{- $storageClass := .Values.cascor.persistence.logs.storageClass | default .Values.global.storageClass }}
+  {{- if $storageClass }}
+  storageClassName: {{ $storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.cascor.persistence.logs.size }}
+{{- end }}

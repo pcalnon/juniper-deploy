@@ -1,0 +1,131 @@
+{{- if .Values.canopy.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "juniper.canopy.fullname" . }}
+  labels:
+    {{- include "juniper.labels" . | nindent 4 }}
+    app.kubernetes.io/component: canopy
+spec:
+  replicas: {{ .Values.canopy.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "juniper.selectorLabels" (dict "ctx" . "component" "canopy") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "juniper.labels" . | nindent 8 }}
+        {{- include "juniper.selectorLabels" (dict "ctx" . "component" "canopy") | nindent 8 }}
+      {{- with .Values.canopy.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- include "juniper.podSecurityContext" . | nindent 8 }}
+      initContainers:
+        - name: wait-for-data
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- {{ include "juniper.data.serviceUrl" . }}/v1/health >/dev/null 2>&1; do
+                echo "Waiting for juniper-data..."
+                sleep 2
+              done
+          securityContext:
+            {{- include "juniper.containerSecurityContext" . | nindent 12 }}
+        - name: wait-for-cascor
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- {{ include "juniper.cascor.serviceUrl" . }}/v1/health >/dev/null 2>&1; do
+                echo "Waiting for juniper-cascor..."
+                sleep 2
+              done
+          securityContext:
+            {{- include "juniper.containerSecurityContext" . | nindent 12 }}
+      containers:
+        - name: juniper-canopy
+          image: {{ include "juniper.image" (dict "image" .Values.canopy.image "global" .Values.global) }}
+          imagePullPolicy: {{ .Values.canopy.image.pullPolicy }}
+          securityContext:
+            {{- include "juniper.containerSecurityContext" . | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.canopy.service.port }}
+              protocol: TCP
+          env:
+            {{- range $key, $value := .Values.canopy.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            - name: JUNIPER_CANOPY_JUNIPER_DATA_URL
+              value: {{ include "juniper.data.serviceUrl" . | quote }}
+            - name: JUNIPER_CANOPY_CASCOR_SERVICE_URL
+              value: {{ include "juniper.cascor.serviceUrl" . | quote }}
+            {{- if .Values.redis.enabled }}
+            - name: REDIS_URL
+              value: {{ include "juniper.redis.url" . | quote }}
+            {{- end }}
+            - name: CANOPY_API_KEY_FILE
+              value: "/etc/juniper/secrets/canopy_api_key"
+            - name: JUNIPER_CASCOR_API_KEY_FILE
+              value: "/etc/juniper/secrets/juniper_cascor_api_keys"
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.canopy.healthcheck.liveness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.canopy.healthcheck.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.canopy.healthcheck.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.canopy.healthcheck.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.canopy.healthcheck.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.canopy.healthcheck.readiness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.canopy.healthcheck.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.canopy.healthcheck.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.canopy.healthcheck.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.canopy.healthcheck.readiness.failureThreshold }}
+          resources:
+            {{- toYaml .Values.canopy.resources | nindent 12 }}
+          volumeMounts:
+            - name: secrets
+              mountPath: /etc/juniper/secrets
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: secrets
+          secret:
+            secretName: {{ include "juniper.secretName" . }}
+            items:
+              - key: canopy_api_key
+                path: canopy_api_key
+              - key: juniper_cascor_api_keys
+                path: juniper_cascor_api_keys
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.canopy.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.canopy.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.canopy.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

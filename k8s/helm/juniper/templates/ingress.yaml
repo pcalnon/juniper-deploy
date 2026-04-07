@@ -1,0 +1,51 @@
+{{- if .Values.canopy.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "juniper.fullname" . }}
+  labels:
+    {{- include "juniper.labels" . | nindent 4 }}
+  {{- with .Values.canopy.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.canopy.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.canopy.ingress.tls }}
+  tls:
+    {{- toYaml .Values.canopy.ingress.tls | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.canopy.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "juniper.canopy.fullname" $ }}
+                port:
+                  number: {{ $.Values.canopy.service.port }}
+          {{- end }}
+    {{- end }}
+    {{- if and $.Values.cascor.enabled $.Values.cascor.ingress.enabled }}
+    {{- range .Values.cascor.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "juniper.cascor.fullname" $ }}
+                port:
+                  number: {{ $.Values.cascor.service.port }}
+          {{- end }}
+    {{- end }}
+    {{- end }}
+{{- end }}

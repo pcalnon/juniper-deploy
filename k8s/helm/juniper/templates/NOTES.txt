@@ -1,0 +1,35 @@
+Juniper ML Platform has been deployed!
+
+Services:
+{{- if .Values.data.enabled }}
+  juniper-data:    ClusterIP {{ include "juniper.data.fullname" . }}:{{ .Values.data.service.port }}
+{{- end }}
+{{- if .Values.cascor.enabled }}
+  juniper-cascor:  ClusterIP {{ include "juniper.cascor.fullname" . }}:{{ .Values.cascor.service.port }}
+{{- end }}
+{{- if .Values.canopy.enabled }}
+  juniper-canopy:  {{ .Values.canopy.service.type }} {{ include "juniper.canopy.fullname" . }}:{{ .Values.canopy.service.port }}
+{{- end }}
+{{- if .Values.worker.enabled }}
+  workers:         {{ .Values.worker.replicaCount }} replica(s) connecting to cascor via WebSocket
+{{- end }}
+
+{{- if .Values.canopy.ingress.enabled }}
+
+Dashboard URL:
+  {{- range .Values.canopy.ingress.hosts }}
+  http{{ if $.Values.canopy.ingress.tls }}s{{ end }}://{{ .host }}
+  {{- end }}
+{{- else if .Values.canopy.enabled }}
+
+To access the dashboard locally:
+  kubectl port-forward svc/{{ include "juniper.canopy.fullname" . }} 8050:{{ .Values.canopy.service.port }}
+  Then open http://localhost:8050
+{{- end }}
+
+To check service health:
+  kubectl exec deploy/{{ include "juniper.data.fullname" . }} -- \
+    python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:{{ .Values.data.service.port }}/v1/health').read().decode())"
+
+To run the Helm tests:
+  helm test {{ .Release.Name }}

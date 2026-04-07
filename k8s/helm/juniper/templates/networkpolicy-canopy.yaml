@@ -1,0 +1,56 @@
+{{- if and .Values.networkPolicies.enabled .Values.canopy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "juniper.canopy.fullname" . }}
+  labels:
+    {{- include "juniper.labels" . | nindent 4 }}
+    app.kubernetes.io/component: canopy
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "juniper.selectorLabels" (dict "ctx" . "component" "canopy") | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow from ingress controller and any external source
+    - ports:
+        - port: {{ .Values.canopy.service.port }}
+          protocol: TCP
+  egress:
+    {{- if .Values.data.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: data
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - port: {{ .Values.data.service.port }}
+          protocol: TCP
+    {{- end }}
+    {{- if .Values.cascor.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: cascor
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - port: {{ .Values.cascor.service.port }}
+          protocol: TCP
+    {{- end }}
+    {{- if .Values.redis.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - port: 6379
+          protocol: TCP
+    {{- end }}
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+{{- end }}

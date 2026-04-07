@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "juniper.fullname" . }}-test
+  labels:
+    {{- include "juniper.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  restartPolicy: Never
+  containers:
+    {{- if .Values.data.enabled }}
+    - name: test-data
+      image: busybox:1.37
+      command:
+        - sh
+        - -c
+        - |
+          wget --spider --timeout=10 \
+            http://{{ include "juniper.data.fullname" . }}:{{ .Values.data.service.port }}/v1/health
+    {{- end }}
+    {{- if .Values.cascor.enabled }}
+    - name: test-cascor
+      image: busybox:1.37
+      command:
+        - sh
+        - -c
+        - |
+          wget --spider --timeout=10 \
+            http://{{ include "juniper.cascor.fullname" . }}:{{ .Values.cascor.service.port }}/v1/health
+    {{- end }}
+    {{- if .Values.canopy.enabled }}
+    - name: test-canopy
+      image: busybox:1.37
+      command:
+        - sh
+        - -c
+        - |
+          wget --spider --timeout=10 \
+            http://{{ include "juniper.canopy.fullname" . }}:{{ .Values.canopy.service.port }}/v1/health
+    {{- end }}

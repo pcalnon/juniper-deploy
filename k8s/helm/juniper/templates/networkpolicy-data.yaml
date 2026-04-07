@@ -1,0 +1,44 @@
+{{- if and .Values.networkPolicies.enabled .Values.data.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "juniper.data.fullname" . }}
+  labels:
+    {{- include "juniper.labels" . | nindent 4 }}
+    app.kubernetes.io/component: data
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "juniper.selectorLabels" (dict "ctx" . "component" "data") | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        {{- if .Values.cascor.enabled }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: cascor
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- end }}
+        {{- if .Values.canopy.enabled }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: canopy
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- end }}
+        {{- if (index .Values "kube-prometheus-stack" "enabled") }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+        {{- end }}
+      ports:
+        - port: {{ .Values.data.service.port }}
+          protocol: TCP
+  egress:
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+{{- end }}

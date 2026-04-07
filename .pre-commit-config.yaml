@@ -18,6 +18,7 @@ repos:
       - id: end-of-file-fixer
         exclude: (\.env\.enc$|\.env\.secrets\.enc$)
       - id: check-yaml
+        exclude: ^k8s/helm/.*/templates/
       - id: check-added-large-files
         args: ['--maxkb=500']
 
@@ -40,6 +41,19 @@ repos:
       - id: yamllint
         args: ['--strict', '-d', '{extends: default, rules: {line-length: {max: 512}, truthy: disable}}']
         types: [yaml]
+        exclude: ^k8s/helm/.*/templates/
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Helm chart linting
+  # ═══════════════════════════════════════════════════════════════════════════
+  - repo: local
+    hooks:
+      - id: helm-lint
+        name: Helm lint
+        entry: helm lint k8s/helm/juniper/
+        language: system
+        files: ^k8s/helm/juniper/
+        pass_filenames: false
 
   # ═══════════════════════════════════════════════════════════════════════════
   # SOPS: Block unencrypted .env files from being committed

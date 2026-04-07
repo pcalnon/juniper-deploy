@@ -1,0 +1,18 @@
+{{- if .Values.canopy.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "juniper.canopy.fullname" . }}
+  labels:
+    {{- include "juniper.labels" . | nindent 4 }}
+    app.kubernetes.io/component: canopy
+spec:
+  type: {{ .Values.canopy.service.type }}
+  ports:
+    - port: {{ .Values.canopy.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "juniper.selectorLabels" (dict "ctx" . "component" "canopy") | nindent 4 }}
+{{- end }}
