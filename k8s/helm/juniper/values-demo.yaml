@@ -1,3 +1,4 @@
+---
 # =============================================================================
 # Juniper Helm Chart — Demo Values Overlay
 # Usage: helm install juniper ./k8s/helm/juniper -f ./k8s/helm/juniper/values-demo.yaml
