@@ -494,8 +494,10 @@ secrets:
 networks:
   backend:
     driver: bridge
+    internal: true
   data:
     driver: bridge
+    internal: true
   frontend:
     driver: bridge
   monitoring:
