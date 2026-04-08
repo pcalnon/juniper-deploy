@@ -148,6 +148,9 @@ services:
       CASCOR_SERVER_URL: "${CASCOR_WORKER_SERVER_URL:-ws://juniper-cascor:8200/ws/v1/workers}"
       CASCOR_HEARTBEAT_INTERVAL: "${CASCOR_WORKER_HEARTBEAT_INTERVAL:-10.0}"
       CASCOR_AUTH_TOKEN: "${CASCOR_WORKER_AUTH_TOKEN:-}"
+      CASCOR_AUTH_TOKEN_FILE: /run/secrets/cascor_auth_token
+    secrets:
+      - cascor_auth_token
     depends_on:
       juniper-cascor:
         condition: service_healthy
@@ -433,7 +436,7 @@ services:
   # Redis — Session/cache store for juniper-canopy
   # ═══════════════════════════════════════════════════════════════════════════
   redis:
-    image: redis:7-alpine
+    image: redis:7.4-alpine
     container_name: juniper-redis
     profiles: ["full", "test"]
     networks:
@@ -485,6 +488,8 @@ secrets:
     file: "${CASCOR_SENTRY_DSN_FILE:-./secrets.example/cascor_sentry_dsn.txt}"
   canopy_api_key:
     file: "${CANOPY_API_KEY_FILE:-./secrets.example/canopy_api_key.txt}"
+  cascor_auth_token:
+    file: "${CASCOR_AUTH_TOKEN_FILE:-./secrets.example/cascor_auth_token.txt}"
   grafana_admin_password:
     file: "${GRAFANA_ADMIN_PASSWORD_FILE:-./secrets.example/grafana_admin_password.txt}"
 

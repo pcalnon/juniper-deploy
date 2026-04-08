@@ -148,6 +148,8 @@ bash scripts/test_health_enhanced.sh    # Enhanced health check validation
 - **dev** — Real data + cascor services, canopy in demo mode (frontend development)
 - **observability** — Add-on profile: Prometheus, AlertManager, Grafana (combine with `full` or `demo`)
 
+> **Note**: Demo variants (`juniper-canopy-demo`, `juniper-cascor-demo`) are designed for local demonstration only. They do not include Docker secrets for API keys, rate limiting configuration, or observability environment variables. Do not use demo variants for production or security-sensitive deployments.
+
 ### Service Dependency Graph
 
 ```text
@@ -275,12 +277,14 @@ juniper-deploy/
 ├── secrets/                        # Docker secret files (git-ignored)
 │   ├── juniper_data_api_keys.txt
 │   ├── juniper_cascor_api_keys.txt
+│   ├── cascor_auth_token.txt
 │   ├── canopy_api_key.txt
 │   └── grafana_admin_password.txt
 │
 ├── secrets.example/                # Secret file templates
 │   ├── juniper_data_api_keys.txt
 │   ├── juniper_cascor_api_keys.txt
+│   ├── cascor_auth_token.txt
 │   ├── canopy_api_key.txt
 │   └── grafana_admin_password.txt
 │
@@ -390,6 +394,7 @@ These environment variables point containers to their mounted Docker secret file
 | `JUNIPER_DATA_API_KEY_FILE` | juniper-cascor | `/run/secrets/juniper_data_api_keys` |
 | `CANOPY_API_KEY_FILE` | juniper-canopy | `/run/secrets/canopy_api_key` |
 | `JUNIPER_CASCOR_API_KEY_FILE` | juniper-canopy | `/run/secrets/juniper_cascor_api_keys` |
+| `CASCOR_AUTH_TOKEN_FILE` | juniper-cascor-worker | `/run/secrets/cascor_auth_token` |
 
 ---
 
@@ -436,6 +441,7 @@ API keys and the Grafana admin password are managed via Docker secrets (mounted 
 |--------|------|---------|
 | `juniper_data_api_keys` | `secrets/juniper_data_api_keys.txt` | juniper-data, juniper-cascor |
 | `juniper_cascor_api_keys` | `secrets/juniper_cascor_api_keys.txt` | juniper-cascor, juniper-canopy |
+| `cascor_auth_token` | `secrets/cascor_auth_token.txt` | juniper-cascor-worker |
 | `canopy_api_key` | `secrets/canopy_api_key.txt` | juniper-canopy |
 | `grafana_admin_password` | `secrets/grafana_admin_password.txt` | grafana |
 
@@ -448,7 +454,7 @@ Run `make prepare-secrets` to create placeholder secret files. See `secrets.exam
 | `prom/prometheus` | v3.10.0 | prometheus |
 | `prom/alertmanager` | v0.28.1 | alertmanager |
 | `grafana/grafana` | 12.4.0 | grafana |
-| `redis` | 7-alpine | redis |
+| `redis` | 7.4-alpine | redis |
 
 ---
 
