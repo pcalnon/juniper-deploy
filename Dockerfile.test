@@ -27,6 +27,5 @@ COPY requirements-test.txt .
 RUN pip install --no-cache-dir -r requirements-test.txt
 
 COPY tests/ tests/
-COPY conftest.py .
 
 CMD ["pytest", "tests/", "-v", "--tb=short"]

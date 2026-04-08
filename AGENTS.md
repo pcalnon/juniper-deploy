@@ -21,8 +21,7 @@ make down         # Stop and remove all containers
 make restart      # Restart all services
 
 # === Observability ===
-make obs          # Full stack + Prometheus + Grafana
-make obs-demo     # Demo stack + Prometheus + Grafana
+make monitor      # Full stack + Prometheus + Grafana
 
 # === Monitoring ===
 make health       # Detailed health report for all services
@@ -73,8 +72,7 @@ bash scripts/test_health_enhanced.sh    # Enhanced health check validation
 | Prometheus | 127.0.0.1:9090 | 9090 | `/-/healthy` | observability |
 | AlertManager | 127.0.0.1:9093 | 9093 | `/-/healthy` | observability |
 | Grafana | 127.0.0.1:3000 | 3000 | `/api/health` | observability |
-| Redis | 127.0.0.1:6379 | 6379 | `redis-cli ping` | full, demo |
-| Cassandra | 127.0.0.1:9042 | 9042 | `cqlsh` | full |
+| Redis | *(no host binding)* | 6379 | `redis-cli ping` | full, test |
 
 ### Key Files
 
@@ -138,16 +136,15 @@ bash scripts/test_health_enhanced.sh    # Enhanced health check validation
 | juniper-canopy | x | | | |
 | juniper-canopy-demo | | x | | |
 | juniper-canopy-dev | | | x | |
-| redis | x | x | | |
-| cassandra | x | | | |
+| redis | x | | | |
 | prometheus | | | | x |
 | alertmanager | | | | x |
 | grafana | | | | x |
 
 **Profile descriptions:**
 
-- **full** — All real services with Redis and Cassandra (production-like)
-- **demo** — Auto-configured CasCor training with seeded dataset, Redis
+- **full** — All real services with Redis (production-like)
+- **demo** — Auto-configured CasCor training with seeded dataset
 - **dev** — Real data + cascor services, canopy in demo mode (frontend development)
 - **observability** — Add-on profile: Prometheus, AlertManager, Grafana (combine with `full` or `demo`)
 
@@ -166,7 +163,7 @@ juniper-cascor (8200)
 juniper-data (8100)
   └── no dependencies
 
-redis (6379), cassandra (9042)
+redis (6379)
   └── no dependencies
 
 # Demo profile
@@ -355,7 +352,7 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 | `CANOPY_SENTRY_DSN` | juniper-canopy | *(unset)* |
 | `CANOPY_METRICS_ENABLED` | juniper-canopy | `false` |
 
-> **Tip**: Use `.env.observability` to auto-enable metrics when running with the observability profile. See `make obs` and `make obs-demo`.
+> **Tip**: Use `.env.observability` to auto-enable metrics when running with the observability profile. See `make monitor`.
 
 ### Grafana
 
@@ -381,9 +378,6 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 |----------|---------|---------|
 | `REDIS_PORT` | redis | `6379` |
 | `REDIS_MAX_MEMORY` | redis | `100mb` |
-| `CASSANDRA_PORT` | cassandra | `9042` |
-| `CASSANDRA_MAX_HEAP` | cassandra | `512M` |
-| `CASSANDRA_HEAP_NEW` | cassandra | `128M` |
 
 ### Docker Secret File Variables
 
@@ -408,7 +402,7 @@ Four Docker networks enforce service-to-service communication boundaries:
 | Network | Type | Purpose | Services |
 |---------|------|---------|----------|
 | `frontend` | bridge | Public-facing dashboard | juniper-canopy, juniper-canopy-demo, juniper-canopy-dev |
-| `backend` | **internal** | CasCor + infrastructure (no external access) | juniper-cascor, redis, cassandra, prometheus |
+| `backend` | **internal** | CasCor + infrastructure (no external access) | juniper-cascor, redis, prometheus |
 | `data` | **internal** | JuniperData access (no external access) | juniper-data, juniper-cascor, juniper-canopy, prometheus |
 | `monitoring` | bridge | Observability stack | prometheus, grafana |
 
@@ -429,8 +423,8 @@ Internal and infrastructure services bind to `127.0.0.1` (localhost only):
 - `prometheus` → `127.0.0.1:9090`
 - `alertmanager` → `127.0.0.1:9093`
 - `grafana` → `127.0.0.1:3000`
-- `redis` → `127.0.0.1:6379`
-- `cassandra` → `127.0.0.1:9042`
+
+Note: Redis has no host port binding and is only accessible from within the Docker network.
 
 External-facing services (cascor host port, canopy) bind to `0.0.0.0` by default.
 
@@ -455,7 +449,6 @@ Run `make prepare-secrets` to create placeholder secret files. See `secrets.exam
 | `prom/alertmanager` | v0.28.1 | alertmanager |
 | `grafana/grafana` | 12.4.0 | grafana |
 | `redis` | 7-alpine | redis |
-| `cassandra` | 4.1 | cassandra |
 
 ---
 
