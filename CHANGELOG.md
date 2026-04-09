@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Aligned Helm chart version with app version: `k8s/helm/juniper/Chart.yaml` `version` bumped `0.1.0` -> `0.2.0` to match `appVersion`. Establishes the going-forward convention that chart `version` and `appVersion` track together.
+
+### Fixed
+
+- `CHANGELOG.md` 0.2.0 section: corrected Redis image version reference from "Redis 7-alpine" to "Redis 7.4-alpine" to match the pinned `redis:7.4-alpine` in `docker-compose.yml`.
+
 ## [0.2.0] - 2026-04-08
 
 ### Added
@@ -46,7 +54,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Updated cascor environment variable prefixes: `CASCOR_HOST` -> `JUNIPER_CASCOR_HOST`, `CASCOR_PORT` -> `JUNIPER_CASCOR_PORT`, `CASCOR_LOG_LEVEL` -> `JUNIPER_CASCOR_LOG_LEVEL`
 - Updated JuniperCanopy references to juniper-canopy (naming convention alignment)
 - Updated health scripts for enhanced ReadinessResponse format
-- Pinned all third-party Docker images to specific versions (Prometheus v3.10.0, Grafana 12.4.0, Redis 7-alpine)
+- Pinned all third-party Docker images to specific versions (Prometheus v3.10.0, Grafana 12.4.0, Redis 7.4-alpine)
 - SHA-pinned all GitHub Actions (checkout@v6.0.2, setup-python@v6.2.0, cache@v5.0.4)
 
 ### Fixed
