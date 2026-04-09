@@ -101,6 +101,10 @@ def test_sensitive_services_use_docker_secret_file_env_vars_and_mounts():
     _assert_list_item(canopy, "canopy_api_key")
     _assert_list_item(canopy, "juniper_cascor_api_keys")
 
+    worker = services["juniper-cascor-worker"]
+    _assert_mapping_line(worker, "CASCOR_AUTH_TOKEN_FILE", "/run/secrets/cascor_auth_token")
+    _assert_list_item(worker, "cascor_auth_token")
+
     grafana = services["grafana"]
     _assert_mapping_line(grafana, "GF_SECURITY_ADMIN_PASSWORD__FILE", "/run/secrets/grafana_admin_password")
     _assert_list_item(grafana, "grafana_admin_password")
@@ -114,12 +118,14 @@ def test_declared_top_level_secrets_match_expected_files():
         "juniper_data_api_key",
         "juniper_cascor_api_key",
         "cascor_sentry_dsn",
+        "cascor_auth_token",
         "canopy_api_key",
         "grafana_admin_password",
     }
     # Secret files use env-var overrides with secrets.example/ defaults
     for name in ("juniper_data_api_key", "juniper_cascor_api_key",
-                 "cascor_sentry_dsn", "canopy_api_key", "grafana_admin_password"):
+                 "cascor_sentry_dsn", "cascor_auth_token",
+                 "canopy_api_key", "grafana_admin_password"):
         assert "file:" in secrets[name], f"Secret {name} missing file: declaration"
 
 

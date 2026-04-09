@@ -28,6 +28,13 @@ SHELL := /bin/bash
 COMPOSE := docker compose
 COMPOSE_FILE ?= docker-compose.yml
 
+SECRETS_DIR := secrets
+SECRETS_FILES := $(SECRETS_DIR)/juniper_data_api_keys.txt \
+    $(SECRETS_DIR)/juniper_cascor_api_keys.txt \
+    $(SECRETS_DIR)/canopy_api_key.txt \
+    $(SECRETS_DIR)/cascor_auth_token.txt \
+    $(SECRETS_DIR)/grafana_admin_password.txt
+
 # Colors (disabled if NO_COLOR is set)
 ifdef NO_COLOR
   GREEN  :=
