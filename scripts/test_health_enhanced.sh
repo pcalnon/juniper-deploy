@@ -19,6 +19,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/config.sh
+source "${SCRIPT_DIR}/config.sh"
+
 BOLD='\033[1m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -65,12 +69,12 @@ sleep 5
 
 # ─── Step 3: Wait for services ───────────────────────────────────────────────
 echo -e "\n${BOLD}Step 3: Wait for all services to become healthy${RESET}"
-TIMEOUT=90
+TIMEOUT=${ENHANCED_TIMEOUT}
 ELAPSED=0
 while true; do
     all_ok=true
     for port in 8100 ${cascor_port} 8050; do
-        if ! python3 -c "import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=3)" "http://localhost:${port}/v1/health/live" 2>/dev/null; then
+        if ! python3 -c "import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=${CURL_TIMEOUT})" "http://localhost:${port}/v1/health/live" 2>/dev/null; then
             all_ok=false
         fi
     done
@@ -83,8 +87,8 @@ while true; do
         docker compose --profile full down 2>/dev/null
         exit 1
     fi
-    sleep 3
-    ELAPSED=$((ELAPSED + 3))
+    sleep "${POLL_INTERVAL_DEFAULT}"
+    ELAPSED=$((ELAPSED + POLL_INTERVAL_DEFAULT))
 done
 
 # ─── Step 4: Verify JuniperData readiness response ──────────────────────────

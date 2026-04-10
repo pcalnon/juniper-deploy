@@ -21,8 +21,12 @@
 
 set -euo pipefail
 
-TIMEOUT=${1:-120}
-POLL_INTERVAL=3
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/config.sh
+source "${SCRIPT_DIR}/config.sh"
+
+TIMEOUT=${1:-${DEMO_TIMEOUT}}
+POLL_INTERVAL=${DEMO_POLL_INTERVAL}
 ELAPSED=0
 EXIT_CODE=0
 
@@ -73,7 +77,7 @@ docker compose --profile demo up -d
 echo -e "${CYAN}[3/7]${RESET} Waiting for services to become ready (timeout: ${TIMEOUT}s)..."
 
 check_service_ready() {
-    python3 -c "import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=3)" "$1" 2>/dev/null
+    python3 -c "import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=${CURL_TIMEOUT})" "$1" 2>/dev/null
 }
 
 while true; do
@@ -115,7 +119,7 @@ validate_readiness_schema() {
 import urllib.request, json, sys
 url = sys.argv[1]
 try:
-    resp = urllib.request.urlopen(url, timeout=5)
+    resp = urllib.request.urlopen(url, timeout=${HEALTH_TIMEOUT})
     data = json.loads(resp.read().decode())
     errors = []
     # Required fields: status, version, service
@@ -159,11 +163,11 @@ fi
 # ── Step 5: Verify training started ──────────────────────────────────────────
 echo -e "${CYAN}[5/7]${RESET} Checking training status..."
 # Allow a few seconds for auto-start to kick in
-sleep 5
+sleep "${TRAINING_START_WAIT}"
 TRAINING_JSON=$(python3 -c "
 import urllib.request, json, sys
 try:
-    resp = urllib.request.urlopen(sys.argv[1], timeout=5)
+    resp = urllib.request.urlopen(sys.argv[1], timeout=${HEALTH_TIMEOUT})
     print(resp.read().decode())
 except Exception as e:
     print(json.dumps({'error': str(e)}))
@@ -191,7 +195,7 @@ CANOPY_RESULT=$(python3 -c "
 import urllib.request, json, sys
 url = sys.argv[1]
 try:
-    resp = urllib.request.urlopen(url, timeout=5)
+    resp = urllib.request.urlopen(url, timeout=${HEALTH_TIMEOUT})
     data = json.loads(resp.read().decode())
     status = data.get('status', 'unknown')
     service = data.get('service', 'unknown')

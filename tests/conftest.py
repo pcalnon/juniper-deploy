@@ -27,23 +27,36 @@ import os
 import pytest
 import requests
 
+from constants import (  # noqa: F401 — DEFAULT_TIMEOUT is re-exported for fixtures below
+    DEFAULT_CANOPY_URL,
+    DEFAULT_CASCOR_URL,
+    DEFAULT_DATA_URL,
+    DEFAULT_INTERNAL_DATA_URL,
+    DEFAULT_TIMEOUT,
+    ENV_CANOPY_API_KEY,
+    ENV_CANOPY_URL,
+    ENV_CASCOR_API_KEY,
+    ENV_CASCOR_URL,
+    ENV_DATA_API_KEY,
+    ENV_DATA_URL,
+    ENV_INTERNAL_DATA_URL,
+)
+
 # ---------------------------------------------------------------------------
 # Service base URLs (host-side ports exposed by docker-compose.yml)
 # Override via environment variables for non-default port configurations.
 # ---------------------------------------------------------------------------
-DATA_URL = os.environ.get("JUNIPER_TEST_DATA_URL", "http://localhost:8100")
-CASCOR_URL = os.environ.get("JUNIPER_TEST_CASCOR_URL", "http://localhost:8201")
-CANOPY_URL = os.environ.get("JUNIPER_TEST_CANOPY_URL", "http://localhost:8050")
+DATA_URL = os.environ.get(ENV_DATA_URL, DEFAULT_DATA_URL)
+CASCOR_URL = os.environ.get(ENV_CASCOR_URL, DEFAULT_CASCOR_URL)
+CANOPY_URL = os.environ.get(ENV_CANOPY_URL, DEFAULT_CANOPY_URL)
 
 # URL that juniper-cascor uses internally to reach juniper-data (docker network)
-_CASCOR_INTERNAL_DATA_URL = os.environ.get("JUNIPER_TEST_INTERNAL_DATA_URL", "http://juniper-data:8100")
+_CASCOR_INTERNAL_DATA_URL = os.environ.get(ENV_INTERNAL_DATA_URL, DEFAULT_INTERNAL_DATA_URL)
 
 # API keys for authenticated requests (empty string = no auth)
-DATA_API_KEY = os.environ.get("JUNIPER_TEST_DATA_API_KEY", "")
-CASCOR_API_KEY = os.environ.get("JUNIPER_TEST_CASCOR_API_KEY", "")
-CANOPY_API_KEY = os.environ.get("JUNIPER_TEST_CANOPY_API_KEY", "")
-
-from constants import DEFAULT_TIMEOUT  # noqa: F401 — re-exported for fixtures below
+DATA_API_KEY = os.environ.get(ENV_DATA_API_KEY, "")
+CASCOR_API_KEY = os.environ.get(ENV_CASCOR_API_KEY, "")
+CANOPY_API_KEY = os.environ.get(ENV_CANOPY_API_KEY, "")
 
 
 # ---------------------------------------------------------------------------
