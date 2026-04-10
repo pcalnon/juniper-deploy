@@ -1,4 +1,18 @@
 ---
+# =============================================================================
+# Juniper Deploy — Grafana Datasource Provisioning (Prometheus)
+#
+# Grafana provisioning YAML supports env interpolation only for some fields,
+# so the values below are hardcoded. They mirror the GRAFANA_* variables
+# documented in .env.example:
+#
+#   url            → ${GRAFANA_PROMETHEUS_URL:-http://prometheus:9090}
+#   timeInterval   → ${GRAFANA_MIN_INTERVAL:-10s}
+#
+# Other GRAFANA_* env vars in .env.example apply to docker-compose.yml's
+# grafana service environment block (admin user, signup, home dashboard).
+# =============================================================================
+
 apiVersion: 1
 
 deleteDatasources: []
