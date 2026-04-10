@@ -6,9 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-09
+
+**Summary**: Helm chart version alignment with `appVersion` (going-forward convention) and CHANGELOG image-version label correction. Pure metadata cleanup release — no compose, service, or behavior changes.
+
+See [`notes/releases/RELEASE_NOTES_v0.2.1.md`](notes/releases/RELEASE_NOTES_v0.2.1.md) for the full release notes.
+
 ### Changed
 
-- Aligned Helm chart version with app version: `k8s/helm/juniper/Chart.yaml` `version` bumped `0.1.0` -> `0.2.0` to match `appVersion`. Establishes the going-forward convention that chart `version` and `appVersion` track together.
+- Aligned Helm chart version with app version: `k8s/helm/juniper/Chart.yaml` `version` and `appVersion` both bumped to `0.2.1` (chart `version` was previously `0.1.0`, then bumped to `0.2.0` in PR #29 to match `appVersion`). Establishes the going-forward convention that chart `version` and `appVersion` track together with the app's semver.
 
 ### Fixed
 

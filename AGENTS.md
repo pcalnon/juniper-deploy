@@ -1,7 +1,7 @@
 # AGENTS.md - Juniper Deploy
 
 **Project**: juniper-deploy — Docker Compose Orchestration for Juniper Stack
-**Version**: 0.2.0
+**Version**: 0.2.1
 **License**: MIT License
 **Author**: Paul Calnon
 **Last Updated**: 2026-04-02
