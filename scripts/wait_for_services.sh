@@ -21,8 +21,12 @@
 
 set -euo pipefail
 
-TIMEOUT=${1:-90}
-POLL_INTERVAL=3
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/config.sh
+source "${SCRIPT_DIR}/config.sh"
+
+TIMEOUT=${1:-${WAIT_TIMEOUT_DEFAULT}}
+POLL_INTERVAL=${POLL_INTERVAL_DEFAULT}
 ELAPSED=0
 
 # Validate port values are numeric to prevent injection
@@ -41,7 +45,7 @@ echo "Waiting for Juniper services (timeout: ${TIMEOUT}s)..."
 check_service() {
     local name="$1"
     local url="$2"
-    if python3 -c "import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=3)" "$url" 2>/dev/null; then
+    if python3 -c "import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=${CURL_TIMEOUT})" "$url" 2>/dev/null; then
         echo "  ✓ ${name} is healthy"
         return 0
     fi

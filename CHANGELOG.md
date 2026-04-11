@@ -6,19 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [0.2.1] - 2026-04-09
+### Added
 
-**Summary**: Helm chart version alignment with `appVersion` (going-forward convention) and CHANGELOG image-version label correction. Pure metadata cleanup release — no compose, service, or behavior changes.
-
-See [`notes/releases/RELEASE_NOTES_v0.2.1.md`](notes/releases/RELEASE_NOTES_v0.2.1.md) for the full release notes.
+- Hardcoded-values refactor (Wave 1 + Wave 4): introduced YAML merge-key healthcheck anchors in `docker-compose.yml` (`x-healthcheck-defaults`, `x-healthcheck-cascor`, `x-healthcheck-canopy`, `x-healthcheck-worker`, `x-healthcheck-redis`) and rewired all 8 container healthchecks to consume them via `<<: *anchor`. New env vars `WORKER_REPLICAS` and `HEALTHCHECK_*` (interval/timeout/retries/start_period, plus per-service overrides) interpolate into the anchors for runtime tuning without editing the compose file.
+- New `scripts/config.sh` (Wave 1) and expanded `tests/constants.py` (Wave 3) — sourced by shell scripts and used by integration tests to eliminate inline literals (service URLs, port numbers, retry tuning, healthcheck endpoints).
+- Documentation headers added to `prometheus/prometheus.yml` and `grafana/provisioning/datasources/prometheus.yml` mapping the remaining inline literals to their corresponding env vars and explaining why each value cannot be interpolated by the upstream image.
 
 ### Changed
 
-- Aligned Helm chart version with app version: `k8s/helm/juniper/Chart.yaml` `version` and `appVersion` both bumped to `0.2.1` (chart `version` was previously `0.1.0`, then bumped to `0.2.0` in PR #29 to match `appVersion`). Establishes the going-forward convention that chart `version` and `appVersion` track together with the app's semver.
+- Hardcoded-values refactor (Wave 3 + Wave 4): replaced inline service URLs, port numbers, retry counts, and healthcheck endpoints across `up.sh`, `down.sh`, `status.sh`, and `restart.sh` with values sourced from `scripts/config.sh`. `replicas: 2` for the worker service is now `replicas: ${WORKER_REPLICAS:-2}`.
+- `tests/constants.py` expanded to centralize the per-service expected ports, healthcheck paths, and Docker network names referenced by integration tests.
+- AGENTS.md "Environment Variables" section gained a new "Healthcheck Tuning" subsection documenting the merge-key anchors and the override variables.
+- Aligned Helm chart version with app version: `k8s/helm/juniper/Chart.yaml` `version` bumped `0.1.0` -> `0.2.0` to match `appVersion`. Establishes the going-forward convention that chart `version` and `appVersion` track together.
 
 ### Fixed
 
 - `CHANGELOG.md` 0.2.0 section: corrected Redis image version reference from "Redis 7-alpine" to "Redis 7.4-alpine" to match the pinned `redis:7.4-alpine` in `docker-compose.yml`.
+
+### Notes
+
+- Wave 5 verified: `docker compose config` succeeds, `promtool check config` succeeds against `prometheus/prometheus.yml`, and override smoke tests pass for `WORKER_REPLICAS=5` and `HEALTHCHECK_INTERVAL=42s`.
+- All 29 integration tests pass (42 skipped — they require running services); pre-commit (9 hooks: shellcheck, yamllint, helm-lint, sops-check) is clean.
+- No service behavior changes — every healthcheck merges to the same final command/interval/timeout/retries/start_period as before the refactor.
 
 ## [0.2.0] - 2026-04-08
 

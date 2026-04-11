@@ -19,6 +19,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/config.sh
+source "${SCRIPT_DIR}/config.sh"
+
 # Colors (disabled if NO_COLOR is set)
 if [[ -z "${NO_COLOR:-}" ]]; then
     GREEN='\033[0;32m'
@@ -70,7 +74,7 @@ import urllib.request, json, time, sys
 url = sys.argv[1]
 try:
     start = time.monotonic()
-    resp = urllib.request.urlopen(url, timeout=5)
+    resp = urllib.request.urlopen(url, timeout=${HEALTH_TIMEOUT})
     elapsed = (time.monotonic() - start) * 1000
     data = json.loads(resp.read().decode())
     status = data.get('status', 'unknown')

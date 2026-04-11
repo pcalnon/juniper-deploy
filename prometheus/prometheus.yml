@@ -1,4 +1,28 @@
 ---
+# =============================================================================
+# Juniper Deploy — Prometheus Configuration
+#
+# Prometheus YAML files do NOT natively support environment variable
+# interpolation. The hardcoded values below correspond one-to-one with the
+# PROMETHEUS_* / ALERTMANAGER_TARGET variables documented in .env.example.
+# Deployment pipelines that need per-environment overrides should template
+# this file via envsubst (or equivalent) at deploy time.
+#
+# Mapping of hardcoded values to .env.example variables:
+#
+#   global.scrape_interval     -> ${PROMETHEUS_SCRAPE_INTERVAL:-15s}
+#   global.evaluation_interval -> ${PROMETHEUS_EVAL_INTERVAL:-15s}
+#   global.scrape_timeout      -> ${PROMETHEUS_SCRAPE_TIMEOUT:-10s}
+#   alertmanager target        -> ${ALERTMANAGER_TARGET:-alertmanager:9093}
+#   juniper-data scrape        -> ${PROMETHEUS_DATA_SCRAPE_INTERVAL:-10s}
+#   juniper-cascor scrape      -> ${PROMETHEUS_CASCOR_SCRAPE_INTERVAL:-10s}
+#   juniper-canopy scrape      -> ${PROMETHEUS_CANOPY_SCRAPE_INTERVAL:-15s}
+#
+# The retention window (--storage.tsdb.retention.time) is set on the
+# prometheus container's command line in docker-compose.yml; the matching
+# env var is ${PROMETHEUS_RETENTION:-30d}.
+# =============================================================================
+
 global:
   scrape_interval: 15s
   evaluation_interval: 15s

@@ -32,6 +32,47 @@
 #
 #####################################################################################################################################################################################################
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Health check defaults (Compose extension fields)
+# These x-* keys are ignored by Docker Compose itself but are referenced via
+# YAML anchors so a single source of truth drives every service's healthcheck
+# block. The defaults match the previously hardcoded values, and each value
+# can be overridden per-service or via .env (see .env.example).
+#
+# Wave 1 of the hardcoded-values refactor only DEFINES these anchors. Wiring
+# them into the actual service healthcheck blocks happens in Wave 4 (task 4.1)
+# so this commit is non-behavioral.
+# ═══════════════════════════════════════════════════════════════════════════
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: ${HEALTHCHECK_INTERVAL:-15s}
+  timeout: ${HEALTHCHECK_TIMEOUT:-10s}
+  retries: ${HEALTHCHECK_RETRIES:-5}
+  start_period: ${HEALTHCHECK_START_PERIOD:-10s}
+
+x-healthcheck-cascor: &healthcheck-cascor
+  interval: ${HEALTHCHECK_INTERVAL:-15s}
+  timeout: ${HEALTHCHECK_TIMEOUT:-10s}
+  retries: ${HEALTHCHECK_RETRIES:-5}
+  start_period: ${HEALTHCHECK_START_PERIOD_CASCOR:-15s}
+
+x-healthcheck-canopy: &healthcheck-canopy
+  interval: ${HEALTHCHECK_INTERVAL:-15s}
+  timeout: ${HEALTHCHECK_TIMEOUT:-10s}
+  retries: ${HEALTHCHECK_RETRIES:-5}
+  start_period: ${HEALTHCHECK_START_PERIOD_CANOPY:-20s}
+
+x-healthcheck-worker: &healthcheck-worker
+  interval: ${HEALTHCHECK_WORKER_INTERVAL:-30s}
+  timeout: ${HEALTHCHECK_WORKER_TIMEOUT:-10s}
+  retries: ${HEALTHCHECK_WORKER_RETRIES:-3}
+  start_period: ${HEALTHCHECK_WORKER_START_PERIOD:-15s}
+
+x-healthcheck-redis: &healthcheck-redis
+  interval: ${HEALTHCHECK_REDIS_INTERVAL:-10s}
+  timeout: ${HEALTHCHECK_REDIS_TIMEOUT:-5s}
+  retries: ${HEALTHCHECK_REDIS_RETRIES:-5}
+  start_period: ${HEALTHCHECK_REDIS_START_PERIOD:-5s}
+
 services:
   # ═══════════════════════════════════════════════════════════════════════════
   # JuniperData — Dataset Generation Service (port 8100)
@@ -64,10 +105,7 @@ services:
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8100/v1/health', timeout=5)"]
-      interval: 15s
-      timeout: 10s
-      start_period: 10s
-      retries: 5
+      <<: *healthcheck-defaults
     secrets:
       - juniper_data_api_key
     networks:
@@ -119,10 +157,7 @@ services:
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8200/v1/health', timeout=5)"]
-      interval: 15s
-      timeout: 10s
-      start_period: 15s
-      retries: 5
+      <<: *healthcheck-cascor
     networks:
       - backend
       - data
@@ -156,14 +191,11 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "kill -0 1 2>/dev/null || exit 1"]
-      interval: 30s
-      timeout: 10s
-      start_period: 15s
-      retries: 3
+      <<: *healthcheck-worker
     networks:
       - backend
     deploy:
-      replicas: 2
+      replicas: ${WORKER_REPLICAS:-2}
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -206,10 +238,7 @@ services:
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8200/v1/health', timeout=5)"]
-      interval: 15s
-      timeout: 10s
-      start_period: 15s
-      retries: 5
+      <<: *healthcheck-cascor
     networks:
       - backend
       - data
@@ -298,10 +327,7 @@ services:
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health', timeout=5)"]
-      interval: 15s
-      timeout: 10s
-      start_period: 20s
-      retries: 5
+      <<: *healthcheck-canopy
     networks:
       - backend
       - data
@@ -338,10 +364,7 @@ services:
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health', timeout=5)"]
-      interval: 15s
-      timeout: 10s
-      start_period: 20s
-      retries: 5
+      <<: *healthcheck-canopy
     networks:
       - backend
       - data
@@ -378,10 +401,7 @@ services:
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health', timeout=5)"]
-      interval: 15s
-      timeout: 10s
-      start_period: 20s
-      retries: 5
+      <<: *healthcheck-canopy
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -443,9 +463,7 @@ services:
       - backend
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      <<: *healthcheck-redis
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════

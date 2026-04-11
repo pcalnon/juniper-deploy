@@ -382,6 +382,22 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 |----------|---------|---------|
 | `REDIS_PORT` | redis | `6379` |
 | `REDIS_MAX_MEMORY` | redis | `100mb` |
+| `WORKER_REPLICAS` | juniper-cascor-worker | `2` | Number of worker replicas in the deployment |
+
+### Healthcheck Tuning
+
+All container healthchecks reference shared YAML anchors (`x-healthcheck-defaults`, `x-healthcheck-cascor`, `x-healthcheck-canopy`, `x-healthcheck-worker`, `x-healthcheck-redis`) merged into each service via `<<: *anchor`. The interval/timeout/retries/start_period values can be overridden via environment variables:
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `HEALTHCHECK_INTERVAL` | `30s` | Default interval used by `x-healthcheck-defaults` and most services |
+| `HEALTHCHECK_TIMEOUT` | `10s` | Default timeout |
+| `HEALTHCHECK_RETRIES` | `3` | Default retry count |
+| `HEALTHCHECK_START_PERIOD` | `30s` | Default startup grace period |
+| `CASCOR_HEALTHCHECK_*` | (per-service) | Cascor-specific overrides via `x-healthcheck-cascor` |
+| `CANOPY_HEALTHCHECK_*` | (per-service) | Canopy-specific overrides via `x-healthcheck-canopy` |
+| `WORKER_HEALTHCHECK_*` | (per-service) | Worker-specific overrides via `x-healthcheck-worker` |
+| `REDIS_HEALTHCHECK_*` | (per-service) | Redis-specific overrides via `x-healthcheck-redis` |
 
 ### Docker Secret File Variables
 
