@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed (BREAKING — Helm chart major version bump 0.2.1 → 1.0.0)
+
+- **METRICS-MON R1.2 / seed-02 / seed-03**: corrected `livenessProbe.httpGet.path` and `readinessProbe.httpGet.path` defaults in `k8s/helm/juniper/values.yaml` to point at the per-service R1.2 probe endpoints. Before this change three of the six probe paths pointed at `/v1/health` (the legacy combined no-op endpoint) instead of the new `/v1/health/live` (in-process liveness tick) and `/v1/health/ready` (503-on-not_ready) endpoints introduced in juniper-data v0.4.x, juniper-cascor v0.4.x, and juniper-canopy v0.4.x.
+  - **juniper-data**: liveness `/v1/health` → `/v1/health/live`; readiness `/v1/health` → `/v1/health/ready`
+  - **juniper-cascor**: liveness `/v1/health` → `/v1/health/live`; readiness already `/v1/health/ready`
+  - **juniper-canopy**: liveness `/v1/health` → `/v1/health/live`; readiness `/v1/health` → `/v1/health/ready`
+  - Helm chart `version` and `appVersion` bumped from `0.2.1` to `1.0.0` to signal the breaking probe-path default change. Operators with overridden `values-*.yaml` files are unaffected; operators relying on chart defaults must re-render.
+  - New regression test `tests/test_helm_chart_probes.py` runs `helm template` and asserts each Juniper Deployment uses the R1.2 probe paths (skipped when `helm` binary is unavailable).
+  - See [`notes/code-review/METRICS_MONITORING_R1.2_PROBE_DESIGN_2026-04-27.md`](https://github.com/pcalnon/juniper-ml/blob/main/notes/code-review/METRICS_MONITORING_R1.2_PROBE_DESIGN_2026-04-27.md) in juniper-ml for the cross-repo contract; companion app PRs merged 2026-04-27: pcalnon/juniper-data#51, pcalnon/juniper-cascor#147, pcalnon/juniper-canopy#183. `docker-compose.yml` healthchecks (which target `/v1/health` directly) are unchanged — Compose has no live/ready distinction.
+
 ### Added
 
 - Track 5A — DEPLOY-02: AlertManager service added to `docker-compose.yml` (image `prom/alertmanager:v0.27.0`, profile `observability`, host port `${ALERTMANAGER_PORT:-9093}`, healthcheck on `/-/healthy`). Closes the gap where `prometheus.yml` references `alertmanager:9093` but no container existed to serve it. Added `ALERTMANAGER_PORT` documentation to `.env.example`.

@@ -7,8 +7,14 @@ description: >-
   Deploys juniper-data, juniper-cascor, juniper-canopy, and
   juniper-cascor-worker with supporting infrastructure.
 type: application
-version: 0.2.1
-appVersion: "0.2.1"
+# 1.0.0 — breaking change: livenessProbe and readinessProbe defaults now
+# point at the per-service /v1/health/live and /v1/health/ready endpoints
+# instead of the legacy /v1/health combined endpoint. Operators using
+# upstream chart defaults must re-render; operators with overridden
+# values-*.yaml files are unaffected. See juniper-ml
+# notes/code-review/METRICS_MONITORING_R1.2_PROBE_DESIGN_2026-04-27.md.
+version: 1.0.0
+appVersion: "1.0.0"
 
 maintainers:
   - name: Paul Calnon
