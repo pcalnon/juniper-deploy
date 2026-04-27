@@ -165,7 +165,7 @@ jobs:
             echo "FROM scratch" > "$dir/Dockerfile"
           done
           mkdir -p secrets
-          for f in juniper_data_api_key.txt juniper_cascor_api_key.txt cascor_sentry_dsn.txt; do
+          for f in juniper_data_api_keys.txt juniper_cascor_api_key.txt cascor_sentry_dsn.txt; do
             echo "stub" > "secrets/$f"
           done
 

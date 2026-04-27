@@ -8,12 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Track 5A — DEPLOY-02: AlertManager service added to `docker-compose.yml` (image `prom/alertmanager:v0.27.0`, profile `observability`, host port `${ALERTMANAGER_PORT:-9093}`, healthcheck on `/-/healthy`). Closes the gap where `prometheus.yml` references `alertmanager:9093` but no container existed to serve it. Added `ALERTMANAGER_PORT` documentation to `.env.example`.
 - Hardcoded-values refactor (Wave 1 + Wave 4): introduced YAML merge-key healthcheck anchors in `docker-compose.yml` (`x-healthcheck-defaults`, `x-healthcheck-cascor`, `x-healthcheck-canopy`, `x-healthcheck-worker`, `x-healthcheck-redis`) and rewired all 8 container healthchecks to consume them via `<<: *anchor`. New env vars `WORKER_REPLICAS` and `HEALTHCHECK_*` (interval/timeout/retries/start_period, plus per-service overrides) interpolate into the anchors for runtime tuning without editing the compose file.
 - New `scripts/config.sh` (Wave 1) and expanded `tests/constants.py` (Wave 3) — sourced by shell scripts and used by integration tests to eliminate inline literals (service URLs, port numbers, retry tuning, healthcheck endpoints).
 - Documentation headers added to `prometheus/prometheus.yml` and `grafana/provisioning/datasources/prometheus.yml` mapping the remaining inline literals to their corresponding env vars and explaining why each value cannot be interpolated by the upstream image.
 
 ### Changed
 
+- Track 5A — DEPLOY-01: Renamed compose secret `juniper_data_api_key` (singular) to `juniper_data_api_keys` (plural) to match the application config (`JUNIPER_DATA_API_KEYS_FILE` already pointed at `/run/secrets/juniper_data_api_keys`). Updated the secret definition's default path to `secrets.example/juniper_data_api_keys.txt`, renamed the override env var to `JUNIPER_DATA_API_KEYS_FILE`, updated the `tests/test_compose_security_config.py` assertions, and updated the CI stub filename in `.github/workflows/ci.yml`.
+- Track 5A — DEPLOY-03: Prometheus volume mount changed from a single-file bind (`./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro`) to a directory bind (`./prometheus:/etc/prometheus:ro`) so the `recording_rules.yml` and `alert_rules.yml` files referenced by `prometheus.yml`'s `rule_files:` block are reachable inside the container.
 - Hardcoded-values refactor (Wave 3 + Wave 4): replaced inline service URLs, port numbers, retry counts, and healthcheck endpoints across `up.sh`, `down.sh`, `status.sh`, and `restart.sh` with values sourced from `scripts/config.sh`. `replicas: 2` for the worker service is now `replicas: ${WORKER_REPLICAS:-2}`.
 - `tests/constants.py` expanded to centralize the per-service expected ports, healthcheck paths, and Docker network names referenced by integration tests.
 - AGENTS.md "Environment Variables" section gained a new "Healthcheck Tuning" subsection documenting the merge-key anchors and the override variables.
