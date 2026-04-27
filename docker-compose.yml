@@ -107,7 +107,7 @@ services:
              "import urllib.request; urllib.request.urlopen('http://localhost:8100/v1/health', timeout=5)"]
       <<: *healthcheck-defaults
     secrets:
-      - juniper_data_api_key
+      - juniper_data_api_keys
     networks:
       - backend
       - data
@@ -419,12 +419,37 @@ services:
     ports:
       - "127.0.0.1:9090:9090"
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus:/etc/prometheus:ro
     networks:
       - backend
       - data
       - frontend
       - monitoring
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # AlertManager — Alert Routing (port 9093)
+  # Receives alerts from Prometheus (see prometheus.yml `alerting.alertmanagers`)
+  # and dispatches them to configured receivers in alertmanager/alertmanager.yml.
+  # ═══════════════════════════════════════════════════════════════════════════
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: juniper-alertmanager
+    profiles: ["observability"]
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    ports:
+      - "127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"
+    volumes:
+      - ./alertmanager:/etc/alertmanager:ro
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:9093/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -496,8 +521,8 @@ services:
 # Copy secrets.example/ to secrets/ and fill in real values.
 # ═══════════════════════════════════════════════════════════════════════════
 secrets:
-  juniper_data_api_key:
-    file: "${JUNIPER_DATA_API_KEY_FILE:-./secrets.example/juniper_data_api_key.txt}"
+  juniper_data_api_keys:
+    file: "${JUNIPER_DATA_API_KEYS_FILE:-./secrets.example/juniper_data_api_keys.txt}"
   juniper_cascor_api_key:
     file: "${JUNIPER_CASCOR_API_KEY_FILE:-./secrets.example/juniper_cascor_api_key.txt}"
   juniper_cascor_api_keys:
