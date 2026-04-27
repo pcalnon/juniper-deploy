@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Track 5C — DEPLOY-07: Compose-level resource limits via three new YAML anchors (`x-resources-heavy`, `x-resources-light`, `x-resources-tiny`) in `docker-compose.yml`. Heavy tier (juniper-cascor, juniper-cascor-demo, juniper-cascor-worker) gets `${RESOURCES_HEAVY_CPUS:-4.0}` / `${RESOURCES_HEAVY_MEMORY:-8G}` limits; light tier (juniper-data, juniper-canopy variants, prometheus, grafana) gets `${RESOURCES_LIGHT_CPUS:-1.0}` / `${RESOURCES_LIGHT_MEMORY:-2G}`; tiny tier (alertmanager, redis) gets `${RESOURCES_TINY_CPUS:-0.5}` / `${RESOURCES_TINY_MEMORY:-256M}`. Override any value via the corresponding env var. One-shot containers (`demo-seed`, `test-runner`) intentionally skipped.
+- Track 5C — DEPLOY-12: Host-side service ports added to `scripts/config.sh` as `JUNIPER_DATA_PORT`, `JUNIPER_CASCOR_PORT`, `JUNIPER_CANOPY_PORT` with `${VAR:-default}` substitution. `scripts/wait_for_services.sh` now uses these instead of the inline `8100` / `8050` literals it had before.
+- Track 5C — DEPLOY-09 + DEPLOY-11: Regression test `test_secrets_only_no_plain_api_key_env_vars` in `tests/test_compose_security_config.py` ensures no compose service ever re-introduces a plain `*_API_KEY*` or `CASCOR_AUTH_TOKEN` env var.
+
+### Changed
+
+- Track 5C — DEPLOY-09: Removed the plain `CASCOR_AUTH_TOKEN: "${CASCOR_WORKER_AUTH_TOKEN:-}"` env var from the `juniper-cascor-worker` service in `docker-compose.yml`. The token is now read exclusively from the Docker secret file at `/run/secrets/cascor_auth_token` (mount + `CASCOR_AUTH_TOKEN_FILE` env var pointing at it remain). Closes the leak path through `docker inspect`, container env dumps, and accidentally-committed `.env` files.
+- Track 5C — DEPLOY-11: Same hardening applied to API-key wiring across `juniper-data`, `juniper-cascor`, and `juniper-canopy` — the plain `JUNIPER_DATA_API_KEYS`, `JUNIPER_CASCOR_API_KEYS`, `JUNIPER_DATA_API_KEY`, and `JUNIPER_CASCOR_API_KEY` env vars were removed. Each service now reads from its `*_FILE` variant only. The `secrets.example/*` placeholder files keep the auth-on default working out of the box.
+- Track 5C — DEPLOY-15: Pinned Helm chart image tags off `latest` in `k8s/helm/juniper/values.yaml`: `data.image.tag` `latest` → `0.6.0`; `cascor.image.tag` `latest` → `0.4.0`; `canopy.image.tag` `latest` → `0.4.0`; `worker.image.tag` `latest` → `0.3.0`. Bump these in lockstep with each app's release. Reproducible deployments are now the default.
+- Track 5C — DEPLOY-06 + DEPLOY-16: Set a non-empty placeholder default for `kube-prometheus-stack.grafana.adminPassword` (`change-me-juniper-grafana`) and added the `admin.existingSecret` / `admin.userKey` / `admin.passwordKey` indirection so production deployments can point at a Kubernetes Secret. Empty default previously installed Grafana with a predictable credential.
+- Track 5C — DEPLOY-10: Demo profile services (`juniper-cascor-demo`, `juniper-canopy-demo`, `juniper-canopy-dev`) now ship with `*_RATE_LIMIT_ENABLED=true` / `*_RATE_LIMIT_REQUESTS_PER_MINUTE=60` defaults, matching the full profile. Auth remains intentionally disabled in demo mode (open-by-design), but rate limiting prevents a single client from knocking the demo over.
+
 ### Changed (BREAKING — Helm chart major version bump 0.2.1 → 1.0.0)
 
 - **METRICS-MON R1.2 / seed-02 / seed-03**: corrected `livenessProbe.httpGet.path` and `readinessProbe.httpGet.path` defaults in `k8s/helm/juniper/values.yaml` to point at the per-service R1.2 probe endpoints. Before this change three of the six probe paths pointed at `/v1/health` (the legacy combined no-op endpoint) instead of the new `/v1/health/live` (in-process liveness tick) and `/v1/health/ready` (503-on-not_ready) endpoints introduced in juniper-data v0.4.x, juniper-cascor v0.4.x, and juniper-canopy v0.4.x.

@@ -30,6 +30,16 @@
 #####################################################################################################################################################################################################
 
 # ─────────────────────────────────────────────────────────────────────────
+# Host-side service ports (DEPLOY-12)
+# Match the docker-compose host port bindings. Override only if the compose
+# stack publishes services on non-default host ports.
+# ─────────────────────────────────────────────────────────────────────────
+
+JUNIPER_DATA_PORT="${JUNIPER_DATA_PORT:-8100}"
+JUNIPER_CASCOR_PORT="${JUNIPER_CASCOR_PORT:-${CASCOR_HOST_PORT:-8201}}"
+JUNIPER_CANOPY_PORT="${JUNIPER_CANOPY_PORT:-${CANOPY_PORT:-8050}}"
+
+# ─────────────────────────────────────────────────────────────────────────
 # Service-readiness wait defaults (wait_for_services.sh)
 # ─────────────────────────────────────────────────────────────────────────
 

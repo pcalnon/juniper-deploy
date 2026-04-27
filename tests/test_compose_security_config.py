@@ -213,3 +213,32 @@ def test_canopy_dev_can_reach_juniper_data(): # DEPLOY-13
         f"canopy-dev networks {canopy_dev_nets} share none with juniper-data {data_nets} — "
         "dev profile cannot reach the data service"
     )
+
+
+def test_secrets_only_no_plain_api_key_env_vars(): # DEPLOY-09 + DEPLOY-11
+    """Plain API key / auth token env vars must not coexist with their _FILE variants.
+
+    The plain forms leak secrets into `docker inspect` output and into any
+    accidentally-committed `.env` files. The _FILE variants read from
+    /run/secrets at startup and are the only sanctioned source.
+    """
+    compose_text = _read_text(COMPOSE_PATH)
+    services = _extract_two_space_blocks(compose_text, "services")
+
+    forbidden_env_vars = (
+        # DEPLOY-09: worker auth token
+        "CASCOR_AUTH_TOKEN",
+        # DEPLOY-11: every flavor of API key plain env var
+        "JUNIPER_DATA_API_KEYS",
+        "JUNIPER_DATA_API_KEY",
+        "JUNIPER_CASCOR_API_KEYS",
+        "JUNIPER_CASCOR_API_KEY",
+    )
+    for service_name, block in services.items():
+        for var in forbidden_env_vars:
+            # Match `<spaces>VAR:<value>` but NOT `VAR_FILE:` lines.
+            pattern = rf"^\s+{re.escape(var)}:\s"
+            assert not re.search(pattern, block, flags=re.MULTILINE), (
+                f"Service {service_name} sets plain `{var}` env var — must use "
+                f"{var}_FILE / Docker secret instead (DEPLOY-09/11)."
+            )
