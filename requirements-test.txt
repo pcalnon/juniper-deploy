@@ -2,5 +2,5 @@
 # Install: pip install -r requirements-test.txt
 
 pytest>=7.4
-requests>=2.31
+requests>=2.33.1
 numpy>=1.24
