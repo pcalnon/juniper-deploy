@@ -45,12 +45,16 @@ fail_test() {
 echo -e "${BOLD}Phase 8: Enhanced Health Check Integration Test${RESET}"
 echo ""
 
-# Validate port values are numeric to prevent injection
-cascor_port="${CASCOR_HOST_PORT:-8201}"
-if ! [[ "$cascor_port" =~ ^[0-9]+$ ]]; then
-    echo "ERROR: CASCOR_HOST_PORT contains non-numeric value: ${cascor_port}"
-    exit 1
-fi
+# Validate port values are numeric to prevent injection. JUNIPER_*_PORT comes
+# from scripts/config.sh, with backward-compat fallback through CASCOR_HOST_PORT
+# / CANOPY_PORT.
+for varname in JUNIPER_DATA_PORT JUNIPER_CASCOR_PORT JUNIPER_CANOPY_PORT; do
+    val="${!varname}"
+    if ! [[ "$val" =~ ^[0-9]+$ ]]; then
+        echo "ERROR: ${varname} contains non-numeric value: ${val}"
+        exit 1
+    fi
+done
 
 # ─── Step 1: Validate compose config ─────────────────────────────────────────
 echo -e "${BOLD}Step 1: Validate Docker Compose configuration${RESET}"
@@ -73,7 +77,7 @@ TIMEOUT=${ENHANCED_TIMEOUT}
 ELAPSED=0
 while true; do
     all_ok=true
-    for port in 8100 ${cascor_port} 8050; do
+    for port in "${JUNIPER_DATA_PORT}" "${JUNIPER_CASCOR_PORT}" "${JUNIPER_CANOPY_PORT}"; do
         if ! python3 -c "import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=${CURL_TIMEOUT})" "http://localhost:${port}/v1/health/live" 2>/dev/null; then
             all_ok=false
         fi
@@ -93,7 +97,7 @@ done
 
 # ─── Step 4: Verify JuniperData readiness response ──────────────────────────
 echo -e "\n${BOLD}Step 4: Verify JuniperData /v1/health/ready${RESET}"
-DATA_READY=$(curl -sf http://localhost:8100/v1/health/ready 2>/dev/null || echo '{}')
+DATA_READY=$(curl -sf "http://localhost:${JUNIPER_DATA_PORT}/v1/health/ready" 2>/dev/null || echo '{}')
 
 if echo "$DATA_READY" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('service')=='juniper-data'" 2>/dev/null; then
     pass_test "service field is 'juniper-data'"
@@ -115,7 +119,7 @@ fi
 
 # ─── Step 5: Verify JuniperCascor readiness response ────────────────────────
 echo -e "\n${BOLD}Step 5: Verify JuniperCascor /v1/health/ready${RESET}"
-CASCOR_READY=$(curl -sf http://localhost:${cascor_port}/v1/health/ready 2>/dev/null || echo '{}')
+CASCOR_READY=$(curl -sf "http://localhost:${JUNIPER_CASCOR_PORT}/v1/health/ready" 2>/dev/null || echo '{}')
 
 if echo "$CASCOR_READY" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('service')=='juniper-cascor'" 2>/dev/null; then
     pass_test "service field is 'juniper-cascor'"
@@ -144,7 +148,7 @@ fi
 
 # ─── Step 6: Verify JuniperCanopy readiness response ────────────────────────
 echo -e "\n${BOLD}Step 6: Verify JuniperCanopy /v1/health/ready${RESET}"
-CANOPY_READY=$(curl -sf http://localhost:8050/v1/health/ready 2>/dev/null || echo '{}')
+CANOPY_READY=$(curl -sf "http://localhost:${JUNIPER_CANOPY_PORT}/v1/health/ready" 2>/dev/null || echo '{}')
 
 if echo "$CANOPY_READY" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('service')=='juniper-canopy'" 2>/dev/null; then
     pass_test "service field is 'juniper-canopy'"

@@ -30,17 +30,21 @@ POLL_INTERVAL=${DEMO_POLL_INTERVAL}
 ELAPSED=0
 EXIT_CODE=0
 
-# Validate port values are numeric to prevent injection
-cascor_port="${CASCOR_HOST_PORT:-8201}"
-if ! [[ "$cascor_port" =~ ^[0-9]+$ ]]; then
-    echo "ERROR: CASCOR_HOST_PORT contains non-numeric value: ${cascor_port}"
-    exit 1
-fi
+# Validate port values are numeric to prevent injection. JUNIPER_*_PORT comes
+# from scripts/config.sh, with backward-compat fallback through CASCOR_HOST_PORT
+# / CANOPY_PORT.
+for varname in JUNIPER_DATA_PORT JUNIPER_CASCOR_PORT JUNIPER_CANOPY_PORT; do
+    val="${!varname}"
+    if ! [[ "$val" =~ ^[0-9]+$ ]]; then
+        echo "ERROR: ${varname} contains non-numeric value: ${val}"
+        exit 1
+    fi
+done
 
-DATA_READY_URL="http://localhost:8100/v1/health"
-CASCOR_READY_URL="http://localhost:${cascor_port}/v1/health"
-CANOPY_READY_URL="http://localhost:8050/v1/health"
-TRAINING_STATUS_URL="http://localhost:${cascor_port}/v1/training/status"
+DATA_READY_URL="http://localhost:${JUNIPER_DATA_PORT}/v1/health"
+CASCOR_READY_URL="http://localhost:${JUNIPER_CASCOR_PORT}/v1/health"
+CANOPY_READY_URL="http://localhost:${JUNIPER_CANOPY_PORT}/v1/health"
+TRAINING_STATUS_URL="http://localhost:${JUNIPER_CASCOR_PORT}/v1/training/status"
 
 # Colors (disabled if NO_COLOR is set)
 if [[ -z "${NO_COLOR:-}" ]]; then
