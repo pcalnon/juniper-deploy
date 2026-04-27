@@ -30,15 +30,17 @@ POLL_INTERVAL=${POLL_INTERVAL_DEFAULT}
 ELAPSED=0
 
 # Validate port values are numeric to prevent injection
-cascor_port="${CASCOR_HOST_PORT:-8201}"
-if ! [[ "$cascor_port" =~ ^[0-9]+$ ]]; then
-    echo "ERROR: CASCOR_HOST_PORT contains non-numeric value: ${cascor_port}"
-    exit 1
-fi
+for var in JUNIPER_DATA_PORT JUNIPER_CASCOR_PORT JUNIPER_CANOPY_PORT; do
+    val="${!var}"
+    if ! [[ "$val" =~ ^[0-9]+$ ]]; then
+        echo "ERROR: ${var} contains non-numeric value: ${val}"
+        exit 1
+    fi
+done
 
-DATA_URL="http://localhost:8100/v1/health/live"
-CASCOR_URL="http://localhost:${cascor_port}/v1/health/live"
-CANOPY_URL="http://localhost:8050/v1/health/live"
+DATA_URL="http://localhost:${JUNIPER_DATA_PORT}/v1/health/live"
+CASCOR_URL="http://localhost:${JUNIPER_CASCOR_PORT}/v1/health/live"
+CANOPY_URL="http://localhost:${JUNIPER_CANOPY_PORT}/v1/health/live"
 
 echo "Waiting for Juniper services (timeout: ${TIMEOUT}s)..."
 

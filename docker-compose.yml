@@ -73,6 +73,41 @@ x-healthcheck-redis: &healthcheck-redis
   retries: ${HEALTHCHECK_REDIS_RETRIES:-5}
   start_period: ${HEALTHCHECK_REDIS_START_PERIOD:-5s}
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Resource limit defaults (DEPLOY-07)
+# Compose v2 honors `deploy.resources.limits` via cgroups. Three tiers cover
+# the workload mix: training-heavy (cascor + worker), service-light (data /
+# canopy / prometheus / grafana), and tiny (alertmanager / redis). Defaults
+# err on the generous side so existing dev workflows aren't OOM-killed; bump
+# the corresponding RESOURCES_* env vars down to enforce tighter limits.
+# ═══════════════════════════════════════════════════════════════════════════
+x-resources-heavy: &resources-heavy
+  resources:
+    limits:
+      cpus: "${RESOURCES_HEAVY_CPUS:-4.0}"
+      memory: ${RESOURCES_HEAVY_MEMORY:-8G}
+    reservations:
+      cpus: "${RESOURCES_HEAVY_CPUS_RESERVATION:-1.0}"
+      memory: ${RESOURCES_HEAVY_MEMORY_RESERVATION:-2G}
+
+x-resources-light: &resources-light
+  resources:
+    limits:
+      cpus: "${RESOURCES_LIGHT_CPUS:-1.0}"
+      memory: ${RESOURCES_LIGHT_MEMORY:-2G}
+    reservations:
+      cpus: "${RESOURCES_LIGHT_CPUS_RESERVATION:-0.25}"
+      memory: ${RESOURCES_LIGHT_MEMORY_RESERVATION:-256M}
+
+x-resources-tiny: &resources-tiny
+  resources:
+    limits:
+      cpus: "${RESOURCES_TINY_CPUS:-0.5}"
+      memory: ${RESOURCES_TINY_MEMORY:-256M}
+    reservations:
+      cpus: "${RESOURCES_TINY_CPUS_RESERVATION:-0.1}"
+      memory: ${RESOURCES_TINY_MEMORY_RESERVATION:-64M}
+
 services:
   # ═══════════════════════════════════════════════════════════════════════════
   # JuniperData — Dataset Generation Service (port 8100)
@@ -95,7 +130,11 @@ services:
       JUNIPER_DATA_HOST: "${JUNIPER_DATA_HOST:-0.0.0.0}"
       JUNIPER_DATA_PORT: "${JUNIPER_DATA_PORT:-8100}"
       JUNIPER_DATA_LOG_LEVEL: "${JUNIPER_DATA_LOG_LEVEL:-INFO}"
-      JUNIPER_DATA_API_KEYS: "${JUNIPER_DATA_API_KEYS:-}"
+      # DEPLOY-11: API keys are read exclusively from the Docker secret file.
+      # The plain `${JUNIPER_DATA_API_KEYS:-}` env var was removed because its
+      # empty default silently disabled auth when the operator didn't set it.
+      # The secret file is non-empty by default (placeholder in
+      # secrets.example/juniper_data_api_keys.txt) so auth is on out of the box.
       JUNIPER_DATA_API_KEYS_FILE: /run/secrets/juniper_data_api_keys
       JUNIPER_DATA_LOG_FORMAT: "${JUNIPER_DATA_LOG_FORMAT:-text}"
       JUNIPER_DATA_SENTRY_DSN: "${JUNIPER_DATA_SENTRY_DSN:-}"
@@ -111,6 +150,8 @@ services:
     networks:
       - backend
       - data
+    deploy:
+      <<: *resources-light
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -135,10 +176,10 @@ services:
       JUNIPER_CASCOR_HOST: "${CASCOR_HOST:-0.0.0.0}"
       JUNIPER_CASCOR_PORT: "${CASCOR_PORT:-8200}"
       JUNIPER_CASCOR_LOG_LEVEL: "${CASCOR_LOG_LEVEL:-INFO}"
-      JUNIPER_CASCOR_API_KEYS: "${JUNIPER_CASCOR_API_KEYS:-}"
       JUNIPER_CASCOR_RATE_LIMIT_ENABLED: "${JUNIPER_CASCOR_RATE_LIMIT_ENABLED:-true}"
       JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE: "${JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
-      JUNIPER_DATA_API_KEY: "${JUNIPER_DATA_API_KEYS:-}"
+      # DEPLOY-11: API keys are read from secret files only. The plain
+      # JUNIPER_CASCOR_API_KEYS / JUNIPER_DATA_API_KEY env vars were removed.
       JUNIPER_CASCOR_API_KEYS_FILE: /run/secrets/juniper_cascor_api_keys
       JUNIPER_DATA_API_KEY_FILE: /run/secrets/juniper_data_api_keys
       JUNIPER_CASCOR_LOG_FORMAT: "${JUNIPER_CASCOR_LOG_FORMAT:-text}"
@@ -161,6 +202,8 @@ services:
       - backend
       - data
       - frontend
+    deploy:
+      <<: *resources-heavy
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -181,7 +224,10 @@ services:
     environment:
       CASCOR_SERVER_URL: "${CASCOR_WORKER_SERVER_URL:-ws://juniper-cascor:8200/ws/v1/workers}"
       CASCOR_HEARTBEAT_INTERVAL: "${CASCOR_WORKER_HEARTBEAT_INTERVAL:-10.0}"
-      CASCOR_AUTH_TOKEN: "${CASCOR_WORKER_AUTH_TOKEN:-}"
+      # DEPLOY-09: Auth token is read exclusively from the Docker secret file
+      # mounted at /run/secrets/cascor_auth_token. The plain CASCOR_AUTH_TOKEN
+      # env var was removed to keep the secret out of `docker inspect`, env
+      # dumps, and accidentally-committed `.env` files.
       CASCOR_AUTH_TOKEN_FILE: /run/secrets/cascor_auth_token
     secrets:
       - cascor_auth_token
@@ -194,6 +240,7 @@ services:
     networks:
       - backend
     deploy:
+      <<: *resources-heavy
       replicas: ${WORKER_REPLICAS:-2}
     restart: unless-stopped
 
@@ -219,6 +266,12 @@ services:
       JUNIPER_CASCOR_HOST: "0.0.0.0"
       JUNIPER_CASCOR_PORT: "8200"
       JUNIPER_CASCOR_LOG_LEVEL: "INFO"
+      # DEPLOY-10: rate-limiting on by default even in demo profiles. Auth
+      # remains intentionally disabled here so the demo is open-by-design,
+      # but unbounded request rates would still let a single client knock
+      # the demo over.
+      JUNIPER_CASCOR_RATE_LIMIT_ENABLED: "${JUNIPER_CASCOR_RATE_LIMIT_ENABLED:-true}"
+      JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE: "${JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
       # --- Demo auto-start configuration ---
       JUNIPER_CASCOR_AUTO_START: "true"
       JUNIPER_CASCOR_AUTO_DATASET: "spiral"
@@ -241,6 +294,8 @@ services:
       - backend
       - data
       - frontend
+    deploy:
+      <<: *resources-heavy
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -305,7 +360,8 @@ services:
       JUNIPER_CANOPY_SERVER__PORT: "${CANOPY_PORT:-8050}"
       JUNIPER_CANOPY_RATE_LIMIT_ENABLED: "${CANOPY_RATE_LIMIT_ENABLED:-true}"
       JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE: "${CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
-      JUNIPER_CASCOR_API_KEY: "${JUNIPER_CASCOR_API_KEYS:-}"
+      # DEPLOY-11: API keys read from secret files only. JUNIPER_CASCOR_API_KEY
+      # plain env var removed.
       CANOPY_API_KEY_FILE: /run/secrets/canopy_api_key
       JUNIPER_CASCOR_API_KEY_FILE: /run/secrets/juniper_cascor_api_keys
       JUNIPER_CANOPY_LOG_FORMAT: "${CANOPY_LOG_FORMAT:-text}"
@@ -330,6 +386,8 @@ services:
       - backend
       - data
       - frontend
+    deploy:
+      <<: *resources-light
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -354,6 +412,9 @@ services:
       JUNIPER_CANOPY_CASCOR_SERVICE_URL: "http://juniper-cascor-demo:8200"
       JUNIPER_CANOPY_SERVER__HOST: "0.0.0.0"
       JUNIPER_CANOPY_SERVER__PORT: "8050"
+      # DEPLOY-10: rate-limit even in the demo profile (see cascor-demo notes).
+      JUNIPER_CANOPY_RATE_LIMIT_ENABLED: "${CANOPY_RATE_LIMIT_ENABLED:-true}"
+      JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE: "${CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -367,6 +428,8 @@ services:
       - backend
       - data
       - frontend
+    deploy:
+      <<: *resources-light
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -395,6 +458,9 @@ services:
       JUNIPER_CANOPY_JUNIPER_DATA_URL: "http://juniper-data:8100"
       JUNIPER_CANOPY_SERVER__HOST: "0.0.0.0"
       JUNIPER_CANOPY_SERVER__PORT: "8050"
+      # DEPLOY-10: rate-limit even when running canopy in dev/demo mode.
+      JUNIPER_CANOPY_RATE_LIMIT_ENABLED: "${CANOPY_RATE_LIMIT_ENABLED:-true}"
+      JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE: "${CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -402,6 +468,8 @@ services:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health', timeout=5)"]
       <<: *healthcheck-canopy
+    deploy:
+      <<: *resources-light
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -425,6 +493,8 @@ services:
       - data
       - frontend
       - monitoring
+    deploy:
+      <<: *resources-light
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -450,6 +520,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    deploy:
+      <<: *resources-tiny
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -475,6 +547,8 @@ services:
       - grafana-data:/var/lib/grafana
     depends_on:
       - prometheus
+    deploy:
+      <<: *resources-light
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -489,6 +563,8 @@ services:
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       <<: *healthcheck-redis
+    deploy:
+      <<: *resources-tiny
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════

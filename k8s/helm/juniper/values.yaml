@@ -24,7 +24,9 @@ data:
   image:
     registry: ""
     repository: juniper-data
-    tag: "latest"
+    # DEPLOY-15: Pin to a concrete version for reproducible deployments. Bump
+    # this in lockstep with the juniper-data app version when releasing.
+    tag: "0.6.0"
     pullPolicy: IfNotPresent
 
   service:
@@ -87,7 +89,8 @@ cascor:
   image:
     registry: ""
     repository: juniper-cascor
-    tag: "latest"
+    # DEPLOY-15: pinned; bump with juniper-cascor releases.
+    tag: "0.4.0"
     pullPolicy: IfNotPresent
 
   service:
@@ -167,7 +170,8 @@ canopy:
   image:
     registry: ""
     repository: juniper-canopy
-    tag: "latest"
+    # DEPLOY-15: pinned; bump with juniper-canopy releases.
+    tag: "0.4.0"
     pullPolicy: IfNotPresent
 
   service:
@@ -236,7 +240,8 @@ worker:
   image:
     registry: ""
     repository: juniper-cascor-worker
-    tag: "latest"
+    # DEPLOY-15: pinned; bump with juniper-cascor-worker releases.
+    tag: "0.3.0"
     pullPolicy: IfNotPresent
 
   env:
@@ -351,4 +356,12 @@ kube-prometheus-stack:
       serviceMonitorSelectorNilUsesHelmValues: false
       retention: 30d
   grafana:
-    adminPassword: ""
+    # DEPLOY-06 / DEPLOY-16: Empty admin password installed Grafana with a
+    # predictable default. Set a non-empty placeholder; production deployments
+    # must override via `--set kube-prometheus-stack.grafana.adminPassword=<secret>`
+    # or, preferred, point `admin.existingSecret` at a Kubernetes Secret.
+    adminPassword: "change-me-juniper-grafana"
+    admin:
+      existingSecret: ""
+      userKey: admin-user
+      passwordKey: admin-password
