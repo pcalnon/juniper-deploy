@@ -54,15 +54,19 @@ data:
       cpu: 500m
       memory: 512Mi
 
+  # METRICS-MON R1.2 / seed-02 / seed-03: probe paths point at the new
+  # liveness-tick and readiness-503-on-not_ready endpoints. /v1/health
+  # remains the no-op combined endpoint for backwards compatibility but
+  # is no longer suitable as a probe target.
   healthcheck:
     liveness:
-      path: /v1/health
+      path: /v1/health/live
       initialDelaySeconds: 10
       periodSeconds: 15
       timeoutSeconds: 10
       failureThreshold: 5
     readiness:
-      path: /v1/health
+      path: /v1/health/ready
       initialDelaySeconds: 5
       periodSeconds: 10
       timeoutSeconds: 5
@@ -131,9 +135,12 @@ cascor:
       cpu: "2"
       memory: 2Gi
 
+  # METRICS-MON R1.2 / seed-03: liveness path corrected to /v1/health/live
+  # so the in-process tick (lifecycle.is_alive() heartbeat) drives
+  # restart decisions rather than the no-op /v1/health.
   healthcheck:
     liveness:
-      path: /v1/health
+      path: /v1/health/live
       initialDelaySeconds: 15
       periodSeconds: 15
       timeoutSeconds: 10
@@ -195,15 +202,20 @@ canopy:
       cpu: 500m
       memory: 512Mi
 
+  # METRICS-MON R1.2 / seed-02 / seed-03: probe paths point at the new
+  # endpoints. Canopy's liveness tick verifies the WebSocket-manager
+  # singleton; readiness 503s only when ws_manager is unbound (upstream
+  # juniper-data / juniper-cascor outages remain 200/degraded so the
+  # dashboard stays useful with cached state).
   healthcheck:
     liveness:
-      path: /v1/health
+      path: /v1/health/live
       initialDelaySeconds: 20
       periodSeconds: 15
       timeoutSeconds: 10
       failureThreshold: 5
     readiness:
-      path: /v1/health
+      path: /v1/health/ready
       initialDelaySeconds: 15
       periodSeconds: 10
       timeoutSeconds: 5
