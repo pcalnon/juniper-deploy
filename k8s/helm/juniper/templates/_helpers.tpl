@@ -99,7 +99,11 @@ ws://{{ include "juniper.cascor.fullname" . }}:{{ .Values.cascor.service.port }}
 {{- end }}
 
 {{- define "juniper.redis.url" -}}
+{{- if and .Values.redis.auth.enabled .Values.redis.auth.password -}}
+redis://:{{ .Values.redis.auth.password }}@{{ .Release.Name }}-redis-master:6379/0
+{{- else -}}
 redis://{{ .Release.Name }}-redis-master:6379/0
+{{- end -}}
 {{- end }}
 
 {{/* ── Pod security context ──────────────────────────────────────────── */}}
