@@ -158,3 +158,58 @@ def test_grafana_has_no_env_var_password_fallback():
 def test_secret_files_are_ignored():
     gitignore_text = _read_text(GITIGNORE_PATH)
     assert "secrets/" in gitignore_text
+
+
+def test_published_ports_default_to_loopback_bind(): # DEPLOY-08
+    """All host port mappings must default to 127.0.0.1 (overridable via BIND_HOST).
+
+    Prevents regressions that would expose cascor/canopy on 0.0.0.0 by default.
+    """
+    compose_text = _read_text(COMPOSE_PATH)
+    services = _extract_two_space_blocks(compose_text, "services")
+
+    for name in ("juniper-data", "juniper-cascor", "juniper-cascor-demo",
+                 "juniper-canopy", "juniper-canopy-demo", "juniper-canopy-dev"):
+        block = services[name]
+        # Match a `- "...":port:port` ports list item.
+        port_lines = re.findall(r"^\s+-\s+\"([^\"]+)\"\s*$", block, flags=re.MULTILINE)
+        # Only inspect lines that look like host:container port mappings (have two colons).
+        host_mappings = [p for p in port_lines if p.count(":") >= 2]
+        assert host_mappings, f"Service {name} has no host port mapping"
+        for mapping in host_mappings:
+            assert mapping.startswith("${BIND_HOST:-127.0.0.1}:") or mapping.startswith("127.0.0.1:"), (
+                f"Service {name} port mapping `{mapping}` does not bind to loopback by default"
+            )
+
+
+def test_canopy_dev_can_reach_juniper_data(): # DEPLOY-13
+    """canopy-dev must share a network with juniper-data so the dev profile is functional."""
+    compose_text = _read_text(COMPOSE_PATH)
+    services = _extract_two_space_blocks(compose_text, "services")
+
+    canopy_dev = services["juniper-canopy-dev"]
+    juniper_data = services["juniper-data"]
+
+    def _networks(block: str) -> set[str]:
+        in_networks = False
+        nets: set[str] = set()
+        for line in block.splitlines():
+            stripped = line.strip()
+            if stripped == "networks:":
+                in_networks = True
+                continue
+            if in_networks:
+                m = re.match(r"^\s+-\s+([A-Za-z0-9_-]+)\s*$", line)
+                if m:
+                    nets.add(m.group(1))
+                elif stripped and not stripped.startswith("-"):
+                    in_networks = False
+        return nets
+
+    canopy_dev_nets = _networks(canopy_dev)
+    data_nets = _networks(juniper_data)
+    shared = canopy_dev_nets & data_nets
+    assert shared, (
+        f"canopy-dev networks {canopy_dev_nets} share none with juniper-data {data_nets} — "
+        "dev profile cannot reach the data service"
+    )

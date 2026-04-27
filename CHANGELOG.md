@@ -18,6 +18,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Track 5B/5C — CI-03: New `tests` job in `.github/workflows/ci.yml` that installs `requirements-test.txt` and runs `pytest tests/`. Wires the existing 1,427 lines of test code into CI for the first time; live-service tests skip cleanly via the `require_*` fixtures. Added to the `required-checks` quality gate alongside `pre-commit`, `sops-validation`, and `validate-compose`.
+- Track 5B/5C — DEPLOY-08: Introduced a `BIND_HOST` environment variable (default `127.0.0.1`) that governs the host-side bind address of every published port in `docker-compose.yml` (`juniper-data`, `juniper-cascor`, `juniper-cascor-demo`, `juniper-canopy`, `juniper-canopy-demo`, `juniper-canopy-dev`). Cascor and canopy ports are now loopback-only out of the box; set `BIND_HOST=0.0.0.0` to publish externally.
+- Regression tests `test_published_ports_default_to_loopback_bind` (DEPLOY-08) and `test_canopy_dev_can_reach_juniper_data` (DEPLOY-13) in `tests/test_compose_security_config.py`.
 - Track 5A — DEPLOY-02: AlertManager service added to `docker-compose.yml` (image `prom/alertmanager:v0.27.0`, profile `observability`, host port `${ALERTMANAGER_PORT:-9093}`, healthcheck on `/-/healthy`). Closes the gap where `prometheus.yml` references `alertmanager:9093` but no container existed to serve it. Added `ALERTMANAGER_PORT` documentation to `.env.example`.
 - Hardcoded-values refactor (Wave 1 + Wave 4): introduced YAML merge-key healthcheck anchors in `docker-compose.yml` (`x-healthcheck-defaults`, `x-healthcheck-cascor`, `x-healthcheck-canopy`, `x-healthcheck-worker`, `x-healthcheck-redis`) and rewired all 8 container healthchecks to consume them via `<<: *anchor`. New env vars `WORKER_REPLICAS` and `HEALTHCHECK_*` (interval/timeout/retries/start_period, plus per-service overrides) interpolate into the anchors for runtime tuning without editing the compose file.
 - New `scripts/config.sh` (Wave 1) and expanded `tests/constants.py` (Wave 3) — sourced by shell scripts and used by integration tests to eliminate inline literals (service URLs, port numbers, retry tuning, healthcheck endpoints).
@@ -31,6 +34,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `tests/constants.py` expanded to centralize the per-service expected ports, healthcheck paths, and Docker network names referenced by integration tests.
 - AGENTS.md "Environment Variables" section gained a new "Healthcheck Tuning" subsection documenting the merge-key anchors and the override variables.
 - Aligned Helm chart version with app version: `k8s/helm/juniper/Chart.yaml` `version` bumped `0.1.0` -> `0.2.0` to match `appVersion`. Establishes the going-forward convention that chart `version` and `appVersion` track together.
+- Track 5B/5C — DEPLOY-13: `juniper-canopy-dev` now attaches to the `backend`, `data`, and `frontend` networks (was `frontend` only) so the dev profile can reach `juniper-data` (which is on `backend`/`data`). Closes the broken-by-design isolation in the dev profile.
+- Track 5B/5C — DEPLOY-05: Helm chart `k8s/helm/juniper/values.yaml` now sets `redis.auth.enabled: true` with a placeholder default password (`change-me-juniper-redis`); production deployments should override via `redis.auth.existingSecret`. The `juniper.redis.url` helper template injects the password into the rendered `REDIS_URL` when auth is enabled, so canopy connects with credentials end-to-end.
 
 ### Fixed
 

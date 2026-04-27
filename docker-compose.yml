@@ -86,7 +86,7 @@ services:
     image: juniper-data:latest
     container_name: juniper-data
     ports:
-      - "127.0.0.1:${JUNIPER_DATA_PORT:-8100}:${JUNIPER_DATA_PORT:-8100}"
+      - "${BIND_HOST:-127.0.0.1}:${JUNIPER_DATA_PORT:-8100}:${JUNIPER_DATA_PORT:-8100}"
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -125,8 +125,7 @@ services:
     image: juniper-cascor:latest
     container_name: juniper-cascor
     ports:
-      # - "127.0.0.1:${CASCOR_PORT:-8200}:${CASCOR_PORT:-8200}"
-      - "${CASCOR_HOST_PORT:-8201}:${CASCOR_PORT:-8200}"
+      - "${BIND_HOST:-127.0.0.1}:${CASCOR_HOST_PORT:-8201}:${CASCOR_PORT:-8200}"
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -210,8 +209,7 @@ services:
     image: juniper-cascor:latest
     container_name: juniper-cascor-demo
     ports:
-      # - "127.0.0.1:${CASCOR_PORT:-8200}:${CASCOR_PORT:-8200}"
-      - "${CASCOR_HOST_PORT:-8201}:${CASCOR_PORT:-8200}"
+      - "${BIND_HOST:-127.0.0.1}:${CASCOR_HOST_PORT:-8201}:${CASCOR_PORT:-8200}"
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -295,7 +293,7 @@ services:
     image: juniper-canopy:latest
     container_name: juniper-canopy
     ports:
-      - "${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
+      - "${BIND_HOST:-127.0.0.1}:${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -346,7 +344,7 @@ services:
     image: juniper-canopy:latest
     container_name: juniper-canopy-demo
     ports:
-      - "${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
+      - "${BIND_HOST:-127.0.0.1}:${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -383,12 +381,14 @@ services:
     image: juniper-canopy:latest
     container_name: juniper-canopy-dev
     ports:
-      - "${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
+      - "${BIND_HOST:-127.0.0.1}:${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     networks:
+      - backend
+      - data
       - frontend
     environment:
       JUNIPER_CANOPY_DEMO_MODE: "true"

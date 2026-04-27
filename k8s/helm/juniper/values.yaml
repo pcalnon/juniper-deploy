@@ -315,7 +315,15 @@ redis:
   enabled: true
   architecture: standalone
   auth:
-    enabled: false
+    # DEPLOY-05: Redis must require authentication. Override via
+    #   --set redis.auth.password=<value>
+    # or, preferred, by setting auth.existingSecret to a Kubernetes Secret holding
+    # the redis-password key. The placeholder default below ensures a non-empty
+    # password is set in development; production deployments should override.
+    enabled: true
+    password: "change-me-juniper-redis"
+    existingSecret: ""
+    existingSecretPasswordKey: "redis-password"
   master:
     persistence:
       enabled: false
