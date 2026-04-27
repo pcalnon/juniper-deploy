@@ -71,23 +71,26 @@ class TestNoPythonCodeInjection:
 class TestPortValidation:
     """Ensure scripts validate port environment variables are numeric."""
 
-    def test_scripts_validate_cascor_port(self):
-        """Scripts using CASCOR_HOST_PORT must validate it is numeric.
+    def test_scripts_validate_port_env_vars(self):
+        """Scripts that build URLs from JUNIPER_*_PORT env vars must validate
+        them as numeric.
 
         Checks for the bash regex pattern [0-9]+$ which is used in
-        `[[ "$var" =~ ^[0-9]+$ ]]` validation guards.
+        `[[ "$var" =~ ^[0-9]+$ ]]` validation guards. Prevents code-injection
+        regressions if an attacker controls the env (the ports get interpolated
+        into curl/python urlopen calls).
         """
-        scripts_using_cascor_port = [
+        scripts_using_port_vars = [
             "wait_for_services.sh",
             "health_check.sh",
             "test_demo_profile.sh",
             "test_health_enhanced.sh",
         ]
-        for script_name in scripts_using_cascor_port:
+        for script_name in scripts_using_port_vars:
             content = _read_text(SCRIPTS_DIR / script_name)
             assert re.search(r'\^?\[0-9\]\+\$', content), (
-                f"{script_name} uses CASCOR_HOST_PORT but does not validate "
-                f"it is numeric"
+                f"{script_name} uses JUNIPER_*_PORT env vars but does not "
+                f"validate they are numeric"
             )
 
     def test_port_validation_rejects_injection_payload(self):
