@@ -7,14 +7,22 @@ description: >-
   Deploys juniper-data, juniper-cascor, juniper-canopy, and
   juniper-cascor-worker with supporting infrastructure.
 type: application
-# 1.0.0 — breaking change: livenessProbe and readinessProbe defaults now
-# point at the per-service /v1/health/live and /v1/health/ready endpoints
-# instead of the legacy /v1/health combined endpoint. Operators using
-# upstream chart defaults must re-render; operators with overridden
-# values-*.yaml files are unaffected. See juniper-ml
-# notes/code-review/METRICS_MONITORING_R1.2_PROBE_DESIGN_2026-04-27.md.
-version: 1.0.0
-appVersion: "1.0.0"
+# 1.1.0 — METRICS-MON R1.3 / seed-04: adds opt-in HTTP probe wiring for
+# juniper-cascor-worker pods, gated by ``worker.healthcheck.enabled``
+# (default ``false``). When the flag is off, the chart still emits the
+# legacy ``exec: kill -0 1`` probe so operators on older worker images
+# are unaffected. The flag flips to ``true`` in chart 1.2.0 after
+# staging burn-in confirms the worker image upgrade. See juniper-ml
+# notes/code-review/METRICS_MONITORING_R1.3_WORKER_HEARTBEAT_DESIGN_2026-04-27.md.
+#
+# 1.0.0 — METRICS-MON R1.2 / seed-02 / seed-03: livenessProbe and
+# readinessProbe defaults point at the per-service /v1/health/live and
+# /v1/health/ready endpoints instead of the legacy /v1/health combined
+# endpoint. Operators using upstream chart defaults must re-render;
+# operators with overridden values-*.yaml files are unaffected. See
+# juniper-ml notes/code-review/METRICS_MONITORING_R1.2_PROBE_DESIGN_2026-04-27.md.
+version: 1.1.0
+appVersion: "1.1.0"
 
 maintainers:
   - name: Paul Calnon

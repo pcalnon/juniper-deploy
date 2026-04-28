@@ -262,6 +262,33 @@ worker:
       cpu: "2"
       memory: 2Gi
 
+  # METRICS-MON R1.3 / seed-04: HTTP probe surface gated behind a flag.
+  #
+  # The worker image at >= 0.4.0 ships an in-process health server on
+  # ``health_port`` (default 8210, ``CASCOR_WORKER_HEALTH_BIND=0.0.0.0``
+  # required to expose to kubelet). Older worker images do NOT serve HTTP
+  # and would fail the httpGet probe on first scrape, so this feature
+  # ships disabled by default. Operators flip ``enabled: true`` after
+  # confirming their worker image is upgraded.
+  #
+  # When ``enabled: false`` the worker-deployment.yaml falls back to the
+  # legacy ``exec: kill -0 1`` probe (which only catches process death).
+  healthcheck:
+    enabled: false
+    port: 8210
+    liveness:
+      path: /v1/health/live
+      initialDelaySeconds: 15
+      periodSeconds: 15
+      timeoutSeconds: 5
+      failureThreshold: 5
+    readiness:
+      path: /v1/health/ready
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
   nodeSelector: {}
   tolerations: []
   affinity: {}
