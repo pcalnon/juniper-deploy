@@ -43,16 +43,34 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _render_chart() -> list[dict]:
-    """Run ``helm template`` and return the parsed YAML documents."""
-    result = subprocess.run(
-        ["helm", "template", RELEASE_NAME, str(CHART_DIR)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+def _render_chart(*, set_values: list[str] | None = None) -> list[dict]:
+    """Run ``helm template`` and return the parsed YAML documents.
+
+    ``set_values`` is forwarded to ``helm template --set`` and is used
+    by R1.3 worker probe tests to flip ``worker.healthcheck.enabled``
+    between renders.
+    """
+    cmd = ["helm", "template", RELEASE_NAME, str(CHART_DIR)]
+    for kv in set_values or ():
+        cmd += ["--set", kv]
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     assert result.returncode == 0, f"helm template failed:\nstderr={result.stderr}\nstdout={result.stdout[:500]}"
     return [doc for doc in yaml.safe_load_all(result.stdout) if doc]
+
+
+def _worker_container(docs: list[dict]) -> dict | None:
+    """Return the rendered worker container spec, or None if not rendered."""
+    for doc in docs:
+        if doc.get("kind") != "Deployment":
+            continue
+        try:
+            containers = doc["spec"]["template"]["spec"]["containers"]
+        except (KeyError, TypeError):
+            continue
+        for container in containers:
+            if container.get("name") == "juniper-cascor-worker":
+                return container
+    return None
 
 
 def _juniper_deployments(docs: list[dict]) -> list[tuple[str, dict]]:
@@ -116,3 +134,63 @@ def test_readiness_probe_path_uses_health_ready(container_name: str):
             )
             return
     pytest.fail(f"no Deployment rendered for container {container_name}")
+
+
+# ---------------------------------------------------------------------------
+# METRICS-MON R1.3 / seed-04: worker probe wiring is gated by a flag. Both
+# states must render correctly — flag-off keeps the legacy ``exec`` probe
+# (so old worker images keep working), flag-on switches to httpGet against
+# the in-process health server shipped in juniper-cascor-worker >= 0.4.0.
+# ---------------------------------------------------------------------------
+
+
+def test_worker_probes_use_exec_when_flag_disabled():
+    """Default chart values: worker keeps ``exec: kill -0 1`` legacy probe."""
+    docs = _render_chart()
+    container = _worker_container(docs)
+    assert container is not None, "worker Deployment did not render under default values"
+    liveness = container.get("livenessProbe", {})
+    readiness = container.get("readinessProbe", {})
+    assert "exec" in liveness, f"expected liveness ``exec`` probe when flag disabled; got: {liveness}"
+    assert "exec" in readiness, f"expected readiness ``exec`` probe when flag disabled; got: {readiness}"
+    assert "httpGet" not in liveness
+    assert "httpGet" not in readiness
+    # The container must NOT advertise the health port when the flag is off.
+    port_names = {p.get("name") for p in container.get("ports") or []}
+    assert "health" not in port_names, "worker must not expose ``health`` port when flag disabled"
+
+
+def test_worker_probes_use_httpget_when_flag_enabled():
+    """Flag enabled: worker uses httpGet against /v1/health/{live,ready}."""
+    docs = _render_chart(set_values=["worker.healthcheck.enabled=true"])
+    container = _worker_container(docs)
+    assert container is not None, "worker Deployment did not render with flag enabled"
+    liveness = container["livenessProbe"]
+    readiness = container["readinessProbe"]
+    assert liveness["httpGet"]["path"] == EXPECTED_LIVENESS_PATH, f"worker liveness httpGet.path = {liveness['httpGet']['path']!r}"
+    assert readiness["httpGet"]["path"] == EXPECTED_READINESS_PATH, f"worker readiness httpGet.path = {readiness['httpGet']['path']!r}"
+    assert liveness["httpGet"]["port"] == "health"
+    assert readiness["httpGet"]["port"] == "health"
+    # Port must be exposed on the container.
+    port_names = {p.get("name") for p in container.get("ports") or []}
+    assert "health" in port_names, "worker must expose ``health`` port when flag enabled"
+
+
+def test_worker_health_env_vars_set_when_flag_enabled():
+    """Flag enabled: ``CASCOR_WORKER_HEALTH_BIND=0.0.0.0`` + ``_PORT=8210`` injected."""
+    docs = _render_chart(set_values=["worker.healthcheck.enabled=true"])
+    container = _worker_container(docs)
+    assert container is not None
+    env = {entry["name"]: entry.get("value") for entry in container.get("env") or [] if "value" in entry}
+    assert env.get("CASCOR_WORKER_HEALTH_BIND") == "0.0.0.0"
+    assert env.get("CASCOR_WORKER_HEALTH_PORT") == "8210"
+
+
+def test_worker_health_env_vars_absent_when_flag_disabled():
+    """Flag disabled: health env vars must not be injected (worker stays localhost-only)."""
+    docs = _render_chart()
+    container = _worker_container(docs)
+    assert container is not None
+    env_names = {entry["name"] for entry in container.get("env") or []}
+    assert "CASCOR_WORKER_HEALTH_BIND" not in env_names
+    assert "CASCOR_WORKER_HEALTH_PORT" not in env_names

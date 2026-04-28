@@ -63,6 +63,45 @@ spec:
                   optional: true
             - name: PYTHONDONTWRITEBYTECODE
               value: "1"
+            {{- if .Values.worker.healthcheck.enabled }}
+            # METRICS-MON R1.3 / seed-04: bind the worker's HTTP health
+            # server on 0.0.0.0 so kubelet can reach it; default in the
+            # worker image is 127.0.0.1 (intentional — keeps the surface
+            # closed unless explicitly enabled here).
+            - name: CASCOR_WORKER_HEALTH_BIND
+              value: "0.0.0.0"
+            - name: CASCOR_WORKER_HEALTH_PORT
+              value: {{ .Values.worker.healthcheck.port | quote }}
+            {{- end }}
+          {{- if .Values.worker.healthcheck.enabled }}
+          # METRICS-MON R1.3 / seed-04: HTTP probes against the worker's
+          # in-process health server. Replaces the legacy
+          # ``exec: kill -0 1`` probe which could not detect event-loop
+          # wedges or stuck reconnect loops. Only valid against worker
+          # image >= 0.4.0.
+          ports:
+            - name: health
+              containerPort: {{ .Values.worker.healthcheck.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.worker.healthcheck.liveness.path }}
+              port: health
+            initialDelaySeconds: {{ .Values.worker.healthcheck.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.worker.healthcheck.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.worker.healthcheck.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.worker.healthcheck.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.worker.healthcheck.readiness.path }}
+              port: health
+            initialDelaySeconds: {{ .Values.worker.healthcheck.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.worker.healthcheck.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.worker.healthcheck.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.worker.healthcheck.readiness.failureThreshold }}
+          {{- else }}
+          # Legacy probes — flip ``worker.healthcheck.enabled: true`` once
+          # the deployed worker image ships the R1.3 HTTP health server.
           livenessProbe:
             exec:
               command: ["kill", "-0", "1"]
@@ -77,6 +116,7 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
+          {{- end }}
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
           volumeMounts:
