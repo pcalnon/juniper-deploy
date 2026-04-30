@@ -18,3 +18,9 @@ emphasis-style: false
 # MD024/no-duplicate-heading: Allow duplicate headings under different parents
 no-duplicate-heading:
   siblings_only: true
+
+# MD040/fenced-code-language: Disabled — pre-existing markdown across
+# the repo uses bare ``` fences in places where the content is
+# ambiguous. Re-enable in a follow-up fix-up PR once those fences
+# have been audited.
+fenced-code-language: false

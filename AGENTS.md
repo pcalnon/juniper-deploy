@@ -378,10 +378,10 @@ All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.en
 
 ### Infrastructure Services
 
-| Variable | Service | Default |
-|----------|---------|---------|
-| `REDIS_PORT` | redis | `6379` |
-| `REDIS_MAX_MEMORY` | redis | `100mb` |
+| Variable | Service | Default | Notes |
+|----------|---------|---------|-------|
+| `REDIS_PORT` | redis | `6379` | |
+| `REDIS_MAX_MEMORY` | redis | `100mb` | |
 | `WORKER_REPLICAS` | juniper-cascor-worker | `2` | Number of worker replicas in the deployment |
 
 ### Healthcheck Tuning

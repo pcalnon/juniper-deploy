@@ -44,6 +44,23 @@ repos:
         exclude: ^k8s/helm/.*/templates/
 
   # ═══════════════════════════════════════════════════════════════════════════
+  # Markdown Linting - markdownlint
+  # Alignment plan Phase 3: brings juniper-deploy in line with the
+  # rest of the fleet's markdown linting. Config in
+  # .markdownlint.yaml.
+  # ═══════════════════════════════════════════════════════════════════════════
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.42.0
+    hooks:
+      - id: markdownlint
+        name: Lint Markdown files
+        args:
+          - --config=./.markdownlint.yaml
+          - --fix
+        files: \.(md|markdown)$
+        exclude: ^(CHANGELOG\.md|notes/|docs/|history/)
+
+  # ═══════════════════════════════════════════════════════════════════════════
   # Helm chart linting
   # ═══════════════════════════════════════════════════════════════════════════
   - repo: local
