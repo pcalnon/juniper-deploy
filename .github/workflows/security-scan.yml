@@ -33,11 +33,10 @@ permissions:
 
 jobs:
   trivy-fs:
-    name: Trivy Filesystem Scan (soft-fail shakedown)
+    name: Trivy Filesystem Scan
     runs-on: ubuntu-latest
-    # Soft-fail shakedown — flip to `false` (or remove this line) after
-    # the initial finding set has been triaged.
-    continue-on-error: true
+    # Promoted from soft-fail to hard gate on 2026-04-29 after two
+    # consecutive green runs on main (validation roadmap Phase V4).
     steps:
       - name: Checkout Code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
