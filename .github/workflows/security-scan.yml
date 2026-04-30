@@ -1,0 +1,74 @@
+---
+#####################################################################################################################################################################################################
+# Project:       Juniper
+# File Name:     security-scan-deploy.yml (template)
+#
+# Description:
+#    Infra-flavored equivalent of the Python `security-scan.yml`, intended
+#    specifically for juniper-deploy (no `pyproject.toml`, no pip-audit
+#    surface). Two scans:
+#      1. trivy filesystem scan over the repo (catches HIGH / CRITICAL
+#         CVEs in Dockerfile base images and helm chart deps).
+#      2. SOPS encryption integrity check via the existing
+#         `util/sops-pre-commit-hook.sh`.
+#
+#    Soft-fail shakedown cycle: per the §9 risk register of the CI
+#    pipeline alignment plan, the trivy job runs with
+#    `continue-on-error: true` for one scheduling cycle so the user can
+#    triage the initial finding set. After triage, flip
+#    continue-on-error to false (or simply remove the line) to make the
+#    job a hard gate.
+#####################################################################################################################################################################################################
+
+name: Scheduled Security Scan
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # weekly Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  trivy-fs:
+    name: Trivy Filesystem Scan (soft-fail shakedown)
+    runs-on: ubuntu-latest
+    # Soft-fail shakedown — flip to `false` (or remove this line) after
+    # the initial finding set has been triaged.
+    continue-on-error: true
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4  # 0.34.0
+        with:
+          scan-type: fs
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: '1'
+
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225  # v4.35.2
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+  sops-integrity:
+    name: SOPS encryption integrity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Verify SOPS-encrypted env files
+        run: |
+          if [ -x util/sops-pre-commit-hook.sh ]; then
+            bash util/sops-pre-commit-hook.sh
+          else
+            echo "::warning::util/sops-pre-commit-hook.sh missing; skipping"
+          fi
