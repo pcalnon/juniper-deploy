@@ -1,6 +1,16 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
+addopts = [
+    # Block pytest plugins that get auto-discovered from the active conda env
+    # but are unused here. dash.testing.plugin transitively imports psutil; if
+    # the env has a non-FT psutil wheel (abi3 landed in python3.14t), psutil's
+    # _psutil_linux .so segfaults during plugin init before pytest collects
+    # any tests. pytest_playwright is similarly autoloaded and breaks when
+    # `playwright` is missing.
+    "-p", "no:dash",
+    "-p", "no:playwright",
+]
 markers = [
     "health: health endpoint checks",
     "data: JuniperData service tests",
@@ -8,4 +18,9 @@ markers = [
 ]
 filterwarnings = [
     "error",
+    # _brotli is an indirect dep via urllib3 that has not declared
+    # free-threading safety. Under python3.14t its import re-enables the GIL
+    # and emits a RuntimeWarning that filterwarnings='error' would otherwise
+    # promote into a collection failure.
+    "ignore:The global interpreter lock \\(GIL\\) has been enabled to load module:RuntimeWarning",
 ]
