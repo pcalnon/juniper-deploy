@@ -1,12 +1,44 @@
 ---
 # ═══════════════════════════════════════════════════════════════════════════
 # Juniper Deploy — Prometheus Alert Rules
+#
 # Defines alerting conditions for service health, performance, and training.
+#
+# ─── METRICS-MON R5.4 (final sub-track) ─────────────────────────────────────
+# Authoritative SLO/SLI source:  notes/SLO_CATALOG_2026-05-03.md
+# All burn-rate (MWMBR) and threshold alerts in this file derive their
+# targets, windows, and metric expressions from that catalog. When a
+# discrepancy arises the catalog is the single source of truth — update
+# the catalog first, then realign the rules here.
+#
+# Hybrid alerting policy (R5 entry plan Q7 resolution):
+#   • Multi-Window Multi-Burn-Rate (MWMBR) alerts for the 5 user-facing
+#     primary SLOs (catalog §3.1 – §3.5).  Standard Google SRE Workbook
+#     recipe — fast-burn 14.4× over 5m AND 1h windows (pages on-call),
+#     slow-burn 6× over 30m AND 6h windows (opens a ticket).
+#   • Step-function threshold alerts for binary-health signals
+#     (heartbeat staleness, scrape failure, queue saturation, raw
+#     5xx fraction).  These are *not* burn-rate; they fire on a
+#     simple condition sustained for `for:`.
+#
+# Alertmanager routing (alertmanager/alertmanager.yml as of this PR):
+#   The router presently matches `severity: critical` only; the new
+#   `severity: page` and `severity: ticket` labels introduced below
+#   currently fall through to the default receiver. A follow-up PR
+#   (tracked in this PR's body) must extend the router to map
+#   `page → critical receiver` and `ticket → ticket receiver`.
+#
+# Cross-references:
+#   • notes/SLO_CATALOG_2026-05-03.md         — SLI definitions, targets
+#   • notes/METRICS_AUTH_RATIONALE.md         — /metrics gating rationale
+#   • prometheus/prometheus.yml               — scrape topology (R5.2)
+#   • prometheus/recording_rules.yml          — pre-computed series
 # ═══════════════════════════════════════════════════════════════════════════
 
 groups:
   # ─────────────────────────────────────────────────────────────────────────
   # Service Health — Critical alerts for service availability
+  # (Pre-existing R-series rules; left untouched per R5.4 scope.)
   # ─────────────────────────────────────────────────────────────────────────
   - name: juniper_service_health
     rules:
@@ -32,6 +64,7 @@ groups:
 
   # ─────────────────────────────────────────────────────────────────────────
   # Error Rates — Alerts on HTTP 5xx error rates
+  # (Pre-existing R-series rules; SLO catalog §4.8 ratifies the threshold.)
   # ─────────────────────────────────────────────────────────────────────────
   - name: juniper_error_rates
     rules:
@@ -79,6 +112,8 @@ groups:
 
   # ─────────────────────────────────────────────────────────────────────────
   # Latency — Alerts on slow response times
+  # (Pre-existing R-series rules; superseded for catalog SLOs by the
+  # MWMBR groups below but kept as a coarse safety net.)
   # ─────────────────────────────────────────────────────────────────────────
   - name: juniper_latency
     rules:
@@ -110,6 +145,7 @@ groups:
 
   # ─────────────────────────────────────────────────────────────────────────
   # Training — CasCor training health alerts
+  # (Pre-existing R-series rules; orthogonal to SLO 3.3 / 3.4.)
   # ─────────────────────────────────────────────────────────────────────────
   - name: juniper_training
     rules:
@@ -153,6 +189,7 @@ groups:
 
   # ─────────────────────────────────────────────────────────────────────────
   # Dataset Generation — juniper-data operational alerts
+  # (Pre-existing R-series rules; complementary to SLO 3.5.)
   # ─────────────────────────────────────────────────────────────────────────
   - name: juniper_data_operations
     rules:
@@ -182,6 +219,7 @@ groups:
 
   # ─────────────────────────────────────────────────────────────────────────
   # Infrastructure — WebSocket and dashboard health
+  # (Pre-existing R-series rules.)
   # ─────────────────────────────────────────────────────────────────────────
   - name: juniper_infrastructure
     rules:
@@ -196,3 +234,910 @@ groups:
         annotations:
           summary: "No active WebSocket connections to juniper-canopy"
           description: "juniper-canopy is in service mode but has no WebSocket connections for 10 minutes."
+
+  # ═════════════════════════════════════════════════════════════════════════
+  # METRICS-MON R5.4 — SLO BURN-RATE ALERTS (User-facing primary, §3)
+  # ═════════════════════════════════════════════════════════════════════════
+  # Multi-Window Multi-Burn-Rate (MWMBR) per Google SRE Workbook §5.
+  # Per the SLO catalog §2.4 the policy is:
+  #
+  #   • Fast-burn  (page):   14.4× over 5m AND 1h
+  #                          → consumes  2% of monthly budget in 1h
+  #   • Slow-burn  (ticket):  6×  over 30m AND 6h
+  #                          → consumes  5% of monthly budget in 6h
+  #
+  # The 14.4× / 6× factors are the canonical SRE recipe. Both windows
+  # must agree to fire (`AND`), which suppresses single-window flapping
+  # under low-traffic conditions (entry-plan Risk 4).
+  #
+  # Per catalog §2.6 these alerts ship in `severity: page` / `ticket`
+  # labels but routing them through alertmanager to PagerDuty / a
+  # ticketing system is a follow-up — see the PR body.
+  #
+  # All five rule pairs reference the SLO catalog by section number in
+  # their `description` so the alert payload is self-documenting.
+  # ═════════════════════════════════════════════════════════════════════════
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # SLO 3.1 — Canopy dashboard availability  (target: 99.5% / 30d)
+  # Error budget = 0.005.  Fast-burn trips at failure_ratio > 0.072,
+  # slow-burn at > 0.030.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_slo_canopy_dashboard_availability
+    rules:
+      - alert: CanopyDashboardAvailabilityFastBurn
+        expr: >
+          (
+            (
+              sum(rate(juniper_canopy_http_requests_total{
+                service="juniper-canopy",
+                endpoint=~"/|/dashboard|/training|/datasets",
+                status=~"5.."
+              }[5m]))
+              /
+              sum(rate(juniper_canopy_http_requests_total{
+                service="juniper-canopy",
+                endpoint=~"/|/dashboard|/training|/datasets"
+              }[5m]))
+            ) > (0.005 * 14.4)
+          )
+          and
+          (
+            (
+              sum(rate(juniper_canopy_http_requests_total{
+                service="juniper-canopy",
+                endpoint=~"/|/dashboard|/training|/datasets",
+                status=~"5.."
+              }[1h]))
+              /
+              sum(rate(juniper_canopy_http_requests_total{
+                service="juniper-canopy",
+                endpoint=~"/|/dashboard|/training|/datasets"
+              }[1h]))
+            ) > (0.005 * 14.4)
+          )
+        for: 5m
+        labels:
+          severity: page
+          service: juniper-canopy
+          slo: canopy-dashboard-availability
+          burn_rate: fast
+        annotations:
+          summary: "Canopy dashboard availability burning error budget 14.4× (fast)"
+          description: |
+            SLO 3.1 (Canopy dashboard availability, target 99.5%/30d) is
+            burning the monthly error budget at >= 14.4× — at this rate
+            the entire 30-day budget is consumed in ~50 hours and 2% in
+            the next hour.  Both 5m and 1h windows agree.
+
+            Current 5m failure ratio: {{ $value | humanizePercentage }}.
+
+            Investigate first:
+              1. ServiceDown / ServiceRestartLoop on juniper-canopy.
+              2. juniper-canopy logs for tracebacks on /, /dashboard, /training, /datasets.
+              3. Upstream juniper-data and juniper-cascor health (see SLO 3.5).
+
+            See SLO_CATALOG_2026-05-03.md §3.1.
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#31-canopy-dashboard-availability"
+
+      - alert: CanopyDashboardAvailabilitySlowBurn
+        expr: >
+          (
+            (
+              sum(rate(juniper_canopy_http_requests_total{
+                service="juniper-canopy",
+                endpoint=~"/|/dashboard|/training|/datasets",
+                status=~"5.."
+              }[30m]))
+              /
+              sum(rate(juniper_canopy_http_requests_total{
+                service="juniper-canopy",
+                endpoint=~"/|/dashboard|/training|/datasets"
+              }[30m]))
+            ) > (0.005 * 6)
+          )
+          and
+          (
+            (
+              sum(rate(juniper_canopy_http_requests_total{
+                service="juniper-canopy",
+                endpoint=~"/|/dashboard|/training|/datasets",
+                status=~"5.."
+              }[6h]))
+              /
+              sum(rate(juniper_canopy_http_requests_total{
+                service="juniper-canopy",
+                endpoint=~"/|/dashboard|/training|/datasets"
+              }[6h]))
+            ) > (0.005 * 6)
+          )
+        for: 30m
+        labels:
+          severity: ticket
+          service: juniper-canopy
+          slo: canopy-dashboard-availability
+          burn_rate: slow
+        annotations:
+          summary: "Canopy dashboard availability burning error budget 6× (slow)"
+          description: |
+            SLO 3.1 (Canopy dashboard availability, target 99.5%/30d) is
+            burning the monthly error budget at >= 6× — sustained, this
+            consumes 5% of the budget in 6 hours.  Both 30m and 6h
+            windows agree.
+
+            Current 30m failure ratio: {{ $value | humanizePercentage }}.
+
+            Investigate: rolling release regression, slow-leaking
+            dependency timeout, or low-volume traffic skew.
+
+            See SLO_CATALOG_2026-05-03.md §3.1.
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#31-canopy-dashboard-availability"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # SLO 3.2 — Canopy dashboard render latency (target: p95 < 500ms / 7d)
+  # Latency-style burn-rate: error budget = 0.05 (5% of events allowed
+  # over 500 ms).  Fast-burn trips at slow_fraction > 0.72; slow-burn
+  # at > 0.30.  `slow_fraction` is computed via histogram_quantile
+  # against the 0.5s bucket boundary using the canopy histogram bucket
+  # set documented in juniper-canopy R4.1.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_slo_canopy_render_latency
+    rules:
+      - alert: CanopyRenderLatencyFastBurn
+        expr: >
+          (
+            (
+              sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
+                service="juniper-canopy",
+                method="GET",
+                endpoint=~"/|/dashboard|/training|/datasets",
+                le="+Inf"
+              }[5m]))
+              -
+              sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
+                service="juniper-canopy",
+                method="GET",
+                endpoint=~"/|/dashboard|/training|/datasets",
+                le="0.5"
+              }[5m]))
+            )
+            /
+            sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
+              service="juniper-canopy",
+              method="GET",
+              endpoint=~"/|/dashboard|/training|/datasets",
+              le="+Inf"
+            }[5m]))
+            > (0.05 * 14.4)
+          )
+          and
+          (
+            (
+              sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
+                service="juniper-canopy",
+                method="GET",
+                endpoint=~"/|/dashboard|/training|/datasets",
+                le="+Inf"
+              }[1h]))
+              -
+              sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
+                service="juniper-canopy",
+                method="GET",
+                endpoint=~"/|/dashboard|/training|/datasets",
+                le="0.5"
+              }[1h]))
+            )
+            /
+            sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
+              service="juniper-canopy",
+              method="GET",
+              endpoint=~"/|/dashboard|/training|/datasets",
+              le="+Inf"
+            }[1h]))
+            > (0.05 * 14.4)
+          )
+        for: 5m
+        labels:
+          severity: page
+          service: juniper-canopy
+          slo: canopy-render-latency
+          burn_rate: fast
+        annotations:
+          summary: "Canopy render latency burning slow-event budget 14.4× (fast)"
+          description: |
+            SLO 3.2 (Canopy dashboard render latency p95 < 500ms / 7d)
+            is burning the slow-event budget at >= 14.4×.  Slow-event
+            fraction over 5m and 1h both exceed 72%.
+
+            Current 5m slow fraction: {{ $value | humanizePercentage }}.
+
+            Investigate first:
+              1. canopy event-loop blocking (sentry traces / py-spy).
+              2. data-client request latency (SLI 4.5) — upstream stall.
+              3. juniper-cascor WS broadcast contention (SLI 4.3).
+
+            Bucket boundary used: le="0.5" against the canopy HTTP
+            duration histogram (R4.1 layout).  If the 500 ms boundary
+            is not a direct histogram bucket the slow_fraction is
+            biased low; verify the bucket is exact.
+
+            See SLO_CATALOG_2026-05-03.md §3.2.
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#32-canopy-dashboard-render-latency"
+
+      - alert: CanopyRenderLatencySlowBurn
+        expr: >
+          (
+            (
+              sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
+                service="juniper-canopy",
+                method="GET",
+                endpoint=~"/|/dashboard|/training|/datasets",
+                le="+Inf"
+              }[30m]))
+              -
+              sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
+                service="juniper-canopy",
+                method="GET",
+                endpoint=~"/|/dashboard|/training|/datasets",
+                le="0.5"
+              }[30m]))
+            )
+            /
+            sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
+              service="juniper-canopy",
+              method="GET",
+              endpoint=~"/|/dashboard|/training|/datasets",
+              le="+Inf"
+            }[30m]))
+            > (0.05 * 6)
+          )
+          and
+          (
+            (
+              sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
+                service="juniper-canopy",
+                method="GET",
+                endpoint=~"/|/dashboard|/training|/datasets",
+                le="+Inf"
+              }[6h]))
+              -
+              sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
+                service="juniper-canopy",
+                method="GET",
+                endpoint=~"/|/dashboard|/training|/datasets",
+                le="0.5"
+              }[6h]))
+            )
+            /
+            sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
+              service="juniper-canopy",
+              method="GET",
+              endpoint=~"/|/dashboard|/training|/datasets",
+              le="+Inf"
+            }[6h]))
+            > (0.05 * 6)
+          )
+        for: 30m
+        labels:
+          severity: ticket
+          service: juniper-canopy
+          slo: canopy-render-latency
+          burn_rate: slow
+        annotations:
+          summary: "Canopy render latency burning slow-event budget 6× (slow)"
+          description: |
+            SLO 3.2 (Canopy dashboard render latency p95 < 500ms / 7d)
+            is burning the slow-event budget at >= 6× across both 30m
+            and 6h windows.
+
+            Current 30m slow fraction: {{ $value | humanizePercentage }}.
+
+            Investigate: gradual upstream slowdown, GC pressure,
+            larger payload growth.
+
+            See SLO_CATALOG_2026-05-03.md §3.2.
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#32-canopy-dashboard-render-latency"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # SLO 3.3 — Cascor train-job success  (target: 99.0% / 30d)
+  # Error budget = 0.01.  Fast-burn trips at failure_ratio > 0.144,
+  # slow-burn at > 0.060.
+  #
+  # NOTE on label: the catalog §3.3 prose uses `outcome` but the
+  # actual metric (cascor src/api/observability.py:185) ships with
+  # the label name `status` and closed-set values
+  # {success, failure, cancelled}.  These rules use the as-shipped
+  # label name.  A future catalog edit should align prose to code.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_slo_cascor_train_job_success
+    rules:
+      - alert: CascorTrainJobSuccessFastBurn
+        expr: >
+          (
+            (
+              sum(rate(juniper_cascor_training_sessions_completed_total{
+                service="juniper-cascor",
+                status=~"failure|cancelled"
+              }[5m]))
+              /
+              sum(rate(juniper_cascor_training_sessions_completed_total{
+                service="juniper-cascor"
+              }[5m]))
+            ) > (0.01 * 14.4)
+          )
+          and
+          (
+            (
+              sum(rate(juniper_cascor_training_sessions_completed_total{
+                service="juniper-cascor",
+                status=~"failure|cancelled"
+              }[1h]))
+              /
+              sum(rate(juniper_cascor_training_sessions_completed_total{
+                service="juniper-cascor"
+              }[1h]))
+            ) > (0.01 * 14.4)
+          )
+        for: 5m
+        labels:
+          severity: page
+          service: juniper-cascor
+          slo: cascor-train-job-success
+          burn_rate: fast
+        annotations:
+          summary: "Cascor train-job success burning error budget 14.4× (fast)"
+          description: |
+            SLO 3.3 (Cascor train-job success, target 99.0%/30d) is
+            burning the monthly error budget at >= 14.4×.  Both 5m and
+            1h windows agree.
+
+            Current 5m failure ratio: {{ $value | humanizePercentage }}.
+
+            Investigate first:
+              1. juniper-cascor logs for terminal-FSM transitions.
+              2. juniper-cascor-worker availability (SLI 4.1).
+              3. Pending-task queue backlog (SLI 4.2).
+              4. Whether failures cluster on a specific dataset
+                 (filter by training session correlation id).
+
+            Note: pre-soak this counter has near-zero traffic;
+            absolute numbers may be misleading.  See catalog §2.6
+            (provisional-targets caveat).
+
+            See SLO_CATALOG_2026-05-03.md §3.3.
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#33-cascor-train-job-success"
+
+      - alert: CascorTrainJobSuccessSlowBurn
+        expr: >
+          (
+            (
+              sum(rate(juniper_cascor_training_sessions_completed_total{
+                service="juniper-cascor",
+                status=~"failure|cancelled"
+              }[30m]))
+              /
+              sum(rate(juniper_cascor_training_sessions_completed_total{
+                service="juniper-cascor"
+              }[30m]))
+            ) > (0.01 * 6)
+          )
+          and
+          (
+            (
+              sum(rate(juniper_cascor_training_sessions_completed_total{
+                service="juniper-cascor",
+                status=~"failure|cancelled"
+              }[6h]))
+              /
+              sum(rate(juniper_cascor_training_sessions_completed_total{
+                service="juniper-cascor"
+              }[6h]))
+            ) > (0.01 * 6)
+          )
+        for: 30m
+        labels:
+          severity: ticket
+          service: juniper-cascor
+          slo: cascor-train-job-success
+          burn_rate: slow
+        annotations:
+          summary: "Cascor train-job success burning error budget 6× (slow)"
+          description: |
+            SLO 3.3 (Cascor train-job success, target 99.0%/30d) is
+            burning the monthly error budget at >= 6× across both 30m
+            and 6h windows.
+
+            Current 30m failure ratio: {{ $value | humanizePercentage }}.
+
+            Investigate: long-running platform regression (e.g. GIL
+            contention starving the trainer), worker connectivity
+            churn, or a specific user-supplied dataset class triggering
+            consistent failures.
+
+            See SLO_CATALOG_2026-05-03.md §3.3.
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#33-cascor-train-job-success"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # SLO 3.4 — Cascor train-step (per-epoch) p95 latency  (target: p95 < 5s / 7d)
+  #
+  # IMPORTANT — 25-EPOCH EMISSION THROTTLE CAVEAT:
+  #   The cascor cascade-correlation training loop only invokes the
+  #   per-epoch callback (and therefore only emits a sample to
+  #   `juniper_cascor_training_step_duration_seconds`) every 25th
+  #   epoch (cascor src/cascade_correlation/cascade_correlation.py:1655
+  #   `epoch % 25 == 0`; the histogram observation lives in
+  #   src/api/lifecycle/manager.py:706 and is gated by that callback).
+  #   Burn-rate windows shorter than ~25 epochs of work are therefore
+  #   undersampled.  In practice this means:
+  #     • Fast-burn (5m / 1h windows) on this SLO is INFORMATIONAL —
+  #       a single anomalous sample dominates the slow-fraction.
+  #     • Slow-burn (30m / 6h windows) is the LOAD-BEARING alert and
+  #       should be acted on.
+  #   Removing the throttle is a future METRICS-MON sub-track; do not
+  #   tune the burn-rate factors here as compensation.
+  #
+  # PR #49 (open) renames the SLO from "train-step" to "train-epoch"
+  # in the catalog prose; the underlying metric name is unchanged and
+  # this rule references it as-shipped.
+  #
+  # Catalog §3.4 ships in log-only severity until the 30-day soak
+  # (catalog §2.6).  These rules ship at `severity: page` /
+  # `severity: ticket` so that, once alertmanager routing is
+  # extended, lifting the soak requires only a routing change — no
+  # rule edit.
+  #
+  # Latency-style burn rate (slow_fraction > 0.72 fast / > 0.30 slow)
+  # against the 5-second boundary.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_slo_cascor_train_step_latency
+    rules:
+      - alert: CascorTrainStepLatencyFastBurn
+        expr: >
+          (
+            (
+              sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
+                service="juniper-cascor",
+                le="+Inf"
+              }[5m]))
+              -
+              sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
+                service="juniper-cascor",
+                le="5"
+              }[5m]))
+            )
+            /
+            sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
+              service="juniper-cascor",
+              le="+Inf"
+            }[5m]))
+            > (0.05 * 14.4)
+          )
+          and
+          (
+            (
+              sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
+                service="juniper-cascor",
+                le="+Inf"
+              }[1h]))
+              -
+              sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
+                service="juniper-cascor",
+                le="5"
+              }[1h]))
+            )
+            /
+            sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
+              service="juniper-cascor",
+              le="+Inf"
+            }[1h]))
+            > (0.05 * 14.4)
+          )
+        for: 5m
+        labels:
+          severity: page
+          service: juniper-cascor
+          slo: cascor-train-step-latency
+          burn_rate: fast
+        annotations:
+          summary: "Cascor train-step (per-epoch) latency burning slow-event budget 14.4× (fast)"
+          description: |
+            SLO 3.4 (Cascor train-step / per-epoch p95 < 5s / 7d) is
+            burning the slow-event budget at >= 14.4× across 5m AND 1h.
+
+            ⚠ INFORMATIONAL ONLY at fast-burn cadence.  The metric is
+            sampled every 25th epoch (cascor cascade_correlation.py:1655
+            and api/lifecycle/manager.py:706) so a 5m window may carry
+            very few samples and a single outlier dominates the
+            slow_fraction.  Treat as a hint to investigate and rely on
+            the slow-burn alert for paging confidence.
+
+            Investigate first:
+              1. WS broadcast contention (SLI 4.3 — broadcast fan-out p95).
+              2. GIL pressure from a runaway candidate-correlation
+                 aggregation loop.
+              3. Replay-buffer back-pressure on resume.
+
+            See SLO_CATALOG_2026-05-03.md §3.4.
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#34-cascor-train-step-p95-latency"
+
+      - alert: CascorTrainStepLatencySlowBurn
+        expr: >
+          (
+            (
+              sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
+                service="juniper-cascor",
+                le="+Inf"
+              }[30m]))
+              -
+              sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
+                service="juniper-cascor",
+                le="5"
+              }[30m]))
+            )
+            /
+            sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
+              service="juniper-cascor",
+              le="+Inf"
+            }[30m]))
+            > (0.05 * 6)
+          )
+          and
+          (
+            (
+              sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
+                service="juniper-cascor",
+                le="+Inf"
+              }[6h]))
+              -
+              sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
+                service="juniper-cascor",
+                le="5"
+              }[6h]))
+            )
+            /
+            sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
+              service="juniper-cascor",
+              le="+Inf"
+            }[6h]))
+            > (0.05 * 6)
+          )
+        for: 30m
+        labels:
+          severity: ticket
+          service: juniper-cascor
+          slo: cascor-train-step-latency
+          burn_rate: slow
+        annotations:
+          summary: "Cascor train-step (per-epoch) latency burning slow-event budget 6× (slow)"
+          description: |
+            SLO 3.4 (Cascor train-step / per-epoch p95 < 5s / 7d) is
+            burning the slow-event budget at >= 6× across 30m AND 6h.
+            This is the LOAD-BEARING alert for SLO 3.4 — the 30m+
+            window contains enough samples (despite the 25-epoch
+            emission throttle) to support a paging decision once the
+            soak ends.
+
+            Current 30m slow fraction: {{ $value | humanizePercentage }}.
+
+            Investigate same first-pass as the fast-burn alert.
+
+            See SLO_CATALOG_2026-05-03.md §3.4.
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#34-cascor-train-step-p95-latency"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # SLO 3.5 — Data-service POST availability  (target: 99.5% / 30d)
+  # Error budget = 0.005.  Fast-burn trips at failure_ratio > 0.072,
+  # slow-burn at > 0.030.  Counter labels (cascor R4.5):
+  # {generator, status, cache}; status ∈ {success, error}.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_slo_data_post_availability
+    rules:
+      - alert: DataPostAvailabilityFastBurn
+        expr: >
+          (
+            (
+              sum(rate(juniper_data_dataset_post_total{
+                service="juniper-data",
+                status="error"
+              }[5m]))
+              /
+              sum(rate(juniper_data_dataset_post_total{
+                service="juniper-data"
+              }[5m]))
+            ) > (0.005 * 14.4)
+          )
+          and
+          (
+            (
+              sum(rate(juniper_data_dataset_post_total{
+                service="juniper-data",
+                status="error"
+              }[1h]))
+              /
+              sum(rate(juniper_data_dataset_post_total{
+                service="juniper-data"
+              }[1h]))
+            ) > (0.005 * 14.4)
+          )
+        for: 5m
+        labels:
+          severity: page
+          service: juniper-data
+          slo: data-post-availability
+          burn_rate: fast
+        annotations:
+          summary: "juniper-data POST /v1/datasets burning error budget 14.4× (fast)"
+          description: |
+            SLO 3.5 (Data-service POST /v1/datasets availability,
+            target 99.5%/30d) is burning the monthly error budget at
+            >= 14.4×.  Both 5m and 1h windows agree.
+
+            Current 5m failure ratio: {{ $value | humanizePercentage }}.
+
+            Investigate first:
+              1. juniper-data logs for generator tracebacks.
+              2. juniper-data dependency health (storage, cache backend).
+              3. Whether failures cluster on a single generator
+                 (filter the underlying counter by `generator` label).
+              4. SLI 4.6 (data-client error rate) for downstream
+                 confirmation from canopy.
+
+            See SLO_CATALOG_2026-05-03.md §3.5.
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#35-data-service-post-availability"
+
+      - alert: DataPostAvailabilitySlowBurn
+        expr: >
+          (
+            (
+              sum(rate(juniper_data_dataset_post_total{
+                service="juniper-data",
+                status="error"
+              }[30m]))
+              /
+              sum(rate(juniper_data_dataset_post_total{
+                service="juniper-data"
+              }[30m]))
+            ) > (0.005 * 6)
+          )
+          and
+          (
+            (
+              sum(rate(juniper_data_dataset_post_total{
+                service="juniper-data",
+                status="error"
+              }[6h]))
+              /
+              sum(rate(juniper_data_dataset_post_total{
+                service="juniper-data"
+              }[6h]))
+            ) > (0.005 * 6)
+          )
+        for: 30m
+        labels:
+          severity: ticket
+          service: juniper-data
+          slo: data-post-availability
+          burn_rate: slow
+        annotations:
+          summary: "juniper-data POST /v1/datasets burning error budget 6× (slow)"
+          description: |
+            SLO 3.5 (Data-service POST /v1/datasets availability,
+            target 99.5%/30d) is burning the monthly error budget at
+            >= 6× across both 30m and 6h windows.
+
+            Current 30m failure ratio: {{ $value | humanizePercentage }}.
+
+            Investigate: gradual generator regression, cache eviction
+            spike causing miss-storms, or storage-backend slowdown.
+
+            See SLO_CATALOG_2026-05-03.md §3.5.
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#35-data-service-post-availability"
+
+  # ═════════════════════════════════════════════════════════════════════════
+  # METRICS-MON R5.4 — THRESHOLD ALERTS (binary-health, R5 Q7 hybrid)
+  # ═════════════════════════════════════════════════════════════════════════
+  # These are NOT burn-rate alerts.  Per R5 entry plan Q7 the binary-
+  # health signals (heartbeat staleness, scrape-down, queue saturation,
+  # raw 5xx fraction) use simple step-function thresholds because:
+  #   • Burn-rate framing requires a continuous-failure-ratio numerator
+  #     and these signals are either-on-or-off.
+  #   • Operationally they map directly to "this thing has stopped
+  #     working" which is a paging/ticketing signal regardless of
+  #     budget arithmetic.
+  # ═════════════════════════════════════════════════════════════════════════
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Worker heartbeat staleness  (catalog §4.1 internal SLI)
+  # Cascor workers heartbeat at ~5s cadence; 60s sustained for 2m
+  # tolerates 12 missed heartbeats and short network blips before
+  # paging.  Uses the R5.4-pre worker bridge gauge.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_threshold_worker_heartbeat
+    rules:
+      - alert: CascorWorkerHeartbeatStale
+        expr: >
+          juniper_cascor_worker_heartbeat_age_seconds{service="juniper-cascor"} > 60
+        for: 2m
+        labels:
+          severity: page
+          service: juniper-cascor
+          slo: worker-heartbeat-freshness
+        annotations:
+          summary: "Cascor worker {{ $labels.worker_id }} heartbeat is stale (> 60s for 2m)"
+          description: |
+            Worker {{ $labels.worker_id }} has not heartbeated for
+            {{ $value | humanizeDuration }}.  Heartbeat cadence is
+            ~5s so this represents at least 12 missed heartbeats —
+            the worker is partitioned, deadlocked, or crashed.
+
+            Investigate first:
+              1. juniper-cascor-worker container logs for the worker_id.
+              2. Whether the worker process is still running.
+              3. Network connectivity between worker and cascor.
+              4. SLI 4.2 (pending-task queue depth) — backlog likely
+                 piling up.
+
+            See SLO_CATALOG_2026-05-03.md §4.1.
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#41-worker-heartbeat-freshness"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Scrape failure per service  (binary-health for Prometheus
+  # scrape-target reachability).  Distinct from the existing
+  # `ServiceDown` rule above because the SLO catalog wants a per-
+  # service `slo:` label and a `severity: page` shape consistent
+  # with the rest of R5.4.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_threshold_scrape_failure
+    rules:
+      - alert: JuniperServiceScrapeDown
+        expr: >
+          up{job=~"juniper-(data|cascor|canopy)"} == 0
+        for: 2m
+        labels:
+          severity: page
+          service: "{{ $labels.job }}"
+          slo: scrape-availability
+        annotations:
+          summary: "Prometheus scrape failing for {{ $labels.job }} (>= 2m)"
+          description: |
+            The Prometheus scrape target {{ $labels.job }}
+            ({{ $labels.instance }}) has been unreachable for >= 2
+            minutes.  All SLO and SLI alerts for this service are
+            silenced for the duration; treat this as an outage of
+            the observability surface and check the service itself
+            via direct health probes.
+
+            Investigate first:
+              1. docker ps / kubectl get pods for the service.
+              2. juniper-deploy compose logs / pod logs.
+              3. For juniper-data specifically: MetricsAuthMiddleware
+                 IP allowlist (notes/METRICS_AUTH_RATIONALE.md) — a
+                 Prometheus container IP change can manifest as 403
+                 → up==0.
+
+            See SLO_CATALOG_2026-05-03.md §2.8 (scrape topology).
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#28-service--job-labels"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Pending-task queue saturation  (catalog §4.2 internal SLI).
+  # Catalog target: pending < 10 sustained over 5m.  Promoted here to
+  # a 10m sustained breach to favour ticket-cadence rather than
+  # alert flapping during demo-burst auto-start.
+  #
+  # Pre-condition gap (catalog §4.2 / Q3): the gauge
+  # `juniper_cascor_pending_tasks` has NOT been bridged to Prometheus
+  # as of 2026-05-03.  This rule is therefore inert until the bridge
+  # ships (tracked as METRICS-MON R5.5b, see catalog §6 Q3).  Kept
+  # in-file at log-only-equivalent severity so the alert author can
+  # be reviewed alongside its peers; remove the `0 *` no-op multiplier
+  # once the metric exists.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_threshold_pending_tasks
+    rules:
+      - alert: CascorPendingTasksSaturated
+        # Inert until juniper_cascor_pending_tasks ships (catalog §6 Q3).
+        # The `absent_over_time(...) == 0` guard makes the rule
+        # short-circuit harmlessly while the metric is missing.
+        expr: >
+          (
+            juniper_cascor_pending_tasks{service="juniper-cascor"} > 10
+          )
+          and
+          (
+            absent_over_time(juniper_cascor_pending_tasks{service="juniper-cascor"}[5m]) == 0
+          )
+        for: 10m
+        labels:
+          severity: ticket
+          service: juniper-cascor
+          slo: pending-task-queue-depth
+        annotations:
+          summary: "Cascor pending-task queue depth above 10 for 10m"
+          description: |
+            The cascor coordinator has > 10 pending tasks awaiting
+            worker pickup, sustained for 10 minutes.  With the default
+            `WORKER_REPLICAS=2` topology this indicates either workers
+            are stuck (correlate with CascorWorkerHeartbeatStale) or
+            task scheduling is broken.
+
+            See SLO_CATALOG_2026-05-03.md §4.2.
+
+            Pre-condition: this rule is INERT until the
+            `juniper_cascor_pending_tasks` Prometheus gauge ships
+            (catalog §6 Q3 — METRICS-MON R5.5b).
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#42-cascor-pending-task-queue-depth"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # HTTP 5xx fraction per service  (catalog §4.8 internal SLI).
+  # Threshold: 5xx fraction > 1% over 5m → ticket.  Distinct from
+  # the existing `HighErrorRate_*` rules above which trip at 5%
+  # (severity: critical/warning).  The 1% boundary is the catalog-
+  # ratified internal-supporting target; the 5% boundary in the
+  # pre-existing rules predates the catalog and is left in place
+  # as a coarser safety net.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: juniper_threshold_http_5xx_per_service
+    rules:
+      - alert: JuniperData5xxRateTicket
+        expr: >
+          (
+            sum(rate(juniper_data_http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(juniper_data_http_requests_total[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: ticket
+          service: juniper-data
+          slo: http-5xx-per-service
+        annotations:
+          summary: "juniper-data 5xx fraction above 1% for 5m"
+          description: |
+            juniper-data is returning 5xx on > 1% of requests
+            (current: {{ $value | humanizePercentage }}).
+
+            Distinct from the existing 5%-threshold critical alert —
+            this is the catalog §4.8 internal-supporting threshold
+            and routes to the ticket queue.
+
+            See SLO_CATALOG_2026-05-03.md §4.8.
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#48-http-error-rate-5xx-per-service"
+
+      - alert: JuniperCascor5xxRateTicket
+        expr: >
+          (
+            sum(rate(juniper_cascor_http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(juniper_cascor_http_requests_total[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: ticket
+          service: juniper-cascor
+          slo: http-5xx-per-service
+        annotations:
+          summary: "juniper-cascor 5xx fraction above 1% for 5m"
+          description: |
+            juniper-cascor is returning 5xx on > 1% of requests
+            (current: {{ $value | humanizePercentage }}).
+
+            See SLO_CATALOG_2026-05-03.md §4.8.
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#48-http-error-rate-5xx-per-service"
+
+      - alert: JuniperCanopy5xxRateTicket
+        expr: >
+          (
+            sum(rate(juniper_canopy_http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(juniper_canopy_http_requests_total[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: ticket
+          service: juniper-canopy
+          slo: http-5xx-per-service
+        annotations:
+          summary: "juniper-canopy 5xx fraction above 1% for 5m"
+          description: |
+            juniper-canopy is returning 5xx on > 1% of requests
+            (current: {{ $value | humanizePercentage }}).
+
+            See SLO_CATALOG_2026-05-03.md §4.8.
+          runbook_url: "notes/SLO_CATALOG_2026-05-03.md#48-http-error-rate-5xx-per-service"
