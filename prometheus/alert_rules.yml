@@ -664,9 +664,11 @@ groups:
   #   The cascor cascade-correlation training loop only invokes the
   #   per-epoch callback (and therefore only emits a sample to
   #   `juniper_cascor_training_step_duration_seconds`) every 25th
-  #   epoch (cascor src/cascade_correlation/cascade_correlation.py:1655
-  #   `epoch % 25 == 0`; the histogram observation lives in
-  #   src/api/lifecycle/manager.py:706 and is gated by that callback).
+  #   epoch.  The throttle decision lives at cascor
+  #   src/cascade_correlation/cascade_correlation.py:1655
+  #   (`epoch % 25 == 0`); the histogram observation that's gated by
+  #   that callback lives at src/api/lifecycle/manager.py:1328
+  #   (the `observe_training_step_duration("output", ...)` call).
   #   Burn-rate windows shorter than ~25 epochs of work are therefore
   #   undersampled.  In practice this means:
   #     • Fast-burn (5m / 1h windows) on this SLO is INFORMATIONAL —
@@ -746,7 +748,7 @@ groups:
 
             ⚠ INFORMATIONAL ONLY at fast-burn cadence.  The metric is
             sampled every 25th epoch (cascor cascade_correlation.py:1655
-            and api/lifecycle/manager.py:706) so a 5m window may carry
+            gates the api/lifecycle/manager.py:1328 observation) so a 5m window may carry
             very few samples and a single outlier dominates the
             slow_fraction.  Treat as a hint to investigate and rely on
             the slow-burn alert for paging confidence.
