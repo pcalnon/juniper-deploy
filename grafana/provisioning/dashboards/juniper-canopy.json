@@ -317,8 +317,34 @@
         "textMode": "name",
         "reduceOptions": { "calcs": ["lastNotNull"] }
       }
+    },
+    {
+      "type": "row",
+      "title": "Pending R4.3 — data-client metrics",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
+      "collapsed": true,
+      "panels": [
+        {
+          "type": "text",
+          "title": "data-client request rate by status_class (PENDING METRIC)",
+          "gridPos": { "h": 6, "w": 12, "x": 0, "y": 33 },
+          "options": {
+            "mode": "markdown",
+            "content": "**Status:** placeholder — metric not yet exposed on canopy `/metrics`.\n\n**Planned PromQL:**\n```\nsum by (status_class) (rate(juniper_canopy_data_client_requests_total[$interval]))\n```\n\n**Required metric** (METRICS-MON R4.3): `juniper_canopy_data_client_requests_total{method, status_class, error_type}` (counter).\n\nPromote to a `timeseries` panel once the metric ships in juniper-canopy. Tracked under R5.3 follow-up."
+          }
+        },
+        {
+          "type": "text",
+          "title": "data-client request latency p50/p95/p99 (PENDING METRIC)",
+          "gridPos": { "h": 6, "w": 12, "x": 12, "y": 33 },
+          "options": {
+            "mode": "markdown",
+            "content": "**Status:** placeholder — metric not yet exposed on canopy `/metrics`.\n\n**Planned PromQL:**\n```\nhistogram_quantile(0.50, sum(rate(juniper_canopy_data_client_request_duration_ms_bucket[$interval])) by (le))\nhistogram_quantile(0.95, sum(rate(juniper_canopy_data_client_request_duration_ms_bucket[$interval])) by (le))\nhistogram_quantile(0.99, sum(rate(juniper_canopy_data_client_request_duration_ms_bucket[$interval])) by (le))\n```\n\n**Required metric** (METRICS-MON R4.3): `juniper_canopy_data_client_request_duration_ms` (histogram).\n\nPromote to a `timeseries` panel once the metric ships in juniper-canopy. Tracked under R5.3 follow-up."
+          }
+        }
+      ]
     }
   ],
   "schemaVersion": 39,
-  "version": 1
+  "version": 2
 }

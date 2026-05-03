@@ -456,8 +456,43 @@
         "textMode": "name",
         "reduceOptions": { "calcs": ["lastNotNull"] }
       }
+    },
+    {
+      "type": "row",
+      "title": "Pending R4.4 — worker heartbeat metrics",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 49 },
+      "collapsed": true,
+      "panels": [
+        {
+          "type": "text",
+          "title": "Worker last_task_duration trend (PENDING METRIC)",
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 50 },
+          "options": {
+            "mode": "markdown",
+            "content": "**Status:** placeholder — heartbeat field is exposed via REST `/v1/workers` but **not** as a Prometheus metric.\n\n**Planned PromQL** (once exported):\n```\njuniper_cascor_worker_last_task_duration_seconds\n```\n\n**Required metric** (METRICS-MON R4.4): gauge derived from `WorkerRegistration.last_task_duration_seconds`, labelled by `worker_id`.\n\nFollow-up: file an issue to bridge `WorkerRegistry` heartbeat fields into prometheus_client gauges in `juniper-cascor/src/api/observability.py`. Promote to a `timeseries` panel after."
+          }
+        },
+        {
+          "type": "text",
+          "title": "GPU Utilization per Worker (PENDING METRIC)",
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 50 },
+          "options": {
+            "mode": "markdown",
+            "content": "**Status:** placeholder — `gpu_utilization_pct` is exposed via REST `/v1/workers` but **not** as a Prometheus metric.\n\n**Planned PromQL** (once exported):\n```\njuniper_cascor_worker_gpu_utilization_pct\n```\n\n**Required metric** (METRICS-MON R4.4): gauge derived from `WorkerRegistration.gpu_utilization_pct`, labelled by `worker_id`. Range 0–100; null when GPU not detected.\n\nPromote to a `gauge` panel (per-worker) after the metric ships."
+          }
+        },
+        {
+          "type": "text",
+          "title": "Recent task durations (sliding window) (PENDING METRIC)",
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 50 },
+          "options": {
+            "mode": "markdown",
+            "content": "**Status:** placeholder — `recent_task_durations_seconds` is a list field on the heartbeat; not currently scraped.\n\n**Planned representation:** Either (a) bridge to a histogram (preferred) or (b) emit p50/p95 quantile gauges per worker.\n\n**Required metric** (METRICS-MON R4.4): histogram `juniper_cascor_worker_task_duration_seconds{worker_id}` recorded each heartbeat from the sliding window.\n\nFollow-up: decide between histogram-bridge vs. per-worker quantile gauges. R5.1 SLO work may dictate the choice."
+          }
+        }
+      ]
     }
   ],
   "schemaVersion": 39,
-  "version": 1
+  "version": 2
 }
