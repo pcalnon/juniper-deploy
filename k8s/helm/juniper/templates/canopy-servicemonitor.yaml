@@ -1,3 +1,15 @@
+{{- /*
+METRICS-MON R5.2: ServiceMonitor for juniper-canopy /metrics scraping
+under the Prometheus Operator. k8s production counterpart to the
+docker-compose scrape_config in prometheus/prometheus.yml. See R5 entry
+plan Q4 for the dual-surface rationale.
+
+juniper-canopy does NOT ship MetricsAuthMiddleware. /metrics is served
+unauthenticated and is expected to be reachable only from inside the
+cluster (NetworkPolicy + service ClusterIP boundary). The canopy
+ingress that exposes the dashboard publicly does NOT route /metrics.
+See notes/METRICS_AUTH_RATIONALE.md for the reasoning.
+*/ -}}
 {{- if and .Values.canopy.enabled .Values.serviceMonitor.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -10,12 +22,21 @@ metadata:
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
+  jobLabel: app.kubernetes.io/name
   selector:
     matchLabels:
       {{- include "juniper.selectorLabels" (dict "ctx" . "component" "canopy") | nindent 6 }}
   endpoints:
     - port: http
       path: /metrics
+      scheme: http
       interval: {{ .Values.serviceMonitor.interval }}
       scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+      honorLabels: false
+      relabelings:
+        # Match the docker-compose scrape_config label shape.
+        - targetLabel: service
+          replacement: juniper-canopy
+        - targetLabel: environment
+          replacement: kubernetes
 {{- end }}
