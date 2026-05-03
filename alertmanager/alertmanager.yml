@@ -19,6 +19,22 @@ route:
         severity: critical
       group_wait: 10s
       repeat_interval: 1h
+    # METRICS-MON R5.4 burn-rate alerts use Google SRE Workbook MWMBR
+    # severity labels (`page` / `ticket`).  `page` is a peer of
+    # `critical` — same on-call escalation cadence.  `ticket` routes
+    # to a non-paging channel so slow-burn alerts create a ticket but
+    # do not wake on-call.
+    - receiver: "critical"
+      match:
+        severity: page
+      group_wait: 10s
+      repeat_interval: 1h
+    - receiver: "tickets"
+      match:
+        severity: ticket
+      group_wait: 1m
+      group_interval: 10m
+      repeat_interval: 12h
 
 receivers:
   # Configure notification channels here (email, Slack, PagerDuty, etc.)
@@ -32,9 +48,21 @@ receivers:
   #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
   - name: "default"
 
-  # Critical alerts use a separate receiver for high-priority routing.
-  # Configure with PagerDuty or similar for on-call escalation.
+  # Critical / page receivers share this entry — high-priority routing
+  # for both `severity: critical` and `severity: page` (R5.4 burn-rate
+  # fast-burn / MWMBR pager alerts).  Configure with PagerDuty or
+  # similar for on-call escalation.
   - name: "critical"
+
+  # Tickets receiver — non-paging channel for `severity: ticket`
+  # (R5.4 burn-rate slow-burn alerts).  Should route to a
+  # ticket-tracker (Jira, GitHub Issues, low-priority Slack channel,
+  # email DL) — NOT to PagerDuty.
+  # PLACEHOLDER — configure before production use.  Until configured
+  # this receiver silently drops alerts, which is acceptable for the
+  # R5.4 30-day soak (catalog §2.6) but MUST be wired before lifting
+  # log-only severity on SLO 3.3 / 3.4.
+  - name: "tickets"
 
 inhibit_rules:
   # If a service is down, suppress its latency and error rate alerts.

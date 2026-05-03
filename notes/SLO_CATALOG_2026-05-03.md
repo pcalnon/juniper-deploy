@@ -301,22 +301,22 @@ complete successfully (not crashed, not aborted, not stuck). The
 user-visible behaviour is *"the train run I kicked off finished
 without me having to baby-sit it"*.
 
-**Metric source.** **Pre-condition gap (see §6 open question Q1):** as
-of 2026-05-03, cascor exposes `juniper_cascor_training_sessions_active`
-(Gauge) and `juniper_cascor_training_epochs_total{phase}` (Counter)
-but **does not** expose a session-completion counter. The SLI below
-references a planned `juniper_cascor_training_sessions_completed_total{outcome}`
-counter (closed-set `outcome ∈ {success, error, aborted}`) that R5.4 or
-a separate juniper-cascor PR must land before this SLO is enforceable.
-Until then, R5.4 ships the burn-rate alert in **log-only severity** with
-a TODO referencing this section.
+**Metric source.** `juniper_cascor_training_sessions_completed_total{status}`
+counter (closed-set `status ∈ {success, failure, cancelled}`) shipped
+in juniper-cascor#188 (R5.4-pre). The label-set authority is the
+cascor source: `src/api/observability.py` (the
+`_TRAINING_SESSION_STATUSES` constant and `inc_training_session_completed`
+emitter). R5.4 ships the burn-rate alerts at `severity: page` /
+`severity: ticket`; the catalog §2.6 30-day soak gate and the
+log-only severity caveat noted below remain in force until the soak
+window completes.
 
-**SLI (PromQL — once counter ships).**
+**SLI (PromQL).**
 
 ```promql
 sum by (service) (
   rate(juniper_cascor_training_sessions_completed_total{
-    service="juniper-cascor", outcome="success"
+    service="juniper-cascor", status="success"
   }[5m])
 )
 /
@@ -332,12 +332,13 @@ sum by (service) (
 **Reasoning for 99.0% (not 99.5% or 99.9%).** Train-jobs are bounded
 by user-supplied datasets and configurations. A non-trivial fraction of
 real-world failures are user-error (NaN losses, exhausted GPU memory,
-malformed network specs) — these surface as `outcome=error` and would
-unfairly count against the SLO if the target were tighter. `99.0%` over
-30 days admits ~7.2 hours of cumulative training-failure time and is the
-right shape for "the platform itself is reliable; user-error is a
-different category". Once cascor classifies user-error vs
-platform-error in the `outcome` label (a future juniper-cascor PR), the
+malformed network specs) — these surface as `status="failure"` and
+would unfairly count against the SLO if the target were tighter.
+`99.0%` over 30 days admits ~7.2 hours of cumulative training-failure
+time and is the right shape for "the platform itself is reliable;
+user-error is a different category". Once cascor classifies user-error
+vs platform-error within the `status="failure"` bucket (a future
+juniper-cascor PR — likely a sub-label or a refined closed set), the
 target tightens to `99.5%` filtered to platform-error only.
 
 **Burn-rate thresholds (per §2.4, error budget = `0.01`).**
