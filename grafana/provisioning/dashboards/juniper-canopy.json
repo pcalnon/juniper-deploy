@@ -320,31 +320,74 @@
     },
     {
       "type": "row",
-      "title": "Pending R4.3 — data-client metrics",
+      "title": "Data-client (R4.3)",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
-      "collapsed": true,
-      "panels": [
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Data-client Request Rate by status_class",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 33 },
+      "targets": [
         {
-          "type": "text",
-          "title": "data-client request rate by status_class (PENDING METRIC)",
-          "gridPos": { "h": 6, "w": 12, "x": 0, "y": 33 },
-          "options": {
-            "mode": "markdown",
-            "content": "**Status:** placeholder — metric not yet exposed on canopy `/metrics`.\n\n**Planned PromQL:**\n```\nsum by (status_class) (rate(juniper_canopy_data_client_requests_total[$interval]))\n```\n\n**Required metric** (METRICS-MON R4.3): `juniper_canopy_data_client_requests_total{method, status_class, error_type}` (counter).\n\nPromote to a `timeseries` panel once the metric ships in juniper-canopy. Tracked under R5.3 follow-up."
-          }
-        },
-        {
-          "type": "text",
-          "title": "data-client request latency p50/p95/p99 (PENDING METRIC)",
-          "gridPos": { "h": 6, "w": 12, "x": 12, "y": 33 },
-          "options": {
-            "mode": "markdown",
-            "content": "**Status:** placeholder — metric not yet exposed on canopy `/metrics`.\n\n**Planned PromQL:**\n```\nhistogram_quantile(0.50, sum(rate(juniper_canopy_data_client_request_duration_ms_bucket[$interval])) by (le))\nhistogram_quantile(0.95, sum(rate(juniper_canopy_data_client_request_duration_ms_bucket[$interval])) by (le))\nhistogram_quantile(0.99, sum(rate(juniper_canopy_data_client_request_duration_ms_bucket[$interval])) by (le))\n```\n\n**Required metric** (METRICS-MON R4.3): `juniper_canopy_data_client_request_duration_ms` (histogram).\n\nPromote to a `timeseries` panel once the metric ships in juniper-canopy. Tracked under R5.3 follow-up."
+          "expr": "sum by (status_class) (rate(juniper_canopy_data_client_requests_total[$interval]))",
+          "legendFormat": "{{status_class}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 25,
+            "stacking": { "mode": "normal", "group": "A" },
+            "axisLabel": "Requests/sec"
           }
         }
-      ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Data-client Request Latency (p50 / p95 / p99)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 33 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(juniper_canopy_data_client_request_duration_ms_bucket[$interval])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(juniper_canopy_data_client_request_duration_ms_bucket[$interval])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(juniper_canopy_data_client_request_duration_ms_bucket[$interval])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 5,
+            "axisLabel": "Latency (ms)"
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      }
     }
   ],
   "schemaVersion": 39,
-  "version": 2
+  "version": 3
 }

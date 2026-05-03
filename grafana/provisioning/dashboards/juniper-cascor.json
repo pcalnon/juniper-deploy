@@ -459,40 +459,40 @@
     },
     {
       "type": "row",
-      "title": "Pending R4.4 — worker heartbeat metrics",
+      "title": "Pending R4.4 — worker heartbeat Prometheus bridge",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 49 },
       "collapsed": true,
       "panels": [
         {
           "type": "text",
-          "title": "Worker last_task_duration trend (PENDING METRIC)",
+          "title": "Worker last_task_duration_seconds (JSON-only — Prometheus bridge pending)",
           "gridPos": { "h": 6, "w": 8, "x": 0, "y": 50 },
           "options": {
             "mode": "markdown",
-            "content": "**Status:** placeholder — heartbeat field is exposed via REST `/v1/workers` but **not** as a Prometheus metric.\n\n**Planned PromQL** (once exported):\n```\njuniper_cascor_worker_last_task_duration_seconds\n```\n\n**Required metric** (METRICS-MON R4.4): gauge derived from `WorkerRegistration.last_task_duration_seconds`, labelled by `worker_id`.\n\nFollow-up: file an issue to bridge `WorkerRegistry` heartbeat fields into prometheus_client gauges in `juniper-cascor/src/api/observability.py`. Promote to a `timeseries` panel after."
+            "content": "**Status:** the heartbeat field **is delivered** by juniper-cascor on the JSON `/v1/workers` endpoint, but it has **not** been bridged to Prometheus, so no `/metrics` series exists yet.\n\n**Verified on `origin/main` of juniper-cascor:**\n- Field defined: `juniper-cascor/src/api/workers/registry.py:60-62` (`WorkerRegistration.last_task_duration_seconds: float | None`).\n- Exposed via JSON: `juniper-cascor/src/api/workers/routes.py:55-57` (`GET /v1/workers`).\n- **Missing:** no `Gauge(...)` instantiation anywhere under `juniper-cascor/src/api/workers/`.\n\n**Planned PromQL** (after the bridge ships):\n```\njuniper_cascor_worker_last_task_duration_seconds{worker_id}\n```\n\n**Bridge entry point (suggested):** add a new `juniper-cascor/src/api/workers/metrics.py` module (or append to the existing observability module) that instantiates a `Gauge` per heartbeat field and updates from `WorkerRegistry.snapshot()` on each Prometheus scrape (collector callback) or on each heartbeat ingest.\n\n**Tracking:** new sub-track candidate (`R5.x` or Phase-6 follow-up): \"Worker heartbeat → Prometheus bridge\"."
           }
         },
         {
           "type": "text",
-          "title": "GPU Utilization per Worker (PENDING METRIC)",
+          "title": "Worker gpu_utilization_pct (JSON-only — Prometheus bridge pending)",
           "gridPos": { "h": 6, "w": 8, "x": 8, "y": 50 },
           "options": {
             "mode": "markdown",
-            "content": "**Status:** placeholder — `gpu_utilization_pct` is exposed via REST `/v1/workers` but **not** as a Prometheus metric.\n\n**Planned PromQL** (once exported):\n```\njuniper_cascor_worker_gpu_utilization_pct\n```\n\n**Required metric** (METRICS-MON R4.4): gauge derived from `WorkerRegistration.gpu_utilization_pct`, labelled by `worker_id`. Range 0–100; null when GPU not detected.\n\nPromote to a `gauge` panel (per-worker) after the metric ships."
+            "content": "**Status:** the heartbeat field **is delivered** by juniper-cascor on the JSON `/v1/workers` endpoint, but it has **not** been bridged to Prometheus, so no `/metrics` series exists yet.\n\n**Verified on `origin/main` of juniper-cascor:**\n- Field defined: `juniper-cascor/src/api/workers/registry.py:60-62` (`WorkerRegistration.gpu_utilization_pct: float | None`).\n- Exposed via JSON: `juniper-cascor/src/api/workers/routes.py:55-57` (`GET /v1/workers`).\n- **Missing:** no `Gauge(...)` instantiation anywhere under `juniper-cascor/src/api/workers/`.\n\n**Planned PromQL** (after the bridge ships):\n```\njuniper_cascor_worker_gpu_utilization_pct{worker_id}\n```\n\n**Bridge entry point:** same module as the `last_task_duration_seconds` bridge above. Range 0–100; emit `NaN` (or skip the sample) when the field is `None` (no GPU detected).\n\n**Tracking:** same sub-track as the `last_task_duration_seconds` row."
           }
         },
         {
           "type": "text",
-          "title": "Recent task durations (sliding window) (PENDING METRIC)",
+          "title": "Worker recent_task_durations_seconds (JSON-only — Prometheus bridge pending)",
           "gridPos": { "h": 6, "w": 8, "x": 16, "y": 50 },
           "options": {
             "mode": "markdown",
-            "content": "**Status:** placeholder — `recent_task_durations_seconds` is a list field on the heartbeat; not currently scraped.\n\n**Planned representation:** Either (a) bridge to a histogram (preferred) or (b) emit p50/p95 quantile gauges per worker.\n\n**Required metric** (METRICS-MON R4.4): histogram `juniper_cascor_worker_task_duration_seconds{worker_id}` recorded each heartbeat from the sliding window.\n\nFollow-up: decide between histogram-bridge vs. per-worker quantile gauges. R5.1 SLO work may dictate the choice."
+            "content": "**Status:** `recent_task_durations_seconds` is a per-worker **list field** on the heartbeat (`juniper-cascor/src/api/workers/registry.py:60-62`), exposed only as JSON via `juniper-cascor/src/api/workers/routes.py:55-57`. Not currently scraped.\n\n**Planned representation** (decide during bridge implementation):\n- **(a)** Bridge each list value into a `Histogram` (`juniper_cascor_worker_task_duration_seconds{worker_id}`) — preferred; gives us SLO-friendly bucket math.\n- **(b)** Emit per-worker p50/p95/p99 `Gauge` quantiles computed in-process at scrape time.\n\n**Bridge entry point:** same Prometheus bridge module proposed for the other two heartbeat fields. Choice between (a) and (b) likely driven by R5.1 SLO design.\n\n**Tracking:** new sub-track candidate (`R5.x` or Phase-6 follow-up): \"Worker heartbeat → Prometheus bridge\"."
           }
         }
       ]
     }
   ],
   "schemaVersion": 39,
-  "version": 2
+  "version": 3
 }

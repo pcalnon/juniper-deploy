@@ -314,22 +314,67 @@
     },
     {
       "type": "row",
-      "title": "Pending R4.5 — dataset POST counter",
+      "title": "Dataset POST (R4.5)",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
-      "collapsed": true,
-      "panels": [
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Dataset POST Rate by cache (hit/miss)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "targets": [
         {
-          "type": "text",
-          "title": "Dataset POST rate by cache hit/miss (PENDING METRIC)",
-          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 28 },
-          "options": {
-            "mode": "markdown",
-            "content": "**Status:** placeholder — the R4.5 counter `juniper_data_dataset_post_total{generator, status, cache}` is **not** yet exposed.\n\n**Closest existing metric:** `juniper_data_dataset_generations_total{generator, status}` (no `cache` label) — already panelled above as 'Dataset Generations by Type'.\n\n**Planned PromQL:**\n```\nsum by (cache, status) (rate(juniper_data_dataset_post_total[$interval]))\n```\n\n**Required metric** (METRICS-MON R4.5): `juniper_data_dataset_post_total{generator, status, cache=\"hit\"|\"miss\"}` (counter), wired from the dataset POST handler with cache lookup result.\n\nFollow-up: extend `juniper_data/api/observability.py:_ensure_dataset_metrics` with the cache-aware counter, increment from the POST route after cache lookup. Promote to a stacked `timeseries` panel after."
+          "expr": "sum by (cache) (rate(juniper_data_dataset_post_total[$interval]))",
+          "legendFormat": "{{cache}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 25,
+            "stacking": { "mode": "normal", "group": "A" },
+            "axisLabel": "POSTs/sec"
           }
         }
-      ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Dataset POST Rate by status",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(juniper_data_dataset_post_total[$interval]))",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 25,
+            "stacking": { "mode": "normal", "group": "A" },
+            "axisLabel": "POSTs/sec"
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
     }
   ],
   "schemaVersion": 39,
-  "version": 2
+  "version": 3
 }
