@@ -23,7 +23,7 @@
    - [3.1 Canopy dashboard availability](#31-canopy-dashboard-availability)
    - [3.2 Canopy dashboard render latency](#32-canopy-dashboard-render-latency)
    - [3.3 Cascor train-job success](#33-cascor-train-job-success)
-   - [3.4 Cascor train-step p95 latency](#34-cascor-train-step-p95-latency)
+   - [3.4 Cascor train-epoch p95 latency](#34-cascor-train-epoch-p95-latency)
    - [3.5 Data-service POST availability](#35-data-service-post-availability)
 4. [Internal-supporting SLIs (graphed only)](#4-internal-supporting-slis-graphed-only)
    - [4.1 Worker heartbeat freshness](#41-worker-heartbeat-freshness)
@@ -351,26 +351,33 @@ target tightens to `99.5%` filtered to platform-error only.
 **Action policy.** Fast-burn / mid-burn → page (when counter ships and
 log-only severity is lifted). Slow-burn → ticket.
 
-### 3.4 Cascor train-step p95 latency
+### 3.4 Cascor train-epoch p95 latency
 
-**What it measures.** How long a single training step takes inside the
+**What it measures.** How long a single training epoch takes inside the
 cascor training loop. The user-visible behaviour is *"my training run
 isn't stuck"* and the secondary signal is *"the platform isn't
 silently slowing my training"*.
 
-**Metric source.** **Pre-condition gap (see §6 open question Q2):**
-cascor's training loop exposes `juniper_cascor_training_epochs_total`
-(Counter, no duration) and `juniper_cascor_inference_duration_seconds`
-(Histogram, but for inference not training). A train-*step* duration
-histogram is not yet shipped. This catalog references the planned
-`juniper_cascor_training_step_duration_seconds_bucket` histogram with
-the sub-millisecond-floor layout consistent with R5.1b
-(`100µs → 100ms, +inf` extended into the seconds range — concretely
-`{100µs, 1ms, 10ms, 100ms, 1s, 5s, 30s, 60s, +inf}`). Until shipped, the
-R5.1b-rebucketed `juniper_cascor_command_handler_seconds` is used as a
-**stand-in proxy** for liveness, *not* for the train-step SLO itself.
+**Granularity caveat.** This SLI currently measures **per-epoch
+wall-clock** because cascor's api-lifecycle layer surfaces only
+epoch-boundary callbacks (no per-mini-batch hooks are exposed at that
+layer as of R5.4-pre / juniper-cascor#188). The metric name
+`juniper_cascor_training_step_duration_seconds` is retained for forward
+compatibility but its current observation point is the epoch boundary.
+True per-mini-batch granularity requires deeper trainer instrumentation
+inside cascor's training internals — see the forthcoming design doc
+`juniper-ml/notes/code-review/METRICS_MONITORING_MINI_BATCH_INSTRUMENTATION_DESIGN_2026-05-03.md`
+*(juniper-ml repo, forthcoming — link target may 404 until that PR
+merges)*. Tracked in §6 open question Q2 below.
 
-**SLI (PromQL — once histogram ships).**
+**Metric source.** `juniper_cascor_training_step_duration_seconds_bucket`
+histogram (R5.4-pre / juniper-cascor#188), bucket layout
+`{100µs, 1ms, 10ms, 100ms, 1s, 5s, 30s, 60s, +inf}`. Observation is
+emitted at epoch boundaries from the api-lifecycle layer; the metric
+name is unchanged from R5.4-pre but the documented semantics here
+correctly reflect the per-epoch granularity.
+
+**SLI (PromQL).**
 
 ```promql
 histogram_quantile(0.95,
@@ -382,23 +389,28 @@ histogram_quantile(0.95,
 )
 ```
 
-**SLO target.** `p95 < 5s over 7d rolling`.
+**SLO target.** Initial target: `p95 < 5s / 7d rolling` (per-epoch
+granularity) — to revisit after 30-day soak AND once per-mini-batch
+instrumentation lands (see §6 mini-batch follow-up bullet).
 
-**Reasoning for 5s.** Train-step duration is dataset- and
+**Reasoning for 5s.** Train-epoch duration is dataset- and
 architecture-bound, not platform-bound, but a 5-second p95 cap catches
 the platform pathologies that are observably platform-bound: GIL
 contention from the WS broadcast loop, replay-buffer back-pressure,
 candidate-correlation aggregation across phases. The R5.1b-rebucketed
 `command_handler_seconds` (`100µs → 100ms`) is sub-ms in healthy
-operation; a 5-second train-step cap is loose enough to admit reasonable
+operation; a 5-second train-epoch cap is loose enough to admit reasonable
 candidate-phase batches yet tight enough to catch a regression where
-the broadcast loop is starving the training thread.
+the broadcast loop is starving the training thread. Once true
+per-mini-batch instrumentation lands, the target will be re-derived
+against the finer-grained distribution.
 
 **Burn-rate thresholds.** Latency-style (slow-event-fraction) per §3.2
 above, against the 5-second boundary. Concrete trip thresholds will be
-emitted by R5.4 once the underlying histogram ships.
+emitted by R5.4.
 
-**Action policy.** Fast-burn / mid-burn → page (when histogram ships).
+**Action policy.** Fast-burn / mid-burn → page (after 30-day soak lifts
+log-only severity).
 
 ### 3.5 Data-service POST availability
 
@@ -807,22 +819,21 @@ a separate METRICS-MON sub-track (call it R5.5a) should:
 R5.4 should reference this gap explicitly when shipping the §3.3 burn-rate
 alert in log-only severity.
 
-### Q2. Cascor train-step duration histogram (blocks §3.4)
+### Q2. Cascor train-epoch duration histogram (partial — granularity gap)
 
-**Gap.** §3.4 references `juniper_cascor_training_step_duration_seconds_bucket`
-which **does not exist** as of 2026-05-03. The closest existing metric
-is `juniper_cascor_inference_duration_seconds` which measures *inference*,
-not training. The R5.1b-rebucketed `command_handler_seconds` is a stand-in
-for liveness only.
+**Status.** R5.4-pre (juniper-cascor#188) shipped
+`juniper_cascor_training_step_duration_seconds_bucket` with the
+`{100µs, 1ms, 10ms, 100ms, 1s, 5s, 30s, 60s, +inf}` bucket layout. The
+metric name was retained for forward compatibility, but the cascor
+api-lifecycle layer surfaces only epoch-boundary callbacks (no
+per-mini-batch hooks at that layer). As shipped, the histogram measures
+**per-epoch** wall-clock rather than per-mini-batch wall-clock. §3.4 has
+been updated (this PR) to reflect the per-epoch granularity honestly.
 
-**Recommendation.** Same shape as Q1 — a juniper-cascor PR (~80 lines)
-should:
-
-1. Add `juniper_cascor_training_step_duration_seconds_bucket` Histogram
-   with the layout `{100µs, 1ms, 10ms, 100ms, 1s, 5s, 30s, 60s, +inf}`
-   labelled by `phase ∈ {input, candidate, output}`.
-2. Observe in the training-loop step boundary.
-3. Update this catalog §3.4.
+**Remaining gap.** True per-mini-batch instrumentation requires deeper
+trainer internals work — tracked separately in **§6 Q5** (per-mini-batch
+training instrumentation) below, with a forthcoming juniper-ml design
+doc as the forward reference.
 
 ### Q3. R4.4 worker → Prometheus bridge gap (blocks §4.1, §4.2)
 
@@ -886,7 +897,19 @@ since R4.1 without complaint. A re-bucket without a driving SLI is
 premature optimization. **R5.4 PR or a follow-up doc-only PR should
 land Option A.**
 
-### Q5. Soak window before targets become release-blocking
+### Q5. Per-mini-batch training instrumentation (refines §3.4)
+
+**Gap.** R5.4-pre (juniper-cascor#188) shipped the histogram, but the
+api-lifecycle layer exposes only epoch-boundary callbacks — so the
+metric currently measures per-epoch wall-clock. A follow-up sub-track
+will design and implement true per-mini-batch instrumentation in
+cascor's trainer internals. Forward-reference design doc:
+`juniper-ml/notes/code-review/METRICS_MONITORING_MINI_BATCH_INSTRUMENTATION_DESIGN_2026-05-03.md`
+*(juniper-ml repo, forthcoming — branch
+`docs/metrics-mon-mini-batch-instrumentation-design`; cross-repo link
+may 404 until that PR merges)*. §3.4 will be revisited once it lands.
+
+### Q6. Soak window before targets become release-blocking
 
 Per §2.6 caveat, every numeric target in §3 is initial. R5.4 ships
 burn-rate alerts in log-only severity for the first 30 days of
