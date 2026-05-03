@@ -1,6 +1,13 @@
 ---
 # =============================================================================
-# Juniper Deploy — Prometheus Configuration
+# Juniper Deploy — Prometheus Configuration (docker-compose dev/staging)
+#
+# This file drives the Prometheus instance shipped with the docker-compose
+# stack. The k8s production deployment uses ServiceMonitor CRDs under
+# ``k8s/helm/juniper/templates/{data,cascor,canopy}-servicemonitor.yaml``
+# instead of these scrape_configs. Both surfaces are kept in sync —
+# see METRICS-MON R5 entry plan Q4 ("dual scrape surfaces: raw configs
+# for compose, ServiceMonitor CRDs for k8s") and R5.2 closure.
 #
 # Prometheus YAML files do NOT natively support environment variable
 # interpolation. The hardcoded values below correspond one-to-one with the
@@ -21,12 +28,25 @@
 # The retention window (--storage.tsdb.retention.time) is set on the
 # prometheus container's command line in docker-compose.yml; the matching
 # env var is ${PROMETHEUS_RETENTION:-30d}.
+#
+# Auth note (R5 entry plan Q5 / R5.2 closure):
+#   juniper-data ships MetricsAuthMiddleware (SEC-16) gating /metrics by
+#   a configured IP allowlist. Inside docker-compose the prometheus
+#   container's bridge-network IP must be in JUNIPER_DATA_METRICS_ALLOW_IPS
+#   for scrapes to succeed. juniper-cascor and juniper-canopy expose
+#   /metrics without an allowlist; their /metrics endpoints are not
+#   reachable from outside the compose network in the default topology.
+#   Rationale for the per-service split (rather than promoting the
+#   middleware to juniper-observability) is documented in
+#   notes/METRICS_AUTH_RATIONALE.md.
 # =============================================================================
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
   scrape_timeout: 10s
+  external_labels:
+    deployment: "docker-compose"
 
 alerting:
   alertmanagers:
@@ -39,21 +59,37 @@ rule_files:
 
 scrape_configs:
   - job_name: "prometheus"
+    metrics_path: "/metrics"
+    scheme: "http"
     static_configs:
       - targets: ["localhost:9090"]
+        labels:
+          service: "prometheus"
+          environment: "docker"
 
+  # juniper-data — gated by MetricsAuthMiddleware (SEC-16). The prometheus
+  # container's IP must be present in JUNIPER_DATA_METRICS_ALLOW_IPS or the
+  # scrape will return HTTP 403. See notes/METRICS_AUTH_RATIONALE.md.
   - job_name: "juniper-data"
     metrics_path: "/metrics"
+    scheme: "http"
     scrape_interval: 10s
+    scrape_timeout: 10s
+    honor_labels: false
     static_configs:
       - targets: ["juniper-data:8100"]
         labels:
           service: "juniper-data"
           environment: "docker"
 
+  # juniper-cascor — container port 8200 (host-side mapping is 8201, not
+  # used here because Prometheus scrapes inside the compose network).
   - job_name: "juniper-cascor"
     metrics_path: "/metrics"
+    scheme: "http"
     scrape_interval: 10s
+    scrape_timeout: 10s
+    honor_labels: false
     static_configs:
       - targets: ["juniper-cascor:8200"]
         labels:
@@ -62,7 +98,10 @@ scrape_configs:
 
   - job_name: "juniper-canopy"
     metrics_path: "/metrics"
+    scheme: "http"
     scrape_interval: 15s
+    scrape_timeout: 10s
+    honor_labels: false
     static_configs:
       - targets: ["juniper-canopy:8050"]
         labels:

@@ -1,3 +1,17 @@
+{{- /*
+METRICS-MON R5.2: ServiceMonitor for juniper-data /metrics scraping
+under the Prometheus Operator (kube-prometheus-stack subchart). This is
+the k8s production counterpart to the docker-compose scrape_config in
+prometheus/prometheus.yml. Both surfaces are kept in sync per R5 entry
+plan Q4.
+
+Auth note (R5 entry plan Q5): juniper-data ships MetricsAuthMiddleware
+(SEC-16), an IP allowlist gating /metrics. In a kube-prometheus-stack
+deployment the Prometheus pod IP must be added to
+JUNIPER_DATA_METRICS_ALLOW_IPS via the data.env / data.envFrom values.
+Rationale for keeping this middleware per-service rather than promoting
+to juniper-observability is documented in notes/METRICS_AUTH_RATIONALE.md.
+*/ -}}
 {{- if and .Values.data.enabled .Values.serviceMonitor.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -10,12 +24,22 @@ metadata:
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
+  jobLabel: app.kubernetes.io/name
   selector:
     matchLabels:
       {{- include "juniper.selectorLabels" (dict "ctx" . "component" "data") | nindent 6 }}
   endpoints:
     - port: http
       path: /metrics
+      scheme: http
       interval: {{ .Values.serviceMonitor.interval }}
       scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+      honorLabels: false
+      relabelings:
+        # Match the docker-compose scrape_config label shape so Grafana
+        # dashboards and recording rules work across both deployments.
+        - targetLabel: service
+          replacement: juniper-data
+        - targetLabel: environment
+          replacement: kubernetes
 {{- end }}
