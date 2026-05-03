@@ -293,8 +293,91 @@
         "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
         "tooltip": { "mode": "multi" }
       }
+    },
+    {
+      "type": "row",
+      "title": "Cross-Cutting KPIs (R4)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "Canopy Data-Client Error Rate (R4.3)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 33 },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(juniper_canopy_data_client_requests_total{status_class=~\"4xx|5xx|transport_error\"}[$interval])) / clamp_min(sum(rate(juniper_canopy_data_client_requests_total[$interval])), 1)",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Juniper-Data Cache Miss Ratio (R4.5)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 33 },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(juniper_data_dataset_post_total{cache=\"miss\"}[$interval])) / clamp_min(sum(rate(juniper_data_dataset_post_total[$interval])), 1)",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "orange", "value": 80 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Pending R4.4 — worker heartbeat Prometheus bridge",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 37 },
+      "collapsed": true,
+      "panels": [
+        {
+          "type": "text",
+          "title": "Cascor worker GPU saturation (Prometheus bridge pending)",
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 38 },
+          "options": {
+            "mode": "markdown",
+            "content": "**Status:** placeholder — the cross-cutting tile for `max(juniper_cascor_worker_gpu_utilization_pct)` (and the related `last_task_duration_seconds` / `recent_task_durations_seconds` aggregations) cannot be drawn yet because the worker heartbeat fields are exposed only as JSON on `/v1/workers`, not on Prometheus `/metrics`.\n\n**Verified on `origin/main` of juniper-cascor:**\n- Heartbeat fields defined: `juniper-cascor/src/api/workers/registry.py:60-62`.\n- JSON exposure: `juniper-cascor/src/api/workers/routes.py:55-57`.\n- No Prometheus `Gauge` / `Histogram` instantiation under `juniper-cascor/src/api/workers/`.\n\n**Planned tile** (after the bridge ships):\n```\nmax(juniper_cascor_worker_gpu_utilization_pct)\n```\n\n**Tracking:** see the `Pending R4.4 — worker heartbeat Prometheus bridge` row on the JuniperCascor dashboard for the bridge entry point. New sub-track candidate: `R5.x` or Phase-6 follow-up."
+          }
+        }
+      ]
     }
   ],
   "schemaVersion": 39,
-  "version": 1
+  "version": 3
 }

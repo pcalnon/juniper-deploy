@@ -311,8 +311,70 @@
         "textMode": "name",
         "reduceOptions": { "calcs": ["lastNotNull"] }
       }
+    },
+    {
+      "type": "row",
+      "title": "Dataset POST (R4.5)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Dataset POST Rate by cache (hit/miss)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum by (cache) (rate(juniper_data_dataset_post_total[$interval]))",
+          "legendFormat": "{{cache}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 25,
+            "stacking": { "mode": "normal", "group": "A" },
+            "axisLabel": "POSTs/sec"
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Dataset POST Rate by status",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(juniper_data_dataset_post_total[$interval]))",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 25,
+            "stacking": { "mode": "normal", "group": "A" },
+            "axisLabel": "POSTs/sec"
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
     }
   ],
   "schemaVersion": 39,
-  "version": 1
+  "version": 3
 }
