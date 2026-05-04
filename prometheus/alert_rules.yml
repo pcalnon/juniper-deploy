@@ -668,7 +668,8 @@ groups:
   #   src/cascade_correlation/cascade_correlation.py:1655
   #   (`epoch % 25 == 0`); the histogram observation that's gated by
   #   that callback lives at src/api/lifecycle/manager.py:1328
-  #   (the `observe_training_step_duration("output", ...)` call).
+  #   (the `observe_training_step_duration(duration)` call — the `phase`
+  #   parameter was dropped in OBS-WIRE-01 / juniper-cascor#204).
   #   Burn-rate windows shorter than ~25 epochs of work are therefore
   #   undersampled.  In practice this means:
   #     • Fast-burn (5m / 1h windows) on this SLO is INFORMATIONAL —

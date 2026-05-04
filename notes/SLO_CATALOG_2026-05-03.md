@@ -373,10 +373,15 @@ merges)*. Tracked in §6 open question Q2 below.
 
 **Metric source.** `juniper_cascor_training_step_duration_seconds_bucket`
 histogram (R5.4-pre / juniper-cascor#188), bucket layout
-`{100µs, 1ms, 10ms, 100ms, 1s, 5s, 30s, 60s, +inf}`. Observation is
-emitted at epoch boundaries from the api-lifecycle layer; the metric
-name is unchanged from R5.4-pre but the documented semantics here
-correctly reflect the per-epoch granularity.
+`{50ms, 100ms, 500ms, 1s, 2s, 5s, 10s, 30s, +inf}` (`_TRAINING_STEP_DURATION_BUCKETS`
+in `juniper-cascor/src/api/observability.py`). Observation is emitted at
+epoch boundaries from the api-lifecycle layer; the metric name is unchanged
+from R5.4-pre but the documented semantics here correctly reflect the
+per-epoch granularity. The histogram has **no `phase` label** post
+OBS-WIRE-01 (juniper-cascor#204) — the cascor api-lifecycle layer only
+ever emits an `output`-phase observation, so the previously documented
+`phase=~"input|candidate|output"` regex was effectively a constant filter
+and was dropped along with the label itself.
 
 **SLI (PromQL).**
 
@@ -384,7 +389,7 @@ correctly reflect the per-epoch granularity.
 histogram_quantile(0.95,
   sum by (le, service) (
     rate(juniper_cascor_training_step_duration_seconds_bucket{
-      service="juniper-cascor", phase=~"input|candidate|output"
+      service="juniper-cascor"
     }[5m])
   )
 )
@@ -397,14 +402,14 @@ instrumentation lands (see §6 mini-batch follow-up bullet).
 **Reasoning for 5s.** Train-epoch duration is dataset- and
 architecture-bound, not platform-bound, but a 5-second p95 cap catches
 the platform pathologies that are observably platform-bound: GIL
-contention from the WS broadcast loop, replay-buffer back-pressure,
-candidate-correlation aggregation across phases. The R5.1b-rebucketed
+contention from the WS broadcast loop, replay-buffer back-pressure, and
+candidate-correlation aggregation cost. The R5.1b-rebucketed
 `command_handler_seconds` (`100µs → 100ms`) is sub-ms in healthy
 operation; a 5-second train-epoch cap is loose enough to admit reasonable
-candidate-phase batches yet tight enough to catch a regression where
-the broadcast loop is starving the training thread. Once true
-per-mini-batch instrumentation lands, the target will be re-derived
-against the finer-grained distribution.
+training workloads yet tight enough to catch a regression where the
+broadcast loop is starving the training thread. Once true per-mini-batch
+instrumentation lands, the target will be re-derived against the
+finer-grained distribution.
 
 **Burn-rate thresholds.** Latency-style (slow-event-fraction) per §3.2
 above, against the 5-second boundary. Concrete trip thresholds will be
