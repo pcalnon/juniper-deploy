@@ -4,7 +4,7 @@
 
 **Version:** 0.1.0
 **Status:** Active
-**Last Updated:** March 3, 2026
+**Last Updated:** May 4, 2026
 **Project:** Juniper - Docker Compose Orchestration
 
 ---
@@ -35,7 +35,16 @@ cd juniper-deploy
 pip install -r requirements-test.txt
 ```
 
-This installs `pytest`, `requests`, and `numpy`.
+This installs the host-side test dependencies:
+
+| Package | Used For |
+|---------|----------|
+| `pytest` | Test collection, markers, fixtures, and assertions |
+| `requests` | HTTP checks against local Juniper services |
+| `numpy` | Dataset payload and response validation |
+| `PyYAML` | Parsing rendered Helm YAML in chart snapshot tests |
+
+Keep this list aligned with `requirements-test.txt`; CI installs that file before running `pytest tests/ -v --tb=short`.
 
 ---
 
@@ -109,6 +118,6 @@ bash scripts/test_health_enhanced.sh
 
 ---
 
-**Last Updated:** March 3, 2026
+**Last Updated:** May 4, 2026
 **Version:** 0.1.0
 **Status:** Active
