@@ -479,21 +479,21 @@ log-only-severity alerts for these but they do not page on-call.
 registered cascor-worker. A heartbeat older than the threshold means
 the worker is stuck or partitioned.
 
-**Metric source.** **Pre-condition gap (see §6 open question Q3):**
-worker registry state is exposed only on JSON `GET /v1/workers` from
-juniper-cascor — it is **not** bridged to Prometheus. R4.4 added
-training-loop instrumentation fields to the heartbeat payload but did
-not promote any of them to a Prometheus collector. The SLI below
-references the planned
-`juniper_cascor_worker_last_heartbeat_age_seconds{worker_id}` Gauge that
-a future juniper-cascor PR (or a juniper-deploy bridge exporter) must
-land before this SLI is computable.
+**Metric source.** **STATUS 2026-05-04: bridged.** R5.4-pre
+(juniper-cascor#188) shipped a `WorkerRegistryCollector` at
+`juniper-cascor/src/api/workers/metrics.py` that exposes the worker
+registry state as Prometheus gauges, including
+`juniper_cascor_worker_heartbeat_age_seconds{worker_id}`. The earlier
+"pre-condition gap" framing (preserved in §6 Q3 below for history) is
+resolved for this SLI. Original R4.4 worker heartbeat fields are
+populated by the same collector from the in-process state that backs
+`GET /v1/workers`.
 
-**SLI (PromQL — once gauge ships).**
+**SLI (PromQL).**
 
 ```promql
 max by (worker_id) (
-  juniper_cascor_worker_last_heartbeat_age_seconds{
+  juniper_cascor_worker_heartbeat_age_seconds{
     service="juniper-cascor"
   }
 )
@@ -841,29 +841,29 @@ trainer internals work — tracked separately in **§6 Q5** (per-mini-batch
 training instrumentation) below, with a forthcoming juniper-ml design
 doc as the forward reference.
 
-### Q3. R4.4 worker → Prometheus bridge gap (blocks §4.1, §4.2)
+### Q3. R4.4 worker → Prometheus bridge gap (§4.1 RESOLVED · §4.2 still open)
 
-**Gap.** R4.4 added training-loop instrumentation fields to the worker
-heartbeat payload but the heartbeat is exposed only on JSON
-`GET /v1/workers` from juniper-cascor — **not bridged to Prometheus**.
-§4.1 (worker heartbeat freshness) and §4.2 (queue depth) both reference
-Prometheus gauges that do not exist. As of 2026-05-03 these SLIs are
-**not computable** in Prometheus.
+**Status 2026-05-04: partially resolved.** Path A was taken — R5.4-pre
+(juniper-cascor#188) shipped `WorkerRegistryCollector` at
+`juniper-cascor/src/api/workers/metrics.py` exposing worker heartbeat
+fields as Prometheus gauges including
+`juniper_cascor_worker_heartbeat_age_seconds{worker_id}`. **§4.1
+(worker heartbeat freshness) is now computable** against this gauge.
 
-**Recommendation.** Two paths:
+**§4.2 (pending-task queue depth) is still open.** No
+`juniper_cascor_pending_tasks` gauge exists; the §4.2 alert ships in
+juniper-deploy `prometheus/alert_rules.yml` guarded by
+`absent_over_time(...) == 0` so it stays inert until a bridge ships.
 
-- **Path A:** juniper-cascor adds bridge collectors directly:
-  `juniper_cascor_worker_last_heartbeat_age_seconds{worker_id}` Gauge
-  and `juniper_cascor_pending_tasks` Gauge, populated from the same
-  in-process state that backs `/v1/workers`. Smaller surface change,
-  keeps the worker registry as the source-of-truth.
-- **Path B:** juniper-deploy ships a small bridge exporter container
-  that polls `/v1/workers` and re-exposes as Prometheus metrics.
-  Independent of cascor releases but adds a moving part.
+**Original gap framing (preserved for history).** R4.4 added
+training-loop instrumentation fields to the worker heartbeat payload
+but the heartbeat was exposed only on JSON `GET /v1/workers` from
+juniper-cascor — not bridged to Prometheus.
 
-**Path A is preferred.** Track as METRICS-MON R5.5b or fold into the
-Q1 / Q2 PR. **Flag for §4.1's full implementation: this bridge is a
-hard blocker.**
+**Recommendation (residual §4.2 work).** Add a
+`juniper_cascor_pending_tasks` gauge to the existing
+`WorkerRegistryCollector` populated from the worker coordinator's
+pending-task queue depth. Track as a small future cascor sub-track.
 
 ### Q4. Two cascor histograms still flagged "tentative pending R5.1"
 
