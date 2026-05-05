@@ -2,10 +2,43 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # Juniper Deploy — AlertManager Configuration
 # Receives alerts from Prometheus and routes them to notification channels.
+#
+# Notification wiring (OBS-ROUTE-01, juniper-deploy#TBD):
+#   - All three receivers (`default`, `critical`, `tickets`) are wired to
+#     SMTP email per state-analysis §4 Option B (juniper-ml#197).
+#   - SMTP credentials live in the Docker secret
+#     `alertmanager_smtp_password` (file path from
+#     `${ALERTMANAGER_SMTP_PASSWORD_FILE}`); the canonical encrypted copy is
+#     `.env.secrets.enc` (see notes/ALERTMANAGER_NOTIFICATION_RUNBOOK.md).
+#   - Non-secret SMTP fields (smarthost, from, recipients, auth_username)
+#     are baked into this file as plain values.  The repo ships placeholder
+#     values flagged `CHANGE_BEFORE_PRODUCTION_USE`; rotate before paging
+#     matters.  Alertmanager does NOT natively substitute environment
+#     variables in YAML (only `_file:` indirection is honored), so plain
+#     literals + Docker-secret-file reference are the supported path.
+#
+# Routing tree summary (severity -> receiver):
+#   critical, page                 -> `critical` (1h cadence)
+#   ticket   (R5.4 slow-burn)      -> `tickets`  (12h cadence)
+#   warning, info  (B.1 fold-in)   -> `tickets`  (24h cadence, longer
+#                                                 group_wait to keep them
+#                                                 from drowning out the
+#                                                 R5.4 slow-burn alerts)
+#   anything else                  -> `default`  (4h cadence safety net)
 # ═══════════════════════════════════════════════════════════════════════════
 
 global:
   resolve_timeout: 5m
+
+  # SMTP global config — applied to every email_config below unless
+  # overridden per-receiver.  Replace placeholder values before
+  # production paging matters.  See notes/ALERTMANAGER_NOTIFICATION_RUNBOOK.md
+  # for rotation procedure.
+  smtp_smarthost: "smtp.gmail.com:587"  # CHANGE_BEFORE_PRODUCTION_USE
+  smtp_from: "juniper-alerts@example.com"  # CHANGE_BEFORE_PRODUCTION_USE
+  smtp_auth_username: "juniper-alerts@example.com"  # CHANGE_BEFORE_PRODUCTION_USE
+  smtp_auth_password_file: /run/secrets/alertmanager_smtp_password
+  smtp_require_tls: true
 
 route:
   receiver: "default"
@@ -14,6 +47,7 @@ route:
   group_interval: 5m
   repeat_interval: 4h
   routes:
+    # === Pager-tier ===
     - receiver: "critical"
       match:
         severity: critical
@@ -21,14 +55,17 @@ route:
       repeat_interval: 1h
     # METRICS-MON R5.4 burn-rate alerts use Google SRE Workbook MWMBR
     # severity labels (`page` / `ticket`).  `page` is a peer of
-    # `critical` — same on-call escalation cadence.  `ticket` routes
-    # to a non-paging channel so slow-burn alerts create a ticket but
-    # do not wake on-call.
+    # `critical` — same on-call escalation cadence.
     - receiver: "critical"
       match:
         severity: page
       group_wait: 10s
       repeat_interval: 1h
+
+    # === Ticket-tier (R5.4 slow-burn) ===
+    # Non-paging channel for R5.4 slow-burn burn-rate alerts.  Email
+    # delivery via the `tickets` receiver; cadence chosen so a slow-burn
+    # alert produces at most one email per 12h.
     - receiver: "tickets"
       match:
         severity: ticket
@@ -36,33 +73,77 @@ route:
       group_interval: 10m
       repeat_interval: 12h
 
+    # === Low-priority tier — B.1 fold-in (warning / info) ===
+    # Pre-R5.4 R-series alerts (HighErrorRate, HighLatency,
+    # TrainingStalled, TrainingLossNotDecreasing,
+    # LowCandidateCorrelation, DatasetGenerationFailures,
+    # SlowDatasetGeneration, NoWebSocketConnections) emit `severity:
+    # warning` or `severity: info`.  Pre-OBS-ROUTE-01 these fell through
+    # to the unconfigured `default` receiver and were silently dropped.
+    # We route them to the same `tickets` mailbox but with a longer
+    # `repeat_interval` (24h) and a wider `group_by` so they do not
+    # drown out the slow-burn `severity: ticket` stream.  Operators who
+    # later want a separate low-priority distribution list can split
+    # this out into its own receiver — see runbook §3.
+    - receiver: "tickets"
+      match:
+        severity: warning
+      group_by: ["alertname", "service", "severity"]
+      group_wait: 2m
+      group_interval: 15m
+      repeat_interval: 24h
+    - receiver: "tickets"
+      match:
+        severity: info
+      group_by: ["alertname", "service", "severity"]
+      group_wait: 2m
+      group_interval: 15m
+      repeat_interval: 24h
+
 receivers:
-  # Configure notification channels here (email, Slack, PagerDuty, etc.)
-  # See: https://prometheus.io/docs/alerting/latest/configuration/#receiver
-  #
-  # Example — Slack:
-  # slack_configs:
-  #   - api_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
-  #     channel: "#juniper-alerts"
-  #     title: '{{ .GroupLabels.alertname }}'
-  #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+  # ─────────────────────────────────────────────────────────────────────
+  # default — safety-net receiver for any alert whose `severity` label
+  # does not match one of the explicit routes above.  Configured to
+  # email rather than silently drop, matching the OBS-ROUTE-01 fix for
+  # audit finding 3.2 / B.1.
+  # ─────────────────────────────────────────────────────────────────────
   - name: "default"
+    email_configs:
+      - to: "alerts-default@example.com"  # CHANGE_BEFORE_PRODUCTION_USE
+        send_resolved: true
+        headers:
+          Subject: "[Juniper {{ .CommonLabels.severity }}] {{ .CommonLabels.alertname }}"
 
-  # Critical / page receivers share this entry — high-priority routing
-  # for both `severity: critical` and `severity: page` (R5.4 burn-rate
-  # fast-burn / MWMBR pager alerts).  Configure with PagerDuty or
-  # similar for on-call escalation.
+  # ─────────────────────────────────────────────────────────────────────
+  # critical — high-priority routing for `severity: critical` and
+  # `severity: page` (R5.4 burn-rate fast-burn / MWMBR pager alerts).
+  # Email is the bootstrap path; OBS-ROUTE-02 will swap this for
+  # PagerDuty once on-call rotation is established.
+  # ─────────────────────────────────────────────────────────────────────
   - name: "critical"
+    email_configs:
+      - to: "alerts-critical@example.com"  # CHANGE_BEFORE_PRODUCTION_USE
+        send_resolved: true
+        headers:
+          Subject: "[Juniper {{ .CommonLabels.severity }}] {{ .CommonLabels.alertname }}"
 
-  # Tickets receiver — non-paging channel for `severity: ticket`
-  # (R5.4 burn-rate slow-burn alerts).  Should route to a
-  # ticket-tracker (Jira, GitHub Issues, low-priority Slack channel,
-  # email DL) — NOT to PagerDuty.
-  # PLACEHOLDER — configure before production use.  Until configured
-  # this receiver silently drops alerts, which is acceptable for the
-  # R5.4 30-day soak (catalog §2.6) but MUST be wired before lifting
-  # log-only severity on SLO 3.3 / 3.4.
+  # ─────────────────────────────────────────────────────────────────────
+  # tickets — non-paging channel.  Receives:
+  #   - `severity: ticket`   (R5.4 burn-rate slow-burn) every 12h
+  #   - `severity: warning`  (B.1 fold-in) every 24h
+  #   - `severity: info`     (B.1 fold-in) every 24h
+  # All three streams land in the same mailbox; the email Subject
+  # carries the severity so a downstream filter (Gmail label, Jira
+  # mailhook) can split them.  Operators who want a separate
+  # low-priority destination should split warning/info out into a new
+  # receiver — see runbook §3.
+  # ─────────────────────────────────────────────────────────────────────
   - name: "tickets"
+    email_configs:
+      - to: "alerts-tickets@example.com"  # CHANGE_BEFORE_PRODUCTION_USE
+        send_resolved: true
+        headers:
+          Subject: "[Juniper {{ .CommonLabels.severity }}] {{ .CommonLabels.alertname }}"
 
 inhibit_rules:
   # If a service is down, suppress its latency and error rate alerts.
