@@ -513,6 +513,16 @@ services:
       - "127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"
     volumes:
       - ./alertmanager:/etc/alertmanager:ro
+    # OBS-ROUTE-01: SMTP password for email receivers is mounted as a
+    # Docker secret (NOT an env var) and referenced by alertmanager.yml
+    # via `smtp_auth_password_file: /run/secrets/alertmanager_smtp_password`.
+    # Alertmanager does not natively substitute env vars in YAML, so the
+    # `_file:` indirection is the supported path.  The file at
+    # ${ALERTMANAGER_SMTP_PASSWORD_FILE} is the real secret-of-record
+    # source; the canonical encrypted copy lives in `.env.secrets.enc`.
+    # See notes/ALERTMANAGER_NOTIFICATION_RUNBOOK.md.
+    secrets:
+      - alertmanager_smtp_password
     networks:
       - monitoring
     healthcheck:
@@ -611,6 +621,14 @@ secrets:
     file: "${CASCOR_AUTH_TOKEN_FILE:-./secrets.example/cascor_auth_token.txt}"
   grafana_admin_password:
     file: "${GRAFANA_ADMIN_PASSWORD_FILE:-./secrets.example/grafana_admin_password.txt}"
+  # OBS-ROUTE-01: SMTP auth password for the alertmanager email receivers
+  # (`default`, `critical`, `tickets`).  Default points at the example
+  # placeholder so `docker compose --profile observability up` works
+  # out of the box; the canonical encrypted copy lives in `.env.secrets.enc`.
+  # Decrypt + write to `secrets/alertmanager_smtp_password.txt` before
+  # production paging matters.  See notes/ALERTMANAGER_NOTIFICATION_RUNBOOK.md.
+  alertmanager_smtp_password:
+    file: "${ALERTMANAGER_SMTP_PASSWORD_FILE:-./secrets.example/alertmanager_smtp_password.txt}"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Networks
