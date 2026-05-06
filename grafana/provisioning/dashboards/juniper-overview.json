@@ -362,22 +362,45 @@
     },
     {
       "type": "row",
-      "title": "Pending R4.4 — worker heartbeat Prometheus bridge",
+      "title": "Worker Heartbeat (R5.4-pre)",
+      "description": "Cross-cutting worker heartbeat aggregations bridged via WorkerRegistryCollector (juniper-cascor#188). Per-worker breakdowns live on the JuniperCascor dashboard.",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 37 },
-      "collapsed": true,
-      "panels": [
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Cascor worker GPU saturation (max across workers)",
+      "description": "Highest per-worker GPU utilization across the fleet — saturation indicator for cascor worker capacity.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 38 },
+      "targets": [
         {
-          "type": "text",
-          "title": "Cascor worker GPU saturation (Prometheus bridge pending)",
-          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 38 },
-          "options": {
-            "mode": "markdown",
-            "content": "**Status:** placeholder — the cross-cutting tile for `max(juniper_cascor_worker_gpu_utilization_pct)` (and the related `last_task_duration_seconds` / `recent_task_durations_seconds` aggregations) cannot be drawn yet because the worker heartbeat fields are exposed only as JSON on `/v1/workers`, not on Prometheus `/metrics`.\n\n**Verified on `origin/main` of juniper-cascor:**\n- Heartbeat fields defined: `juniper-cascor/src/api/workers/registry.py:60-62`.\n- JSON exposure: `juniper-cascor/src/api/workers/routes.py:55-57`.\n- No Prometheus `Gauge` / `Histogram` instantiation under `juniper-cascor/src/api/workers/`.\n\n**Planned tile** (after the bridge ships):\n```\nmax(juniper_cascor_worker_gpu_utilization_pct)\n```\n\n**Tracking:** see the `Pending R4.4 — worker heartbeat Prometheus bridge` row on the JuniperCascor dashboard for the bridge entry point. New sub-track candidate: `R5.x` or Phase-6 follow-up."
+          "expr": "max(juniper_cascor_worker_gpu_utilization_pct)",
+          "legendFormat": "max GPU utilization (%)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]
           }
         }
-      ]
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      }
     }
   ],
   "schemaVersion": 39,
-  "version": 3
+  "version": 4
 }
