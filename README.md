@@ -2,6 +2,31 @@
 
 Docker Compose and integration tests for the Juniper ML ecosystem.
 
+> **⚠️ Before deploying anywhere reachable from a network**
+>
+> The `secrets.example/` directory ships placeholder files whose contents
+> are the literal string `CHANGE_BEFORE_PRODUCTION_USE`. The Docker
+> Compose `secrets:` block falls back to these placeholders when their
+> real counterparts in `secrets/` are absent, so the stack will boot
+> out-of-the-box for local experimentation — but the following files
+> **must** be populated with real values before exposing the stack
+> beyond `127.0.0.1`:
+>
+> - `secrets/juniper_data_api_keys.txt`
+> - `secrets/juniper_cascor_api_keys.txt` (and `juniper_cascor_api_key.txt`)
+> - `secrets/canopy_api_key.txt`
+> - `secrets/cascor_auth_token.txt`
+> - `secrets/cascor_sentry_dsn.txt` (only if Sentry is enabled)
+> - `secrets/grafana_admin_password.txt` (only if running the
+>   `observability` profile)
+> - `secrets/alertmanager_smtp_password.txt` (only if alert email
+>   delivery is enabled)
+>
+> Run `make prepare-secrets` to scaffold the directory, then see
+> [`docs/SECRETS_ONBOARDING.md`](docs/SECRETS_ONBOARDING.md) for the
+> SOPS-encrypted-canonical-copy workflow. Default `BIND_HOST=127.0.0.1`
+> keeps published ports loopback-only until you opt in via `.env`.
+
 ## Overview
 
 This repository provides a single `make up` command that boots the entire Juniper stack locally — JuniperData, JuniperCascor, and juniper-canopy — with proper dependency ordering, health checks, and environment wiring.
