@@ -108,6 +108,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      # gitleaks-action v2.3.9 has no `fail` input (passing it triggers
+      # "Unexpected input(s) 'fail'" in CI). The action exits non-zero
+      # on leaks by default, which is the behavior we want.
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2.3.9
         env:
@@ -118,9 +121,6 @@ jobs:
           # the cutover. Drop this once gitleaks-action publishes a
           # release pinned to node24 (upstream PR #215).
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-        # gitleaks-action v2.3.9 has no `fail` input (passing it triggers
-        # "Unexpected input(s) 'fail'" in CI). The action exits non-zero
-        # on leaks by default, which is the behavior we want.
 
   # ═══════════════════════════════════════════════════════════════════════════
   # SOPS Encryption Validation
