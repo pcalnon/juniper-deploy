@@ -1,1 +1,1 @@
-your-canopy-api-key-here
+CHANGE_BEFORE_PRODUCTION_USE
