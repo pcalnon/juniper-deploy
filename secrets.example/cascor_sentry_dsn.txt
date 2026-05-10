@@ -1,1 +1,1 @@
-replace-with-real-dsn
+CHANGE_BEFORE_PRODUCTION_USE

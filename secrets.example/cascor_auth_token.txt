@@ -1,1 +1,1 @@
-change-me-cascor-auth-token
+CHANGE_BEFORE_PRODUCTION_USE

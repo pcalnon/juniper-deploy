@@ -70,8 +70,14 @@ esac
 ```dotenv
 sops_version=fake
 DATABASE_PASSWORD=hunter2
-AWS_SECRET_KEY=AKIAIOSFODNN7EXAMPLE
+AWS_SECRET_KEY=AKIA...EXAMPLE
 ```
+
+<!-- The middle of the AWS access-key example above is intentionally
+elided. The full canonical AWS docs example string would otherwise be
+flagged by gitleaks/secret scanners despite being a documented
+non-secret. -->
+
 
 This file would pass the pre-commit hook because `grep -q "^sops_"` matches `sops_version=fake`, despite all remaining lines being plaintext secrets.
 

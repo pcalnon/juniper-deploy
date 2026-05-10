@@ -1,1 +1,1 @@
-your-juniper-cascor-api-key-here
+CHANGE_BEFORE_PRODUCTION_USE

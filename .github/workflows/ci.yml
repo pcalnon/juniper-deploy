@@ -91,6 +91,38 @@ jobs:
           bash scripts/validate_sops_encryption.sh
 
   # ═══════════════════════════════════════════════════════════════════════════
+  # Gitleaks: Secret Detection (full git history)
+  # Mirrors the pattern used by juniper-cascor / juniper-data /
+  # juniper-canopy / juniper-ml. The .gitleaks.toml allowlist already
+  # exempts age public keys and SOPS ciphertext envelopes.
+  # ═══════════════════════════════════════════════════════════════════════════
+  gitleaks:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # gitleaks-action v2.3.9 ships as a Node.js 20 action.
+          # GitHub forces Node 24 on 2026-06-02; opt in now to eliminate
+          # the deprecation warning and ensure continued operation past
+          # the cutover. Drop this once gitleaks-action publishes a
+          # release pinned to node24 (upstream PR #215).
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+        # gitleaks-action v2.3.9 has no `fail` input (passing it triggers
+        # "Unexpected input(s) 'fail'" in CI). The action exits non-zero
+        # on leaks by default, which is the behavior we want.
+
+  # ═══════════════════════════════════════════════════════════════════════════
   # SOPS Encryption Validation
   # ═══════════════════════════════════════════════════════════════════════════
   sops-validation:
@@ -233,7 +265,7 @@ jobs:
     name: Quality Gate
     runs-on: ubuntu-latest
     if: always()
-    needs: [pre-commit, sops-validation, tests, validate-compose]
+    needs: [pre-commit, gitleaks, sops-validation, tests, validate-compose]
     steps:
       - name: Check Quality Gate Status
         run: |
@@ -242,6 +274,7 @@ jobs:
           echo "╚════════════════════════════════════════════════════════════╝"
           echo ""
           echo "Pre-commit:         ${{ needs.pre-commit.result }}"
+          echo "Gitleaks:           ${{ needs.gitleaks.result }}"
           echo "SOPS Validation:    ${{ needs.sops-validation.result }}"
           echo "Tests:              ${{ needs.tests.result }}"
           echo "Compose Validation: ${{ needs.validate-compose.result }}"
@@ -249,6 +282,11 @@ jobs:
 
           if [[ "${{ needs.pre-commit.result }}" != "success" ]]; then
             echo "::error::Pre-commit checks failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.gitleaks.result }}" != "success" ]]; then
+            echo "::error::Gitleaks secret scan failed"
             exit 1
           fi
 
