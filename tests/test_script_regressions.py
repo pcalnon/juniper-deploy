@@ -46,8 +46,8 @@ class _LiveServer(ThreadingHTTPServer):
 
 
 @contextmanager
-def _health_server(port: int, healthy: bool = True) -> Iterator[int]:
-    """Start a server on a specific port (the script uses hardcoded ports)."""
+def _health_server(port: int = 0, healthy: bool = True) -> Iterator[int]:
+    """Start a server on ``port`` (use the default ``0`` to pick a free port)."""
     server = _LiveServer(("localhost", port), healthy)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -59,9 +59,20 @@ def _health_server(port: int, healthy: bool = True) -> Iterator[int]:
         thread.join(timeout=2)
 
 
-def _run_wait_script(timeout: int, cascor_port: int = 8200) -> subprocess.CompletedProcess[str]:
+def _run_wait_script(
+    timeout: int,
+    *,
+    data_port: int,
+    cascor_port: int,
+    canopy_port: int,
+) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
+    # scripts/config.sh resolves these env vars (with fallbacks). Pass all
+    # three so the test never collides with a real juniper stack running on
+    # the default 8100/8201/8050.
+    env["JUNIPER_DATA_PORT"] = str(data_port)
     env["CASCOR_HOST_PORT"] = str(cascor_port)
+    env["CANOPY_PORT"] = str(canopy_port)
     return subprocess.run(
         ["bash", str(WAIT_SCRIPT), str(timeout)],
         cwd=REPO_ROOT,
@@ -76,11 +87,20 @@ def _run_wait_script(timeout: int, cascor_port: int = 8200) -> subprocess.Comple
 def test_wait_for_services_succeeds_when_all_ready_statuses() -> None:
     """Script reports success when all three liveness endpoints return 200."""
     with ExitStack() as stack:
-        stack.enter_context(_health_server(8100, healthy=True))
-        cascor_port = stack.enter_context(_health_server(0, healthy=True))
-        stack.enter_context(_health_server(8050, healthy=True))
+        # All three mock servers bind to ephemeral ports (port=0); the chosen
+        # ports are piped to the script via env vars. Binding to the default
+        # 8100/8201/8050 used to fail with EADDRINUSE whenever a real juniper
+        # stack was running on the same host (the common dev case).
+        data_port = stack.enter_context(_health_server(healthy=True))
+        cascor_port = stack.enter_context(_health_server(healthy=True))
+        canopy_port = stack.enter_context(_health_server(healthy=True))
 
-        result = _run_wait_script(timeout=5, cascor_port=cascor_port)
+        result = _run_wait_script(
+            timeout=5,
+            data_port=data_port,
+            cascor_port=cascor_port,
+            canopy_port=canopy_port,
+        )
 
     combined = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, combined
@@ -91,11 +111,16 @@ def test_wait_for_services_succeeds_when_all_ready_statuses() -> None:
 def test_wait_for_services_fails_when_service_reports_non_ready_status() -> None:
     """Script times out when a service returns non-200 on liveness."""
     with ExitStack() as stack:
-        stack.enter_context(_health_server(8100, healthy=True))
-        cascor_port = stack.enter_context(_health_server(0, healthy=False))
-        stack.enter_context(_health_server(8050, healthy=True))
+        data_port = stack.enter_context(_health_server(healthy=True))
+        cascor_port = stack.enter_context(_health_server(healthy=False))
+        canopy_port = stack.enter_context(_health_server(healthy=True))
 
-        result = _run_wait_script(timeout=0, cascor_port=cascor_port)
+        result = _run_wait_script(
+            timeout=0,
+            data_port=data_port,
+            cascor_port=cascor_port,
+            canopy_port=canopy_port,
+        )
 
     combined = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 1, combined
