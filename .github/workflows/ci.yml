@@ -81,7 +81,7 @@ jobs:
           SKIP: docker-compose-check
         run: |
           echo "╔════════════════════════════════════════════════════════════╗"
-          echo "║       juniper-deploy - Pre-commit Checks                  ║"
+          echo "║       juniper-deploy - Pre-commit Checks                   ║"
           echo "╚════════════════════════════════════════════════════════════╝"
           pre-commit run --all-files --show-diff-on-failure
 
@@ -149,7 +149,7 @@ jobs:
         if: steps.check-enc.outputs.skip != 'true'
         run: |
           echo "╔════════════════════════════════════════════════════════════╗"
-          echo "║       juniper-deploy - SOPS Structural Validation         ║"
+          echo "║       juniper-deploy - SOPS Structural Validation          ║"
           echo "╚════════════════════════════════════════════════════════════╝"
           exit_code=0
           for file in $(find . -name '*.env.enc' -o -name '*.env.secrets.enc'); do
@@ -206,7 +206,7 @@ jobs:
       - name: Run pytest
         run: |
           echo "╔════════════════════════════════════════════════════════════╗"
-          echo "║       juniper-deploy - Unit Tests                         ║"
+          echo "║       juniper-deploy - Unit Tests                          ║"
           echo "╚════════════════════════════════════════════════════════════╝"
           pytest tests/ -v --tb=short
 
@@ -235,7 +235,7 @@ jobs:
       - name: Validate all profiles
         run: |
           echo "╔════════════════════════════════════════════════════════════╗"
-          echo "║       juniper-deploy - Compose Config Validation          ║"
+          echo "║       juniper-deploy - Compose Config Validation           ║"
           echo "╚════════════════════════════════════════════════════════════╝"
           exit_code=0
           for profile in full demo dev test observability; do
@@ -270,7 +270,7 @@ jobs:
       - name: Check Quality Gate Status
         run: |
           echo "╔════════════════════════════════════════════════════════════╗"
-          echo "║       juniper-deploy - Quality Gate Status                ║"
+          echo "║       juniper-deploy - Quality Gate Status                 ║"
           echo "╚════════════════════════════════════════════════════════════╝"
           echo ""
           echo "Pre-commit:         ${{ needs.pre-commit.result }}"
