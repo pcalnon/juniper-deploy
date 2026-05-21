@@ -39,7 +39,7 @@ repos:
     rev: v1.35.1
     hooks:
       - id: yamllint
-        args: ['--strict', '-d', '{extends: default, rules: {line-length: {max: 512}, truthy: disable}}']
+        args: ['--format', 'parsable', '--strict']
         types: [yaml]
         exclude: ^k8s/helm/.*/templates/
 
