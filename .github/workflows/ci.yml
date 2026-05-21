@@ -210,6 +210,21 @@ jobs:
           echo "╚════════════════════════════════════════════════════════════╝"
           pytest tests/ -v --tb=short
 
+      # Catches the failure class that broke 3 juniper-X CIs on
+      # 2026-05-18: a workflow that invokes ``python|bash <path>`` after
+      # the path was renamed or moved. The test discovers this repo
+      # root via a ``.github/workflows/`` walk-up (location-agnostic),
+      # so the file at util/test_workflow_script_paths.py can be moved
+      # around freely. Mirror of juniper-ml#267's per-PR lint, ported
+      # to deploy per juniper-ml notes/CI_CLEANUP.md item 3.
+      # PyYAML is already installed via requirements-test.txt above.
+      - name: Lint .github/workflows/ script paths
+        run: |
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║       Workflow script-path lint                            ║"
+          echo "╚════════════════════════════════════════════════════════════╝"
+          python3 -m unittest -v util/test_workflow_script_paths.py
+
   # ═══════════════════════════════════════════════════════════════════════════
   # Docker Compose: Validate configuration for all profiles
   # ═══════════════════════════════════════════════════════════════════════════
