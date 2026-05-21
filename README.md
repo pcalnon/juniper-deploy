@@ -1,6 +1,21 @@
-# juniper-deploy
+<!-- markdownlint-disable MD013 MD033 MD041 -->
+<!--
+  MD013 (line-length): README contains prose paragraphs that intentionally
+                       exceed the 512-char ecosystem limit. Disabled file-wide
+                       since wrapping mid-sentence harms PyPI rendering.
+  MD033 (no-inline-html): The right-aligned logo + spacing rely on HTML.
+  MD041 (first-line-heading): The HTML logo is the first line by design.
+-->
+<div align="right" width="150px" height="150px" align="right" valign="top"> <img src="images/Juniper_Logo_150px.png" alt="Juniper" align="right" valign="top" width="150px" /></div>
+<br /> <br /> <br /> <br />
 
-Docker Compose and integration tests for the Juniper ML ecosystem.
+# Juniper: Dynamic Neural Network Research Platform
+
+Juniper is an AI/ML research platform for investigating dynamic neural network architectures and novel learning paradigms.  The project emphasizes ground-up implementations from primary literature, enabling a more transparent exploration of fundamental algorithms.
+
+## Juniper Deploy
+
+`juniper-deploy` is the **Docker Compose orchestration repository** for the full Juniper stack. It manages service dependency ordering, health-gated startup, environment-variable wiring, Docker-secret distribution, network isolation, container hardening, and the observability stack (Prometheus, AlertManager, Grafana) across the four operational profiles — `full`, `demo`, `dev`, and the additive `observability` profile. The repository is consumed directly via `git clone`; it is not distributed as a Python package, and it does not own service code. Operators interact with it through a 23-target Makefile that wraps Docker Compose; integration tests run either inside a `test-runner` container or against a started stack from the host.
 
 > **⚠️ Before deploying anywhere reachable from a network**
 >
@@ -27,87 +42,190 @@ Docker Compose and integration tests for the Juniper ML ecosystem.
 > SOPS-encrypted-canonical-copy workflow. Default `BIND_HOST=127.0.0.1`
 > keeps published ports loopback-only until you opt in via `.env`.
 
-## Overview
+## Distribution
 
-This repository provides a single `make up` command that boots the entire Juniper stack locally — JuniperData, JuniperCascor, and juniper-canopy — with proper dependency ordering, health checks, and environment wiring.
-
-## Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/) >= 24.0 with Compose v2 >= 2.20
-- [GNU Make](https://www.gnu.org/software/make/) >= 4.0
-- All Juniper service repositories cloned as siblings of this directory:
-
-  ```text
-  Juniper/
-  ├── juniper-deploy/          ← this repo
-  ├── juniper-data/
-  ├── juniper-cascor/
-  └── juniper-canopy/
-  ```
-
-## Quick Start
+`juniper-deploy` is not distributed as a Python package. The repository is
+consumed directly via `git clone` and orchestrates the published Juniper
+service images through Docker Compose. The platform meta-package
+[`juniper-ml`](https://pypi.org/project/juniper-ml/) provides the Python
+client libraries used in standalone client work.
 
 ```bash
-# Build and start all services (full stack)
-make build && make up
-
-# Check health
-make health
-
-# Follow logs
-make logs
-
-# Stop all services
-make down
-
-# See all available targets
-make help
+git clone https://github.com/pcalnon/juniper-deploy.git
 ```
 
-## Profiles
+## Ecosystem Compatibility
 
-Docker Compose profiles control which services start for each operational mode:
+This orchestration repository is part of the [Juniper](https://github.com/pcalnon/juniper-ml) ecosystem.
+Verified compatible versions:
 
-| Profile | Command | Services | Use Case |
-|---------|---------|----------|----------|
-| `full` | `make up` | juniper-data, juniper-cascor, juniper-canopy | Production-like stack |
-| `demo` | `make demo` | juniper-data, demo-seed, juniper-cascor-demo, juniper-canopy-demo | Self-running demo with auto-configured training |
-| `dev` | `make dev` | juniper-data, juniper-cascor, juniper-canopy-dev | Frontend development (canopy in demo mode) |
-| `test` | `make test` | juniper-data, juniper-cascor, juniper-canopy, test-runner | Integration test suite |
-| `observability` | `make monitor` | prometheus, grafana (additive — use with `full`) | Prometheus + Grafana monitoring |
+| juniper-data | juniper-cascor | juniper-canopy | data-client | cascor-client | cascor-worker |
+|--------------|----------------|----------------|-------------|---------------|---------------|
+| 0.6.x        | 0.4.x          | 0.4.x          | >=0.4.1     | >=0.4.0       | >=0.3.0       |
+
+The service images are built from sibling repositories that must be cloned next to `juniper-deploy/`. See [Quick Start Guide](#quick-start-guide) for the expected layout.
+
+## Architecture
+
+`juniper-deploy` orchestrates twelve containers across four Docker Compose profiles. The diagram below shows the runtime dependency graph for the production-like `full` profile, plus the additive `observability` profile.
+
+```text
+        ┌─────────────────────────────────────────────────────┐
+        │                  observability (add-on)             │
+        │                                                     │
+        │   alertmanager (9093) ◀── prometheus (9090)         │
+        │                                  │                  │
+        │                                  ▼                  │
+        │                            grafana (3000)           │
+        └─────────────────────────────────────────────────────┘
+                                  ▲ scrape
+                                  │
+        ┌─────────────────────────┴───────────────────────────┐
+        │                       full                          │
+        │                                                     │
+        │   juniper-canopy (8050) ──▶ juniper-cascor (8201)   │
+        │            │                       │                │
+        │            │                       ▼                │
+        │            └────────────▶ juniper-data (8100)       │
+        │                                                     │
+        │                            redis (6379)             │
+        └─────────────────────────────────────────────────────┘
+```
+
+The `demo`, `dev`, and `test` profiles substitute service variants — `juniper-cascor-demo` and `juniper-canopy-demo` for `demo`, `juniper-canopy-dev` for `dev` — but preserve the dependency shape: every variant of canopy depends on a healthy data service, and every variant of cascor depends on a healthy data service. Internal services (`juniper-data`, `redis`, the entire observability stack) bind to `127.0.0.1` on the host; external-facing services (`juniper-cascor`, `juniper-canopy`) bind to `0.0.0.0` by default. Four Docker networks (`frontend`, `backend` — internal, `data` — internal, `monitoring`) enforce service-to-service communication boundaries.
+
+## Related Services
+
+| Component | Relationship | Notes |
+|-----------|-------------|-------|
+| [juniper-data](https://github.com/pcalnon/juniper-data) | Orchestrated service — dataset generation REST API on `127.0.0.1:8100` | Profiles: `full`, `demo`, `dev`, `test` |
+| [juniper-cascor](https://github.com/pcalnon/juniper-cascor) | Orchestrated service — CasCor training service on `0.0.0.0:8201` | Profiles: `full`, `dev`, `test`; `demo` uses `juniper-cascor-demo` variant |
+| [juniper-canopy](https://github.com/pcalnon/juniper-canopy) | Orchestrated service — real-time monitoring dashboard on `0.0.0.0:8050` | Profiles: `full`, `test`; `demo` uses `juniper-canopy-demo`; `dev` uses `juniper-canopy-dev` |
+| [juniper-cascor-worker](https://github.com/pcalnon/juniper-cascor-worker) | Orchestrated service — distributed candidate-training worker (`WORKER_REPLICAS=2` by default) | Mounted into the cascor backend network |
+| [juniper-ml](https://github.com/pcalnon/juniper-ml) | Platform meta-package on PyPI — `pip install juniper-ml[all]` for standalone client work against the running stack | The repository's `clients` extra resolves `juniper-data-client` + `juniper-cascor-client` against the same compatibility row as this orchestration |
+
+## Service Configuration
+
+All values use `${VAR:-default}` substitution in [`docker-compose.yml`](docker-compose.yml). Copy `.env.example` to `.env` to override.
+
+### Core Service Configuration
+
+| Variable | Service | Default | Notes |
+|----------|---------|---------|-------|
+| `JUNIPER_DATA_HOST` | juniper-data | `0.0.0.0` | |
+| `JUNIPER_DATA_PORT` | juniper-data | `8100` | |
+| `JUNIPER_DATA_LOG_LEVEL` | juniper-data | `INFO` | |
+| `CASCOR_HOST` | juniper-cascor | `0.0.0.0` | Maps to `JUNIPER_CASCOR_HOST` in container |
+| `CASCOR_PORT` | juniper-cascor | `8200` | Internal container port; maps to `JUNIPER_CASCOR_PORT` |
+| `CASCOR_HOST_PORT` | juniper-cascor | `8201` | Host-exposed port (avoids port 8200 conflicts) |
+| `CASCOR_LOG_LEVEL` | juniper-cascor | `INFO` | Maps to `JUNIPER_CASCOR_LOG_LEVEL` in container |
+| `CANOPY_HOST` | juniper-canopy | `0.0.0.0` | |
+| `CANOPY_PORT` | juniper-canopy | `8050` | |
+| `BIND_HOST` | all published ports | `127.0.0.1` | Loopback-only by default; set to `0.0.0.0` to expose on all interfaces |
+
+### Inter-Service URLs
+
+| Variable | Service | Default |
+|----------|---------|---------|
+| `JUNIPER_DATA_URL` | juniper-cascor, juniper-canopy | `http://juniper-data:8100` |
+| `CASCOR_SERVICE_URL` | juniper-canopy | `http://juniper-cascor:8200` |
+
+### API Security
+
+| Variable | Service | Default | Notes |
+|----------|---------|---------|-------|
+| `JUNIPER_DATA_API_KEYS` | juniper-data | *(unset — auth disabled)* | |
+| `JUNIPER_CASCOR_API_KEYS` | juniper-cascor | *(unset — auth disabled)* | |
+| `CANOPY_API_KEY` | juniper-canopy | *(unset — auth disabled)* | Also distributed via Docker secret |
+| `JUNIPER_CASCOR_RATE_LIMIT_ENABLED` | juniper-cascor | `true` | |
+| `JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-cascor | `60` | |
+| `CANOPY_RATE_LIMIT_ENABLED` | juniper-canopy | `true` | Maps to `JUNIPER_CANOPY_RATE_LIMIT_ENABLED` |
+| `CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-canopy | `60` | Maps to `JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` |
+| `JUNIPER_DATA_API_KEY` | juniper-cascor | *(from `JUNIPER_DATA_API_KEYS`)* | CasCor's credential for JuniperData |
+| `JUNIPER_CASCOR_API_KEY` | juniper-canopy | *(from `JUNIPER_CASCOR_API_KEYS`)* | Canopy's credential for CasCor |
+
+### Observability
+
+| Variable | Service | Default |
+|----------|---------|---------|
+| `JUNIPER_DATA_LOG_FORMAT` | juniper-data | `text` |
+| `JUNIPER_DATA_SENTRY_DSN` | juniper-data | *(unset)* |
+| `JUNIPER_DATA_METRICS_ENABLED` | juniper-data | `false` |
+| `JUNIPER_CASCOR_LOG_FORMAT` | juniper-cascor | `text` |
+| `JUNIPER_CASCOR_SENTRY_DSN` | juniper-cascor | *(unset)* |
+| `JUNIPER_CASCOR_METRICS_ENABLED` | juniper-cascor | `false` |
+| `CANOPY_LOG_FORMAT` | juniper-canopy | `text` |
+| `CANOPY_SENTRY_DSN` | juniper-canopy | *(unset)* |
+| `CANOPY_METRICS_ENABLED` | juniper-canopy | `false` |
+
+`.env.observability` flips the three `*_METRICS_ENABLED` flags to `true` and is loaded automatically by `make monitor` / `make obs` / `make obs-demo`.
 
 ### Demo Profile
 
-The demo profile starts a fully self-running demo stack. On startup:
+| Variable | Service | Default |
+|----------|---------|---------|
+| `JUNIPER_CANOPY_DEMO_MODE` | juniper-canopy-dev | `true` |
+| `JUNIPER_CASCOR_AUTO_START` | juniper-cascor-demo | `true` |
+| `JUNIPER_CASCOR_AUTO_DATASET` | juniper-cascor-demo | `spiral` |
+| `JUNIPER_CASCOR_AUTO_DATASET_PARAMS` | juniper-cascor-demo | JSON params |
+| `JUNIPER_CASCOR_AUTO_NETWORK` | juniper-cascor-demo | JSON config |
+| `JUNIPER_CASCOR_AUTO_TRAIN_EPOCHS` | juniper-cascor-demo | `500` |
 
-1. **juniper-data** starts and becomes healthy
-2. **demo-seed** seeds a canonical spiral dataset (2-spiral, 400 points, seed=42)
-3. **juniper-cascor-demo** starts with auto-start training enabled — creates a network and begins training automatically
-4. **juniper-canopy-demo** connects to the demo CasCor and shows live training metrics
+### Infrastructure Services
 
-```bash
-# Start the demo
-make demo
+| Variable | Service | Default | Notes |
+|----------|---------|---------|-------|
+| `REDIS_PORT` | redis | `6379` | No host binding — accessible only on the `backend` network |
+| `REDIS_MAX_MEMORY` | redis | `100mb` | |
+| `WORKER_REPLICAS` | juniper-cascor-worker | `2` | Number of worker replicas |
 
-# Follow logs to watch training progress
-make logs
+### Docker Secret File Variables
 
-# Open the dashboard
-# http://localhost:8050
+These environment variables point containers to their mounted Docker secret files. They are set automatically in `docker-compose.yml` and should not need manual configuration.
 
-# Stop the demo
-make down
+| Variable | Service | Value |
+|----------|---------|-------|
+| `JUNIPER_DATA_API_KEYS_FILE` | juniper-data | `/run/secrets/juniper_data_api_keys` |
+| `JUNIPER_CASCOR_API_KEYS_FILE` | juniper-cascor | `/run/secrets/juniper_cascor_api_keys` |
+| `JUNIPER_DATA_API_KEY_FILE` | juniper-cascor | `/run/secrets/juniper_data_api_keys` |
+| `CANOPY_API_KEY_FILE` | juniper-canopy | `/run/secrets/canopy_api_key` |
+| `JUNIPER_CASCOR_API_KEY_FILE` | juniper-canopy | `/run/secrets/juniper_cascor_api_keys` |
+| `CASCOR_AUTH_TOKEN_FILE` | juniper-cascor-worker | `/run/secrets/cascor_auth_token` |
+| `GF_SECURITY_ADMIN_PASSWORD__FILE` | grafana | `/run/secrets/grafana_admin_password` |
+
+The Grafana admin password is **Docker-secret-only** — there is no environment-variable fallback. Set the password by writing it to `secrets/grafana_admin_password.txt` before starting the `observability` profile.
+
+### Healthcheck Tuning
+
+All container healthchecks reference shared YAML anchors (`x-healthcheck-defaults`, `x-healthcheck-cascor`, `x-healthcheck-canopy`, `x-healthcheck-worker`, `x-healthcheck-redis`). Override the interval/timeout/retries/start-period values via `HEALTHCHECK_*`, `CASCOR_HEALTHCHECK_*`, `CANOPY_HEALTHCHECK_*`, `WORKER_HEALTHCHECK_*`, and `REDIS_HEALTHCHECK_*` environment variables. See [`docs/REFERENCE.md`](docs/REFERENCE.md) for the full list of overrideable healthcheck variables.
+
+## Docker Deployment
+
+`juniper-deploy` is itself the canonical Docker Compose orchestration for the Juniper platform — every other repository's Docker-Deployment section points back here. The configuration of record is [`docker-compose.yml`](docker-compose.yml); operator-facing commands are wrapped by the [Makefile](Makefile).
+
+### Profiles
+
+| Profile | Command | Services | Use Case |
+|---------|---------|----------|----------|
+| `full` | `make up` | juniper-data, juniper-cascor, juniper-canopy, redis | Production-like stack |
+| `demo` | `make demo` | juniper-data, demo-seed, juniper-cascor-demo, juniper-canopy-demo | Self-running demo with auto-configured training |
+| `dev` | `make dev` | juniper-data, juniper-cascor, juniper-canopy-dev | Frontend development (canopy in demo mode) |
+| `test` | `make test` | juniper-data, juniper-cascor, juniper-canopy, test-runner | Integration test suite |
+| `observability` | `make monitor` | prometheus, alertmanager, grafana (additive — combine with `full` or `demo`) | Prometheus + AlertManager + Grafana monitoring |
+
+The `demo` and `full` profiles cannot be run simultaneously — they bind to the same host ports. The `observability` profile is additive.
+
+#### Demo Profile Startup Sequence
+
+```text
+1. juniper-data starts and becomes healthy
+2. demo-seed seeds a canonical spiral dataset (2-spiral, 400 points, seed=42)
+3. juniper-cascor-demo starts with JUNIPER_CASCOR_AUTO_START=true,
+   creates a network, and begins training automatically
+4. juniper-canopy-demo connects to juniper-cascor-demo and renders live metrics
 ```
 
-The demo auto-start parameters (dataset, network config, epochs) can be customized in `.env.demo`.
-
-### Dev Profile
-
-The dev profile runs real data and CasCor services with Canopy in demo mode (no backend dependency). Useful for frontend development on juniper-canopy.
-
-```bash
-make dev
-```
+Demo auto-start parameters (dataset, network config, epochs) are tuned in `.env.demo`.
 
 ### Profile Service Matrix
 
@@ -121,12 +239,12 @@ make dev
 | juniper-canopy-dev | — | — | yes | — | — |
 | demo-seed | — | yes | — | — | — |
 | test-runner | — | — | — | yes | — |
+| redis | yes | — | — | — | — |
 | prometheus | — | — | — | — | yes |
+| alertmanager | — | — | — | — | yes |
 | grafana | — | — | — | — | yes |
 
-> **Note**: Do not run `demo` and `full` profiles simultaneously — they bind to the same host ports. The `observability` profile is additive — combine it with `full` or `demo`.
-
-### Available Targets
+### Makefile Targets
 
 | Target | Description |
 |--------|-------------|
@@ -135,77 +253,23 @@ make dev
 | `make demo` | Start demo stack (auto-configured training) |
 | `make dev` | Start dev stack (canopy in demo mode) |
 | `make test` | Run integration tests (starts services + test-runner) |
-| `make monitor` | Start full stack with observability (Prometheus + Grafana) |
+| `make monitor` / `make obs` | Start full stack with observability (Prometheus + Grafana) |
+| `make obs-demo` | Start demo stack with observability |
 | `make down` | Stop and remove all containers |
 | `make restart` | Restart all services |
-| `make logs` | Tail logs from all services (follow) |
-| `make logs-data` | Tail JuniperData logs |
-| `make logs-cascor` | Tail JuniperCascor logs |
-| `make logs-canopy` | Tail juniper-canopy logs |
-| `make status` | Show container status |
-| `make ps` | Compact container listing |
-| `make health` | Detailed health report for all services |
-| `make wait` | Block until all services are healthy |
-| `make build` | Build/rebuild all images |
-| `make build-no-cache` | Full rebuild without cache |
+| `make build` / `make build-no-cache` | Build/rebuild all images |
+| `make logs` / `make logs-{data,cascor,canopy}` | Tail logs |
+| `make status` / `make ps` | Container status |
+| `make health` / `make wait` | Health report / block until healthy |
+| `make shell-{data,cascor,canopy}` | Shell into a container |
+| `make prepare-secrets` | Scaffold `secrets/` from `secrets.example/` |
 | `make clean` | Remove containers, volumes, and local images |
-| `make obs` | Start full stack with observability (Prometheus + Grafana) |
-| `make obs-demo` | Start demo stack with observability (Prometheus + Grafana) |
-| `make shell-data` | Shell into JuniperData container |
-| `make shell-cascor` | Shell into JuniperCascor container |
-| `make shell-canopy` | Shell into juniper-canopy container |
 
 You can also use `docker compose` commands directly — the Makefile is a convenience wrapper.
 
-## Services
+### Service Discovery and Health Endpoints
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| JuniperData | <http://localhost:8100> | Dataset generation REST API |
-| JuniperCascor | <http://localhost:8201> | CasCor neural network training service |
-| juniper-canopy | <http://localhost:8050> | Real-time monitoring dashboard |
-
-## Health Endpoints
-
-All services expose standardized health endpoints:
-
-```bash
-curl http://localhost:8100/v1/health        # juniper-data liveness
-curl http://localhost:8100/v1/health/ready  # juniper-data readiness
-curl http://localhost:8201/v1/health        # juniper-cascor liveness
-curl http://localhost:8201/v1/health/ready  # juniper-cascor readiness
-curl http://localhost:8050/v1/health        # juniper-canopy liveness
-curl http://localhost:8050/v1/health/ready  # juniper-canopy readiness
-```
-
-## Integration Tests
-
-### Containerized (recommended)
-
-```bash
-# Build and run tests in a container — services start automatically
-make test
-```
-
-The `test` profile starts juniper-data, juniper-cascor, and juniper-canopy, waits for healthy status, then runs the test suite in a `test-runner` container.
-
-### Host-based
-
-```bash
-# Start services and wait for healthy
-make build && make up && make wait
-
-# Run integration tests
-pip install -r requirements-test.txt
-pytest tests/ -v
-
-# Teardown
-make down
-```
-
-## Service Discovery
-
-Inside the Docker network, services communicate using Docker DNS. Each service name in `docker-compose.yml` becomes a hostname:
+Inside the Docker network, services communicate via Docker DNS:
 
 | From | To | Internal URL |
 |------|----|--------------|
@@ -213,234 +277,143 @@ Inside the Docker network, services communicate using Docker DNS. Each service n
 | juniper-canopy | juniper-data | `http://juniper-data:8100` |
 | juniper-canopy | juniper-cascor | `http://juniper-cascor:8200` |
 
-These URLs are set automatically via `JUNIPER_DATA_URL` and `CASCOR_SERVICE_URL` environment variables. Override them in `.env` only if running services outside Docker or on a custom network.
-
-## Environment Variables
-
-Copy `.env.example` to `.env` to override defaults. All values use `${VAR:-default}` substitution in `docker-compose.yml`.
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `JUNIPER_DATA_HOST` | `0.0.0.0` | JuniperData bind address |
-| `JUNIPER_DATA_PORT` | `8100` | JuniperData port |
-| `JUNIPER_DATA_LOG_LEVEL` | `INFO` | JuniperData log level |
-| `CASCOR_HOST` | `0.0.0.0` | JuniperCascor bind address |
-| `CASCOR_PORT` | `8200` | JuniperCascor internal container port |
-| `CASCOR_HOST_PORT` | `8201` | JuniperCascor host-exposed port (avoids conflicts with other services on 8200) |
-| `CASCOR_LOG_LEVEL` | `INFO` | JuniperCascor log level |
-| `CANOPY_HOST` | `0.0.0.0` | juniper-canopy bind address |
-| `CANOPY_PORT` | `8050` | juniper-canopy port |
-| `JUNIPER_DATA_URL` | `http://juniper-data:8100` | Inter-service URL for JuniperData |
-| `CASCOR_SERVICE_URL` | `http://juniper-cascor:8200` | Inter-service URL for JuniperCascor |
-| `JUNIPER_DATA_API_KEYS` | *(unset)* | API key(s) for juniper-data (comma-separated) |
-| `JUNIPER_CASCOR_API_KEYS` | *(unset)* | API key(s) for juniper-cascor (comma-separated) |
-| `JUNIPER_CANOPY_API_KEY` | *(unset)* | API key for juniper-canopy |
-| `JUNIPER_CASCOR_RATE_LIMIT_ENABLED` | `false` | Enable rate limiting for juniper-cascor |
-| `JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE` | `60` | Rate limit for juniper-cascor |
-| `JUNIPER_CANOPY_RATE_LIMIT_ENABLED` | `false` | Enable rate limiting for juniper-canopy |
-| `JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` | `60` | Rate limit for juniper-canopy |
-
-## Authentication
-
-API key authentication can be enabled per service by setting the corresponding environment variable in `.env`. When no key is configured for a service, all endpoints are open (development mode).
-
-### Docker Secret Files
-
-`docker-compose.yml` now mounts Docker secrets for API keys and Grafana admin credentials from local files in `secrets/`:
+All services expose `/v1/health` (liveness) and `/v1/health/ready` (readiness):
 
 ```bash
-mkdir -p secrets
-cp secrets.example/*.txt secrets/
+curl http://localhost:8100/v1/health        # juniper-data
+curl http://localhost:8201/v1/health        # juniper-cascor (host port)
+curl http://localhost:8050/v1/health        # juniper-canopy
+curl http://localhost:9090/-/healthy        # prometheus  (observability profile)
+curl http://localhost:9093/-/healthy        # alertmanager (observability profile)
+curl http://localhost:3000/api/health       # grafana      (observability profile)
 ```
 
-Expected local files:
+### Security Architecture
 
-- `secrets/juniper_data_api_keys.txt`
-- `secrets/juniper_cascor_api_keys.txt`
-- `secrets/canopy_api_key.txt`
-- `secrets/grafana_admin_password.txt`
+| Concern | Implementation |
+|---------|----------------|
+| **Network isolation** | Four networks: `frontend` (bridge), `backend` (internal), `data` (internal), `monitoring` (bridge). Internal networks have no external connectivity. |
+| **Container hardening** | All Juniper application containers set `security_opt: no-new-privileges:true` and `cap_drop: ALL`. |
+| **Port binding** | Internal services bind to `127.0.0.1` (loopback). External-facing services bind to `0.0.0.0`. Redis has no host binding. |
+| **Secrets** | API keys, the Grafana admin password, and the cascor auth token are distributed via Docker secrets mounted at `/run/secrets/<name>`. |
+| **Pinned third-party images** | `prom/prometheus:v3.10.0`, `prom/alertmanager:v0.28.1`, `grafana/grafana:12.4.0`, `redis:7.4-alpine`. |
 
-These files are consumed via `*_FILE` environment variables (for example, `JUNIPER_DATA_API_KEYS_FILE=/run/secrets/juniper_data_api_keys` and `GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana_admin_password`) while the existing env-var-based settings remain available in `.env`.
+### Integration Tests
 
-### Enabling API Keys
-
-```bash
-# .env
-JUNIPER_DATA_API_KEYS=my-data-secret-key
-JUNIPER_CASCOR_API_KEYS=my-cascor-secret-key
-JUNIPER_CANOPY_API_KEY=my-canopy-secret-key
-```
-
-Clients authenticate by including the key in the `X-API-Key` HTTP header:
+Two execution modes are supported:
 
 ```bash
-curl -H "X-API-Key: my-data-secret-key" http://localhost:8100/v1/datasets
-```
+# Containerized (recommended)
+make test                                                # starts services + test-runner
 
-### Exempt Endpoints
-
-Health, documentation, and monitoring endpoints are always accessible without authentication:
-
-| Endpoint Pattern | Exempt? |
-|-----------------|---------|
-| `/v1/health`, `/v1/health/live`, `/v1/health/ready` | Yes |
-| `/docs`, `/redoc`, `/openapi.json` | Yes |
-| `/dashboard/*` (juniper-canopy only) | Yes |
-
-### Inter-Service Authentication
-
-When API keys are enabled, downstream services automatically receive the upstream API key via environment variables in `docker-compose.yml`:
-
-| From | To | Env Var |
-|------|----|---------|
-| juniper-cascor | juniper-data | `JUNIPER_DATA_API_KEY` |
-| juniper-canopy | juniper-cascor | `JUNIPER_CASCOR_API_KEY` |
-
-### Rate Limiting
-
-Optional rate limiting can be enabled alongside API key authentication:
-
-```bash
-# .env
-JUNIPER_CASCOR_RATE_LIMIT_ENABLED=true
-JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE=60
-JUNIPER_CANOPY_RATE_LIMIT_ENABLED=true
-JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE=60
-```
-
-### WebSocket Authentication
-
-JuniperCascor WebSocket endpoints (`/ws/*`) require the `X-API-Key` header during the connection handshake when authentication is enabled. Connections without a valid key are closed with code `4001`.
-
-### Docker Compose Secrets
-
-For production deployments, sensitive values (API keys, DSNs) can be provided via Docker Compose file-based secrets instead of environment variables:
-
-1. Copy the template directory:
-
-   ```bash
-   cp -r secrets.example/ secrets/
-   ```
-
-2. Edit each file in `secrets/` with real values
-
-3. Secrets are mounted at `/run/secrets/<name>` inside the container
-
-The `secrets/` directory is git-ignored. See `secrets.example/` for the available secret files.
-
-### Integration Tests with Authentication
-
-When running tests against services with authentication enabled, pass API keys via environment variables:
-
-```bash
-JUNIPER_TEST_DATA_API_KEY=my-data-secret-key \
-JUNIPER_TEST_CASCOR_API_KEY=my-cascor-secret-key \
-JUNIPER_TEST_JUNIPER_CANOPY_API_KEY=my-canopy-secret-key \
+# Host-based
+make build && make up && make wait
+pip install -r requirements-test.txt
 pytest tests/ -v
+make down
 ```
 
-## Development
+Test markers (`health`, `data`, `full_stack`) and configurable service URLs (`JUNIPER_TEST_{DATA,CASCOR,CANOPY}_URL`) are documented in [`docs/testing/TESTING_QUICK_START.md`](docs/testing/TESTING_QUICK_START.md).
 
-For local development with hot-reloading, copy the override template:
+### Observability Stack
+
+The `observability` profile attaches Prometheus, AlertManager, and Grafana to a dedicated `monitoring` Docker network; Prometheus additionally joins `backend` and `data` so it can scrape internal service endpoints. Four dashboards auto-provision into the "Juniper" folder on startup: **Juniper Overview**, **JuniperData**, **JuniperCascor**, **JuniperCanopy**. Dashboard JSON files live in [`grafana/provisioning/dashboards/`](grafana/provisioning/dashboards/).
 
 ```bash
-cp docker-compose.override.yml.example docker-compose.override.yml
+make obs        # Full stack + Prometheus + AlertManager + Grafana
+make obs-demo   # Demo stack + Prometheus + AlertManager + Grafana
 ```
 
-Edit the override file to bind-mount source directories from sibling repos. Docker Compose automatically merges `docker-compose.override.yml` with `docker-compose.yml`. The override file is git-ignored.
-
-## Observability
-
-The Juniper stack supports structured JSON logging, Prometheus metrics with 23 custom application metrics, auto-provisioned Grafana dashboards, and Sentry error tracking. These features are disabled by default and can be enabled per service via environment variables.
-
-For comprehensive documentation, see [docs/OBSERVABILITY_GUIDE.md](docs/OBSERVABILITY_GUIDE.md).
-
-### Quick Start (Recommended)
-
-Use Makefile targets to start the stack with observability enabled:
-
-```bash
-make obs        # Full stack + Prometheus + Grafana
-make obs-demo   # Demo stack + Prometheus + Grafana
-```
-
-These targets automatically load `.env.observability`, which enables metrics on all services.
-
-Access dashboards:
+Access:
 
 - **Grafana**: <http://localhost:3000> (default login: `admin` / `admin`, unless overridden via `secrets/grafana_admin_password.txt`)
 - **Prometheus**: <http://localhost:9090>
+- **AlertManager**: <http://localhost:9093>
 
-Prometheus and Grafana are attached to a dedicated `monitoring` Docker network. Prometheus also joins `backend` and `data` so it can scrape internal service endpoints.
+For per-service metrics catalogues, Sentry wiring, structured-JSON logging, and AlertManager routing, see [`docs/OBSERVABILITY_GUIDE.md`](docs/OBSERVABILITY_GUIDE.md).
 
-### Grafana Dashboards
+## Stack Composition
 
-Four dashboards auto-provision into the "Juniper" folder on startup:
+> **Note** — per §10.8 of [`../juniper-ml/notes/README_NORMALIZATION_PLAN_2026-05-19.md`](../juniper-ml/notes/README_NORMALIZATION_PLAN_2026-05-19.md), the **Active Research Components** section is replaced by **Stack Composition** for this repository. `juniper-deploy` does not host research code of its own; its role is to assemble the platform's research components into a runnable stack and to expose the operational surface (profiles, secrets, networks, healthchecks, observability) under which those components are exercised.
 
-| Dashboard | Description |
-|-----------|-------------|
-| **Juniper Overview** (home) | Cross-service health, request rates, error rates, latency percentiles |
-| **JuniperData** | Dataset generation metrics, cache status, HTTP breakdown |
-| **JuniperCascor** | Training sessions, loss/accuracy, hidden units, inference metrics |
-| **JuniperCanopy** | WebSocket connections/messages, demo mode status |
+| Layer | Components Orchestrated | Profile(s) | Where the research lives |
+|-------|------------------------|------------|--------------------------|
+| **Training service** | [juniper-cascor](https://github.com/pcalnon/juniper-cascor), `juniper-cascor-demo` | `full`, `dev`, `test`, `demo` | Cascade-Correlation reference implementation, candidate-pool training, multi-network orchestration |
+| **Dataset service** | [juniper-data](https://github.com/pcalnon/juniper-data) | `full`, `demo`, `dev`, `test` | Named-version registry; ARC-AGI dataset families; canonical spiral seed dataset for the `demo` profile |
+| **Monitoring surface** | [juniper-canopy](https://github.com/pcalnon/juniper-canopy), `juniper-canopy-demo`, `juniper-canopy-dev` | `full`, `demo`, `dev`, `test` | Real-time training-dynamics visualisation, network-topology renderer, WebSocket control surface |
+| **Distributed worker** | [juniper-cascor-worker](https://github.com/pcalnon/juniper-cascor-worker) | `full` (via `WORKER_REPLICAS`) | Distributed candidate-unit training over the WebSocket worker protocol |
+| **Infrastructure** | `redis:7.4-alpine` | `full`, `test` | Canopy WebSocket cache and pub/sub fan-out |
+| **Observability** | `prom/prometheus:v3.10.0`, `prom/alertmanager:v0.28.1`, `grafana/grafana:12.4.0` | `observability` (additive) | Scrape configuration, alert rules, recording rules, and four auto-provisioned dashboards live under `prometheus/`, `alertmanager/`, and `grafana/provisioning/` in this repository |
 
-Dashboard JSON files are in `grafana/provisioning/dashboards/`.
+## Quick Start Guide
 
-### Custom Metrics
+### Prerequisites
 
-Each service exposes namespaced metrics (e.g., `juniper_data_dataset_generations_total`, `juniper_cascor_training_loss`, `juniper_canopy_websocket_connections_active`). See [docs/OBSERVABILITY_GUIDE.md](docs/OBSERVABILITY_GUIDE.md) for the full metrics catalog.
+- [Docker](https://docs.docker.com/get-docker/) ≥ 24.0 with Compose v2 ≥ 2.20
+- [GNU Make](https://www.gnu.org/software/make/) ≥ 4.0
+- All Juniper service repositories cloned as siblings of this directory:
 
-### Structured JSON Logging
+  ```text
+  Juniper/
+  ├── juniper-deploy/          ← this repo
+  ├── juniper-data/
+  ├── juniper-cascor/
+  └── juniper-canopy/
+  ```
 
-Set `*_LOG_FORMAT=json` in `.env` to enable JSON-structured log output for a service:
+- A populated `secrets/` directory before exposing any port beyond `127.0.0.1` — see the safety callout at the top of this README and [`docs/SECRETS_ONBOARDING.md`](docs/SECRETS_ONBOARDING.md).
 
-```bash
-JUNIPER_DATA_LOG_FORMAT=json
-JUNIPER_CASCOR_LOG_FORMAT=json
-JUNIPER_CANOPY_LOG_FORMAT=json
-```
-
-### Manual Metrics Setup
-
-If not using `make obs`, enable metrics manually:
-
-1. Enable the `/metrics` endpoint on each service:
-
-   ```bash
-   JUNIPER_DATA_METRICS_ENABLED=true
-   JUNIPER_CASCOR_METRICS_ENABLED=true
-   JUNIPER_CANOPY_METRICS_ENABLED=true
-   ```
-
-2. Start the observability stack:
-
-   ```bash
-   docker compose --profile full --profile observability up -d
-   ```
-
-### Sentry Error Tracking
-
-Set the Sentry DSN for each service to enable error reporting:
+### Installation
 
 ```bash
-JUNIPER_DATA_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
-JUNIPER_CASCOR_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
-JUNIPER_CANOPY_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
+git clone https://github.com/pcalnon/juniper-deploy.git
+cd juniper-deploy
+make prepare-secrets       # scaffold secrets/ from secrets.example/
+make build                 # build all images
 ```
 
-## Troubleshooting
+### Verification
 
-**Services fail to start**: Ensure all sibling repos are cloned and have Dockerfiles. Run `make build` to see build errors.
+Bring up the self-running demo stack and watch it train:
 
-**Health check fails**: Run `make status` to see container state. Check logs with `make logs-<service>` for the failing service.
+```bash
+make demo
+make wait                  # block until all services healthy
+make health                # detailed health report
+# open http://localhost:8050  for the live dashboard
+make down
+```
 
-**Port conflicts**: If default ports are in use, copy `.env.example` to `.env` and change port values. The juniper-cascor host port defaults to 8201 (via `CASCOR_HOST_PORT`) to avoid conflicts with other services commonly bound to 8200. Set `CASCOR_HOST_PORT=8200` in `.env` if port 8200 is available.
+For the full profile / dev profile / per-profile service listings, see the [Docker Deployment](#docker-deployment) section above — in particular the [Profiles](#profiles) and [Profile Service Matrix](#profile-service-matrix) tables.
 
-**`make clean` won't release disk**: Named volumes (`juniper-data-datasets`, `juniper-cascor-snapshots`, `juniper-cascor-logs`, `grafana-data`) may persist after `make down`. Use `docker volume prune` to clean orphaned volumes, or `make clean` to remove everything including volumes.
+### Next Steps
 
-## Ecosystem Compatibility
+- [`docs/QUICK_START.md`](docs/QUICK_START.md) — 5-minute quickstart
+- [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md) — profiles, monitoring, security, logging, scripts
+- [`docs/SECRETS_ONBOARDING.md`](docs/SECRETS_ONBOARDING.md) — SOPS-encrypted-canonical-copy workflow for the `secrets/` directory
+- [`docs/OBSERVABILITY_GUIDE.md`](docs/OBSERVABILITY_GUIDE.md) — Prometheus, Grafana, AlertManager, Sentry
+- [`docs/testing/TESTING_QUICK_START.md`](docs/testing/TESTING_QUICK_START.md) — integration test guide
 
-See the [compatibility matrix](https://github.com/pcalnon/juniper-ml#ecosystem-compatibility) for verified compatible versions.
+## Research Philosophy
+
+The Juniper platform exists to study learning algorithms whose network architecture is not fixed in advance. Its initial anchor is the Cascade-Correlation algorithm of Fahlman and Lebiere (1990), implemented from the primary literature without recourse to higher-level abstractions that elide the algorithm's operational detail. The organising commitment is that algorithm implementations remain inspectable at the level at which they were originally specified: candidate units, correlation objectives, weight-freezing semantics, and the structural events that grow the network are first-class artifacts of the codebase rather than internal details of a library wrapper. This permits comparative work — across algorithms, datasets, and hyperparameter regimes — to be conducted on a known and reproducible substrate.
+
+The current platform comprises a Cascade-Correlation training service exposing a REST and WebSocket interface, a dataset-generation service with a named-version registry that includes the ARC-AGI families, a real-time monitoring dashboard for inspecting training dynamics as they occur, and a distributed worker that parallelises candidate-unit training across hosts. Near-term work extends the architectural-growth catalogue beyond Cascade-Correlation, introduces multi-network orchestration for comparative experiments at the level of network populations rather than individual runs, and tightens the dataset–training–monitoring loop into a reproducible research workbench. The longer-term direction is the systematic empirical study of constructive and architecture-growing learning algorithms, with first-class infrastructure for the ablation, comparison, and replication that such a study requires.
+
+## Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [`docs/DOCUMENTATION_OVERVIEW.md`](docs/DOCUMENTATION_OVERVIEW.md) | Navigation index — start here |
+| [`docs/QUICK_START.md`](docs/QUICK_START.md) | Start the Juniper stack in 5 minutes |
+| [`docs/ENVIRONMENT_SETUP.md`](docs/ENVIRONMENT_SETUP.md) | Complete environment configuration guide |
+| [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md) | Profiles, monitoring, security, logging, scripts |
+| [`docs/DEVELOPER_CHEATSHEET.md`](docs/DEVELOPER_CHEATSHEET.md) | Common commands quick-reference |
+| [`docs/OBSERVABILITY_GUIDE.md`](docs/OBSERVABILITY_GUIDE.md) | Prometheus, Grafana, AlertManager, Sentry documentation |
+| [`docs/REFERENCE.md`](docs/REFERENCE.md) | Technical reference (services, env vars, networks, healthchecks) |
+| [`docs/SECRETS_ONBOARDING.md`](docs/SECRETS_ONBOARDING.md) | SOPS-encrypted-canonical-copy workflow for `secrets/` |
+| [`docs/testing/TESTING_QUICK_START.md`](docs/testing/TESTING_QUICK_START.md) | Integration test guide |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release history (Keep a Changelog format) |
 
 ## License
 
