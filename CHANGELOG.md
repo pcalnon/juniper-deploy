@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **CFG-06** (follow-up #2 of 3 from the cascor-worker design doc §7 rollout plan): worker container-side env-var names migrated from legacy `CASCOR_*` / `CASCOR_WORKER_*` to canonical `JUNIPER_CASCOR_WORKER_*` across both deploy surfaces. Worker image >= 0.4.0 emits `DeprecationWarning` for any remaining legacy name; this change stops the warnings firing in default deploys.
+  - **`docker-compose.yml`** (worker service block at lines 224-233): `CASCOR_SERVER_URL` → `JUNIPER_CASCOR_WORKER_SERVER_URL`; `CASCOR_HEARTBEAT_INTERVAL` → `JUNIPER_CASCOR_WORKER_HEARTBEAT_INTERVAL`. The host-side `${CASCOR_WORKER_*_URL}` / `${CASCOR_WORKER_*_HEARTBEAT_INTERVAL}` interpolations are intentionally left as-is (operator-facing rename is a separate concern). `CASCOR_AUTH_TOKEN_FILE` is **intentionally not renamed** in this PR — the secret-file handling path (`_FILE` suffix) needs separate verification before the canonical rename.
+  - **`k8s/helm/juniper/values.yaml`** (`worker.env` map): `CASCOR_HEARTBEAT_INTERVAL` → `JUNIPER_CASCOR_WORKER_HEARTBEAT_INTERVAL`.
+  - **`k8s/helm/juniper/templates/worker-deployment.yaml`** (worker container `env:`): `CASCOR_SERVER_URL` → `JUNIPER_CASCOR_WORKER_SERVER_URL`; `CASCOR_AUTH_TOKEN` → `JUNIPER_CASCOR_WORKER_AUTH_TOKEN` (plain env var via `secretKeyRef`, no `_FILE` complication); `CASCOR_WORKER_HEALTH_BIND` → `JUNIPER_CASCOR_WORKER_HEALTH_BIND`; `CASCOR_WORKER_HEALTH_PORT` → `JUNIPER_CASCOR_WORKER_HEALTH_PORT`.
+  - **`tests/test_helm_chart_probes.py`**: positive + negative health-env-var assertions updated to the canonical names (lines 185-186, 195-196).
+  - **`tests/test_compose_security_config.py`**: `forbidden_env_vars` invariant extended with `JUNIPER_CASCOR_WORKER_AUTH_TOKEN` so the new canonical name is also blocked from being set as a plain env var (DEPLOY-09 + DEPLOY-11 invariant — secret may only be `_FILE`-mounted).
+  - Full deploy test suite: 60 passed, 27 skipped (docker-stack tests, unaffected), 0 failed. `docker compose --profile full config` renders cleanly.
+  - **Out of scope**: operator-facing documentation (`AGENTS.md`, `README.md`, `docs/REFERENCE.md`) updates live in follow-up #3 (next PR) per the design doc §7 split.
+
 ### Added
 
 - **METRICS-MON R1.3 / seed-04 (Helm chart 1.0.0 → 1.1.0)**: opt-in HTTP probe wiring for the `juniper-cascor-worker` Deployment, gated by the new `worker.healthcheck.enabled` flag (default **`false`**). When flag is `false`, `worker-deployment.yaml` continues to render the legacy `exec: kill -0 1` probes — operators on older worker images are unaffected. When the flag is `true`, the chart:

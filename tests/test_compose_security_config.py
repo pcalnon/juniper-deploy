@@ -226,8 +226,13 @@ def test_secrets_only_no_plain_api_key_env_vars(): # DEPLOY-09 + DEPLOY-11
     services = _extract_two_space_blocks(compose_text, "services")
 
     forbidden_env_vars = (
-        # DEPLOY-09: worker auth token
+        # DEPLOY-09: worker auth token (legacy CFG-06 name)
         "CASCOR_AUTH_TOKEN",
+        # DEPLOY-09 + CFG-06: worker auth token canonical name —
+        # juniper-cascor-worker >= 0.4.0 reads JUNIPER_CASCOR_WORKER_AUTH_TOKEN
+        # natively; the same secret-leak invariant applies, only the _FILE
+        # variant may be set in compose.
+        "JUNIPER_CASCOR_WORKER_AUTH_TOKEN",
         # DEPLOY-11: every flavor of API key plain env var
         "JUNIPER_DATA_API_KEYS",
         "JUNIPER_DATA_API_KEY",

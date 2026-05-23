@@ -177,20 +177,24 @@ def test_worker_probes_use_httpget_when_flag_enabled():
 
 
 def test_worker_health_env_vars_set_when_flag_enabled():
-    """Flag enabled: ``CASCOR_WORKER_HEALTH_BIND=0.0.0.0`` + ``_PORT=8210`` injected."""
+    """Flag enabled: ``JUNIPER_CASCOR_WORKER_HEALTH_BIND=0.0.0.0`` + ``_PORT=8210``
+    injected. CFG-06 (juniper-cascor-worker >= 0.4.0): env-var names migrated
+    CASCOR_WORKER_* -> JUNIPER_CASCOR_WORKER_*."""
     docs = _render_chart(set_values=["worker.healthcheck.enabled=true"])
     container = _worker_container(docs)
     assert container is not None
     env = {entry["name"]: entry.get("value") for entry in container.get("env") or [] if "value" in entry}
-    assert env.get("CASCOR_WORKER_HEALTH_BIND") == "0.0.0.0"
-    assert env.get("CASCOR_WORKER_HEALTH_PORT") == "8210"
+    assert env.get("JUNIPER_CASCOR_WORKER_HEALTH_BIND") == "0.0.0.0"
+    assert env.get("JUNIPER_CASCOR_WORKER_HEALTH_PORT") == "8210"
 
 
 def test_worker_health_env_vars_absent_when_flag_disabled():
-    """Flag disabled: health env vars must not be injected (worker stays localhost-only)."""
+    """Flag disabled: health env vars must not be injected (worker stays
+    localhost-only). CFG-06: assert the canonical JUNIPER_CASCOR_WORKER_*
+    names are absent."""
     docs = _render_chart()
     container = _worker_container(docs)
     assert container is not None
     env_names = {entry["name"] for entry in container.get("env") or []}
-    assert "CASCOR_WORKER_HEALTH_BIND" not in env_names
-    assert "CASCOR_WORKER_HEALTH_PORT" not in env_names
+    assert "JUNIPER_CASCOR_WORKER_HEALTH_BIND" not in env_names
+    assert "JUNIPER_CASCOR_WORKER_HEALTH_PORT" not in env_names

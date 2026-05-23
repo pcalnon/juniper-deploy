@@ -245,7 +245,10 @@ worker:
     pullPolicy: IfNotPresent
 
   env:
-    CASCOR_HEARTBEAT_INTERVAL: "10.0"
+    # CFG-06 (juniper-cascor-worker >= 0.4.0): canonical
+    # JUNIPER_CASCOR_WORKER_* env-var name. Legacy ``CASCOR_HEARTBEAT_INTERVAL``
+    # still works in worker <= 0.4.x (with DeprecationWarning).
+    JUNIPER_CASCOR_WORKER_HEARTBEAT_INTERVAL: "10.0"
 
   autoscaling:
     enabled: true
