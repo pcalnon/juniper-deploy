@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - **`tests/test_compose_security_config.py`**: `forbidden_env_vars` invariant extended with `JUNIPER_CASCOR_WORKER_AUTH_TOKEN` so the new canonical name is also blocked from being set as a plain env var (DEPLOY-09 + DEPLOY-11 invariant — secret may only be `_FILE`-mounted).
   - Full deploy test suite: 60 passed, 27 skipped (docker-stack tests, unaffected), 0 failed. `docker compose --profile full config` renders cleanly.
   - **Out of scope**: operator-facing documentation (`AGENTS.md`, `README.md`, `docs/REFERENCE.md`) updates live in follow-up #3 (next PR) per the design doc §7 split.
+- **CFG-06 docs sweep** (follow-up #3 — juniper-deploy half; cascor-worker half shipped via [cascor-worker #87](https://github.com/pcalnon/juniper-cascor-worker/pull/87)). `docs/REFERENCE.md` "Kubernetes Secret Keys" table updated: the `cascor_auth_token` row now references the canonical `JUNIPER_CASCOR_WORKER_AUTH_TOKEN` env var (was `CASCOR_AUTH_TOKEN`) matching the rename shipped in [#80](https://github.com/pcalnon/juniper-deploy/pull/80)'s `worker-deployment.yaml` edit. `AGENTS.md` + `README.md` "Docker Secret env-var mappings" tables describe compose-only `*_FILE` mounts and remain accurate (compose's `CASCOR_AUTH_TOKEN_FILE` was intentionally left unchanged in #80).
 
 ### Added
 

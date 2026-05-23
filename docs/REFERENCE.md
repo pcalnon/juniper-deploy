@@ -357,7 +357,7 @@ The Kubernetes Helm chart is located at `k8s/helm/juniper/`.
 | `canopy_api_key` | canopy | `CANOPY_API_KEY_FILE` |
 | `cascor_sentry_dsn` | cascor | file-mounted |
 | `juniper_data_api_key` | cascor | `JUNIPER_DATA_API_KEY_FILE` |
-| `cascor_auth_token` | worker | `CASCOR_AUTH_TOKEN` (env, not file) |
+| `cascor_auth_token` | worker | `JUNIPER_CASCOR_WORKER_AUTH_TOKEN` (env via secretKeyRef, not file) |
 | `grafana_admin_password` | grafana (subchart) | -- |
 
 All file-based secrets are mounted at `/etc/juniper/secrets/` (read-only).
