@@ -61,7 +61,7 @@ Verified compatible versions:
 
 | juniper-data | juniper-cascor | juniper-canopy | data-client | cascor-client | cascor-worker |
 |--------------|----------------|----------------|-------------|---------------|---------------|
-| 0.6.x        | 0.4.x          | 0.4.x          | >=0.4.1     | >=0.4.0       | >=0.3.0       |
+| 0.6.x        | 0.5.x          | 0.5.x          | >=0.4.1     | >=0.4.0       | >=0.4.0       |
 
 The service images are built from sibling repositories that must be cloned next to `juniper-deploy/`. See [Quick Start Guide](#quick-start-guide) for the expected layout.
 
