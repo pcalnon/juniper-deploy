@@ -222,8 +222,16 @@ services:
     cap_drop:
       - ALL
     environment:
-      CASCOR_SERVER_URL: "${CASCOR_WORKER_SERVER_URL:-ws://juniper-cascor:8200/ws/v1/workers}"
-      CASCOR_HEARTBEAT_INTERVAL: "${CASCOR_WORKER_HEARTBEAT_INTERVAL:-10.0}"
+      # CFG-06 (juniper-cascor-worker >= 0.4.0): canonical
+      # JUNIPER_CASCOR_WORKER_* env-var names. Legacy CASCOR_* names
+      # still work (with a DeprecationWarning) — operators using the
+      # ``CASCOR_WORKER_SERVER_URL`` / ``CASCOR_WORKER_HEARTBEAT_INTERVAL``
+      # host-side overrides keep them, only the container-side names
+      # update here. AUTH_TOKEN_FILE is intentionally left alone in
+      # this PR — the secret-file handling path needs a separate
+      # verification before renaming.
+      JUNIPER_CASCOR_WORKER_SERVER_URL: "${CASCOR_WORKER_SERVER_URL:-ws://juniper-cascor:8200/ws/v1/workers}"
+      JUNIPER_CASCOR_WORKER_HEARTBEAT_INTERVAL: "${CASCOR_WORKER_HEARTBEAT_INTERVAL:-10.0}"
       # DEPLOY-09: Auth token is read exclusively from the Docker secret file
       # mounted at /run/secrets/cascor_auth_token. The plain CASCOR_AUTH_TOKEN
       # env var was removed to keep the secret out of `docker inspect`, env

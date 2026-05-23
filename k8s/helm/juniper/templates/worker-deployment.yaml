@@ -49,13 +49,17 @@ spec:
           securityContext:
             {{- include "juniper.containerSecurityContext" . | nindent 12 }}
           env:
-            - name: CASCOR_SERVER_URL
+            # CFG-06 (juniper-cascor-worker >= 0.4.0): canonical
+            # JUNIPER_CASCOR_WORKER_* env-var names. Legacy CASCOR_* names
+            # still work via the alias-with-deprecation helper in worker
+            # config.py (juniper-config-tools >= 0.1.0).
+            - name: JUNIPER_CASCOR_WORKER_SERVER_URL
               value: {{ include "juniper.cascor.wsUrl" . | quote }}
             {{- range $key, $value := .Values.worker.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
-            - name: CASCOR_AUTH_TOKEN
+            - name: JUNIPER_CASCOR_WORKER_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: {{ include "juniper.secretName" . }}
@@ -68,9 +72,9 @@ spec:
             # server on 0.0.0.0 so kubelet can reach it; default in the
             # worker image is 127.0.0.1 (intentional — keeps the surface
             # closed unless explicitly enabled here).
-            - name: CASCOR_WORKER_HEALTH_BIND
+            - name: JUNIPER_CASCOR_WORKER_HEALTH_BIND
               value: "0.0.0.0"
-            - name: CASCOR_WORKER_HEALTH_PORT
+            - name: JUNIPER_CASCOR_WORKER_HEALTH_PORT
               value: {{ .Values.worker.healthcheck.port | quote }}
             {{- end }}
           {{- if .Values.worker.healthcheck.enabled }}
