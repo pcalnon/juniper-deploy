@@ -524,8 +524,15 @@ services:
     command:
       - "--config.file=/etc/alertmanager/alertmanager.yml"
       - "--storage.path=/alertmanager"
-    ports:
-      - "127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"
+      # Single-node deploy: disable the gossip/HA mesh. Otherwise alertmanager
+      # tries to auto-discover a private IP on the container's NIC and fails
+      # with "couldn't deduce an advertise address: no private IP found,
+      # explicit advertise addr not provided" → "Failed to get final advertise
+      # address" → exit 1 → restart loop. When this stack scales to multi-node
+      # alertmanager, replace with `--cluster.advertise-address=<reachable-host:port>`
+      # and set `--cluster.peer=<other-node>` per
+      # https://prometheus.io/docs/alerting/latest/clustering/.
+      - "--cluster.listen-address="
     volumes:
       - ./alertmanager:/etc/alertmanager:ro
     # OBS-ROUTE-01: SMTP password for email receivers is mounted as a
