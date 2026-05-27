@@ -142,8 +142,7 @@ services:
     volumes:
       - juniper-data-datasets:/app/data/datasets
     healthcheck:
-      test: ["CMD", "python", "-c",
-             "import urllib.request; urllib.request.urlopen('http://localhost:8100/v1/health', timeout=5)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/v1/health', timeout=5)"]
       <<: *healthcheck-defaults
     secrets:
       - juniper_data_api_keys
@@ -195,8 +194,7 @@ services:
       juniper-data:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c",
-             "import urllib.request; urllib.request.urlopen('http://localhost:8200/v1/health', timeout=5)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8200/v1/health', timeout=5)"]
       <<: *healthcheck-cascor
     networks:
       - backend
