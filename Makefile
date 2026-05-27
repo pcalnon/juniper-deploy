@@ -74,9 +74,8 @@ help:  ## Show this help message
 # Lifecycle
 # ═══════════════════════════════════════════════════════════════════════════
 
-prepare-secrets:  ## Create local placeholder secret files if missing
-	@mkdir -p $(SECRETS_DIR)
-	@touch $(SECRETS_FILES)
+prepare-secrets:  ## Populate ./secrets/*.txt from .env.secrets.enc (falls back to empty placeholders if no SOPS key)
+	@bash scripts/prepare_secrets.bash
 
 up: prepare-secrets ## Start all services (--profile full, detached)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full up -d
