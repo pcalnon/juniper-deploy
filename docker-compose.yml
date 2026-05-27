@@ -139,6 +139,9 @@ services:
       JUNIPER_DATA_LOG_FORMAT: "${JUNIPER_DATA_LOG_FORMAT:-text}"
       JUNIPER_DATA_SENTRY_DSN: "${JUNIPER_DATA_SENTRY_DSN:-}"
       JUNIPER_DATA_METRICS_ENABLED: "${JUNIPER_DATA_METRICS_ENABLED:-false}"
+      # SEC-16: IP allowlist for /metrics. JSON list of IP literals or CIDR
+      # ranges. Defaults to loopback only. See notes/METRICS_AUTH_RATIONALE.md.
+      JUNIPER_DATA_METRICS_TRUSTED_IPS: "${JUNIPER_DATA_METRICS_TRUSTED_IPS:-[\"127.0.0.1\",\"::1\"]}"
     volumes:
       - juniper-data-datasets:/app/data/datasets
     healthcheck:

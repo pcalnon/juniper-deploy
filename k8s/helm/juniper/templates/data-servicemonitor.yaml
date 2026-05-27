@@ -8,7 +8,7 @@ plan Q4.
 Auth note (R5 entry plan Q5): juniper-data ships MetricsAuthMiddleware
 (SEC-16), an IP allowlist gating /metrics. In a kube-prometheus-stack
 deployment the Prometheus pod IP must be added to
-JUNIPER_DATA_METRICS_ALLOW_IPS via the data.env / data.envFrom values.
+JUNIPER_DATA_METRICS_TRUSTED_IPS via the data.env / data.envFrom values.
 Rationale for keeping this middleware per-service rather than promoting
 to juniper-observability is documented in notes/METRICS_AUTH_RATIONALE.md.
 */ -}}
