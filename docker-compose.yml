@@ -189,6 +189,13 @@ services:
       - juniper-cascor-snapshots:/app/data
       - juniper-cascor-logs:/app/logs
     secrets:
+      # `juniper_cascor_api_keys` (plural) is cascor's accept-list of API keys —
+      # JUNIPER_CASCOR_API_KEYS_FILE above reads this; worker → cascor WS auth
+      # silently failed for ~16 days because this mount was missing and the env
+      # var pointed at a path that didn't exist in the container. The singular
+      # `juniper_cascor_api_key` remains because canopy reads a single key from
+      # the same secret name on its side of the wire.
+      - juniper_cascor_api_keys
       - juniper_cascor_api_key
       - cascor_sentry_dsn
     depends_on:
