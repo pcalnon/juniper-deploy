@@ -400,8 +400,39 @@
         "legend": { "displayMode": "list", "placement": "bottom" },
         "tooltip": { "mode": "single" }
       }
+    },
+    {
+      "type": "row",
+      "title": "Resource Usage (PoC)",
+      "description": "Process-level metrics exposed by prometheus_client on every Juniper service. See notes/POC_PROMETHEUS_GRAFANA_2026-05-27.md.",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Service Memory — Resident Set Size (PoC)",
+      "description": "Resident memory per Juniper service, scraped from process_resident_memory_bytes. Added as a proof-of-concept panel demonstrating the end-to-end PromQL → Grafana workflow.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 45 },
+      "targets": [
+        {
+          "expr": "process_resident_memory_bytes{job=~\"juniper-.*\"}",
+          "legendFormat": "{{job}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max", "mean"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
     }
   ],
   "schemaVersion": 39,
-  "version": 4
+  "version": 5
 }
