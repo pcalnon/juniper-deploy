@@ -142,8 +142,7 @@ services:
     volumes:
       - juniper-data-datasets:/app/data/datasets
     healthcheck:
-      test: ["CMD", "python", "-c",
-             "import urllib.request; urllib.request.urlopen('http://localhost:8100/v1/health', timeout=5)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/v1/health', timeout=5)"]
       <<: *healthcheck-defaults
     secrets:
       - juniper_data_api_keys
@@ -202,8 +201,7 @@ services:
       juniper-data:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c",
-             "import urllib.request; urllib.request.urlopen('http://localhost:8200/v1/health', timeout=5)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8200/v1/health', timeout=5)"]
       <<: *healthcheck-cascor
     networks:
       - backend
@@ -249,8 +247,16 @@ services:
     depends_on:
       juniper-cascor:
         condition: service_healthy
+    # The legacy `kill -0 1` healthcheck only proved that PID 1 had not crashed.
+    # It hid 16 days of silent worker → cascor WebSocket failure: workers stayed
+    # `(healthy)` in `docker ps` while their WS connection retried fruitlessly.
+    # Probing the worker's own /v1/health/ready endpoint (METRICS-MON R1.3 /
+    # seed-04) flips the container to `(unhealthy)` the moment _connection is
+    # not bound or the registration handshake hasn't completed — exactly the
+    # state we want surfaced.
     healthcheck:
-      test: ["CMD-SHELL", "kill -0 1 2>/dev/null || exit 1"]
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8210/v1/health/ready', timeout=5)"]
       <<: *healthcheck-worker
     networks:
       - backend
