@@ -55,7 +55,7 @@ endif
 .PHONY: help up down restart logs logs-data logs-cascor logs-canopy \
         status build build-no-cache clean \
         shell-data shell-cascor shell-canopy \
-        health wait ps demo dev test monitor
+        health wait ps demo dev test monitor obs
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Help
@@ -98,9 +98,13 @@ dev: prepare-secrets ## Start dev stack (real data + cascor, canopy in demo mode
 test:  ## Run integration tests (starts services + test-runner)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile test up --abort-on-container-exit --exit-code-from test-runner
 
-monitor:  ## Start full stack with observability (Prometheus + Grafana)
-	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile observability up -d
-	@echo -e "$(GREEN)Full stack + observability starting. Prometheus: http://localhost:9090, Grafana: http://localhost:3000$(RESET)"
+monitor: prepare-secrets ## Start full stack with observability (Prometheus + Grafana)
+	@$(COMPOSE) -f $(COMPOSE_FILE) \
+		--env-file .env.observability \
+		--profile full --profile observability up -d
+	@echo -e "$(GREEN)Full stack + observability starting. Prometheus: http://localhost:9090, Grafana: http://localhost:$${GRAFANA_HOST_PORT:-3001}$(RESET)"
+
+obs: monitor  ## Alias for `make monitor` (referenced from .env.observability)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Logs
