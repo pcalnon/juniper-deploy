@@ -543,14 +543,17 @@ services:
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # Grafana — Metrics Dashboard (port 3000)
+  # Grafana — Metrics Dashboard (host port 3001 → container 3000)
+  # Host port is 3001 by default because port 3000 is commonly held by a
+  # system-installed Grafana deb package (`apt install grafana`) running as
+  # the `grafana` user. Override via GRAFANA_HOST_PORT if 3001 is also taken.
   # ═══════════════════════════════════════════════════════════════════════════
   grafana:
     image: grafana/grafana:12.4.0
     container_name: juniper-grafana
     profiles: ["observability"]
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${GRAFANA_HOST_PORT:-3001}:3000"
     networks:
       - monitoring
     environment:
