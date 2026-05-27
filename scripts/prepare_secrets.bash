@@ -29,18 +29,41 @@ ENV_SECRETS_ENC="${REPO_DIR}/.env.secrets.enc"
 
 mkdir -p "${SECRETS_DIR}"
 
-# Mapping: <env-var-name> <secret-file-basename>
+# Mapping: <env-var-name> <secret-file-basename> <format>
 # Keep in sync with docker-compose.yml `secrets:` block and the Makefile
 # SECRETS_FILES list.
+#
+# Format values:
+#   raw       — write the env var's value verbatim. Use for single-key files
+#               consumed as a string (e.g., cascor_auth_token, grafana password).
+#   json-list — wrap the value in a JSON array: ``["VALUE"]``. Use for files
+#               consumed as a ``list[str]`` by pydantic-settings, which auto-
+#               deserialises JSON for list-typed fields. juniper_cascor_api_keys
+#               is the canonical list-typed secret (PR pcalnon/juniper-deploy#91
+#               flipped the placeholder from ``CHANGE_BEFORE_PRODUCTION_USE``
+#               to ``["CHANGE_BEFORE_PRODUCTION_USE"]`` for exactly this
+#               reason — a bare string crashes cascor with
+#               ``list_type`` ValidationError on startup).
 declare -a MAPPINGS=(
-    "JUNIPER_DATA_API_KEYS juniper_data_api_keys.txt"
-    "JUNIPER_CASCOR_API_KEYS juniper_cascor_api_keys.txt"
-    "JUNIPER_CASCOR_API_KEY juniper_cascor_api_key.txt"
-    "CASCOR_AUTH_TOKEN cascor_auth_token.txt"
-    "CANOPY_API_KEY canopy_api_key.txt"
-    "GRAFANA_ADMIN_PASSWORD grafana_admin_password.txt"
-    "ALERTMANAGER_SMTP_PASSWORD alertmanager_smtp_password.txt"
+    "JUNIPER_DATA_API_KEYS juniper_data_api_keys.txt raw"
+    "JUNIPER_CASCOR_API_KEYS juniper_cascor_api_keys.txt json-list"
+    "JUNIPER_CASCOR_API_KEY juniper_cascor_api_key.txt raw"
+    "CASCOR_AUTH_TOKEN cascor_auth_token.txt raw"
+    "CANOPY_API_KEY canopy_api_key.txt raw"
+    "GRAFANA_ADMIN_PASSWORD grafana_admin_password.txt raw"
+    "ALERTMANAGER_SMTP_PASSWORD alertmanager_smtp_password.txt raw"
 )
+
+# Wrap a single value in a JSON string-array literal. We escape the two
+# characters that would invalidate the JSON string body (`\` and `"`) so a
+# real-world token containing either is still emitted as a parseable list.
+json_list_singleton() {
+    local value="$1"
+    # Escape backslash first, then double-quote.
+    value="${value//\\/\\\\}"
+    value="${value//\"/\\\"}"
+    printf '["%s"]' "${value}"
+}
 
 touch_empty_placeholders() {
     for mapping in "${MAPPINGS[@]}"; do
@@ -87,13 +110,21 @@ for mapping in "${MAPPINGS[@]}"; do
     set -- ${mapping}
     var="$1"
     file="${SECRETS_DIR}/$2"
+    fmt="${3:-raw}"
     value="${!var:-}"
     if [[ -z "${value}" || "${value}" == "CHANGE_BEFORE_PRODUCTION_USE" ]]; then
         : > "${file}"
         chmod 0600 "${file}"
         empty=$(( empty + 1 ))
     else
-        printf '%s' "${value}" > "${file}"
+        case "${fmt}" in
+            json-list)
+                json_list_singleton "${value}" > "${file}"
+                ;;
+            raw|*)
+                printf '%s' "${value}" > "${file}"
+                ;;
+        esac
         chmod 0600 "${file}"
         populated=$(( populated + 1 ))
     fi
