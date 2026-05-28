@@ -20,7 +20,7 @@
 
 `juniper-data` ships `MetricsAuthMiddleware`, an IP-allowlist guard added
 under SEC-16. The middleware checks the request peer IP against the
-`JUNIPER_DATA_METRICS_ALLOW_IPS` env var on every `GET /metrics` and
+`JUNIPER_DATA_METRICS_TRUSTED_IPS` env var on every `GET /metrics` and
 returns `403 Forbidden` if the peer is not on the list. When the env var
 is empty, the middleware allows all IPs (preserving local-dev ergonomics).
 
@@ -98,7 +98,7 @@ in-process IP allowlist on top of NetworkPolicy is defence-in-depth that
 this track does not currently judge to be worth the configuration cost,
 because:
 
-- The middleware adds a `JUNIPER_<SVC>_METRICS_ALLOW_IPS` env var to the
+- The middleware adds a `JUNIPER_<SVC>_METRICS_TRUSTED_IPS` env var to the
   service config surface. That surface has to be threaded through three
   different deployment artifacts (helm values, docker-compose env,
   systemd unit) per service.
@@ -183,7 +183,7 @@ shape worth aiming for is:
 
 - Module: `juniper_observability.metrics_auth.MetricsAuthMiddleware`
 - Same constructor signature as the current `juniper-data` impl
-- Per-service env var (`JUNIPER_<SVC>_METRICS_ALLOW_IPS`) so services
+- Per-service env var (`JUNIPER_<SVC>_METRICS_TRUSTED_IPS`) so services
   keep independent allowlists
 - An explicit "empty allowlist" semantic decision (`deny all` vs.
   `allow all`) — the current `juniper-data` behaviour of "empty = allow

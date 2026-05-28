@@ -40,6 +40,11 @@ data:
     JUNIPER_DATA_LOG_FORMAT: "text"
     JUNIPER_DATA_SENTRY_DSN: ""
     JUNIPER_DATA_METRICS_ENABLED: "false"
+    # SEC-16: IP allowlist for /metrics. JSON list of IP literals or CIDR
+    # ranges (CIDR support requires the juniper-data Issue 4 PR). The pod IP
+    # of the Prometheus scraper must be in this list under the
+    # kube-prometheus-stack deployment topology.
+    # JUNIPER_DATA_METRICS_TRUSTED_IPS: '["127.0.0.1","::1","10.0.0.0/8"]'
 
   persistence:
     datasets:
