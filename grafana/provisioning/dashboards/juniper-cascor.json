@@ -32,12 +32,14 @@
   },
   "panels": [
     {
+      "id": 1,
       "type": "row",
       "title": "RED Overview",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "collapsed": false
     },
     {
+      "id": 2,
       "type": "stat",
       "title": "Request Rate",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -64,6 +66,7 @@
       }
     },
     {
+      "id": 3,
       "type": "stat",
       "title": "Error Rate",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -94,6 +97,7 @@
       }
     },
     {
+      "id": 4,
       "type": "stat",
       "title": "p95 Latency",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -124,12 +128,14 @@
       }
     },
     {
+      "id": 5,
       "type": "row",
       "title": "HTTP Metrics",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
       "collapsed": false
     },
     {
+      "id": 6,
       "type": "timeseries",
       "title": "Request Rate by Endpoint",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -152,6 +158,7 @@
       }
     },
     {
+      "id": 7,
       "type": "heatmap",
       "title": "Request Duration Heatmap",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -171,12 +178,14 @@
       }
     },
     {
+      "id": 8,
       "type": "row",
       "title": "Training Metrics",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
       "collapsed": false
     },
     {
+      "id": 9,
       "type": "stat",
       "title": "Active Training Sessions",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -205,6 +214,7 @@
       }
     },
     {
+      "id": 10,
       "type": "stat",
       "title": "Hidden Units",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -230,6 +240,7 @@
       }
     },
     {
+      "id": 11,
       "type": "timeseries",
       "title": "Epochs Completed",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -252,6 +263,7 @@
       }
     },
     {
+      "id": 12,
       "type": "timeseries",
       "title": "Training Loss",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -278,6 +290,7 @@
       }
     },
     {
+      "id": 13,
       "type": "timeseries",
       "title": "Training Accuracy",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -307,12 +320,14 @@
       }
     },
     {
+      "id": 14,
       "type": "row",
       "title": "Candidate Training",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
       "collapsed": false
     },
     {
+      "id": 15,
       "type": "timeseries",
       "title": "Candidate Correlation",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -349,12 +364,14 @@
       }
     },
     {
+      "id": 16,
       "type": "row",
       "title": "Build Info",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 },
       "collapsed": false
     },
     {
+      "id": 17,
       "type": "stat",
       "title": "Service Version",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -378,6 +395,7 @@
       }
     },
     {
+      "id": 18,
       "type": "stat",
       "title": "Python Version",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -401,6 +419,7 @@
       }
     },
     {
+      "id": 19,
       "type": "row",
       "title": "Worker Heartbeat (R5.4-pre)",
       "description": "Per-worker heartbeat metrics bridged to Prometheus via WorkerRegistryCollector (juniper-cascor#188).",
@@ -408,6 +427,7 @@
       "collapsed": false
     },
     {
+      "id": 20,
       "type": "timeseries",
       "title": "Worker last_task_duration_seconds",
       "description": "Wall-clock duration of the most recently completed task on each worker.",
@@ -431,6 +451,7 @@
       }
     },
     {
+      "id": 21,
       "type": "timeseries",
       "title": "Worker gpu_utilization_pct",
       "description": "Best-effort 0-100 GPU utilization reading per worker (CUDA / NVML / torch).",
@@ -456,6 +477,7 @@
       }
     },
     {
+      "id": 22,
       "type": "timeseries",
       "title": "Worker recent task duration p50 / p95",
       "description": "Per-worker p50 and p95 of the sliding window of recent task durations (seconds).",

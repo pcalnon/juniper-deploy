@@ -40,12 +40,14 @@
   },
   "panels": [
     {
+      "id": 1,
       "type": "row",
       "title": "Service Status",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "collapsed": false
     },
     {
+      "id": 2,
       "type": "stat",
       "title": "JuniperData",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -78,6 +80,7 @@
       }
     },
     {
+      "id": 3,
       "type": "stat",
       "title": "JuniperCascor",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -110,6 +113,7 @@
       }
     },
     {
+      "id": 4,
       "type": "stat",
       "title": "JuniperCanopy",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -142,12 +146,14 @@
       }
     },
     {
+      "id": 5,
       "type": "row",
       "title": "Request Rate",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
       "collapsed": false
     },
     {
+      "id": 6,
       "type": "timeseries",
       "title": "Request Rate (per second)",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -182,12 +188,14 @@
       }
     },
     {
+      "id": 7,
       "type": "row",
       "title": "Error Rate",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
       "collapsed": false
     },
     {
+      "id": 8,
       "type": "timeseries",
       "title": "Error Rate (%)",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -232,12 +240,14 @@
       }
     },
     {
+      "id": 9,
       "type": "row",
       "title": "Latency",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
       "collapsed": false
     },
     {
+      "id": 10,
       "type": "timeseries",
       "title": "Request Latency — p50 / p95 / p99",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -296,12 +306,14 @@
       }
     },
     {
+      "id": 11,
       "type": "row",
       "title": "Cross-Cutting KPIs (R4)",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
       "collapsed": false
     },
     {
+      "id": 12,
       "type": "stat",
       "title": "Canopy Data-Client Error Rate (R4.3)",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -332,6 +344,7 @@
       }
     },
     {
+      "id": 13,
       "type": "stat",
       "title": "Juniper-Data Cache Miss Ratio (R4.5)",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -362,6 +375,7 @@
       }
     },
     {
+      "id": 14,
       "type": "row",
       "title": "Worker Heartbeat (R5.4-pre)",
       "description": "Cross-cutting worker heartbeat aggregations bridged via WorkerRegistryCollector (juniper-cascor#188). Per-worker breakdowns live on the JuniperCascor dashboard.",
@@ -369,6 +383,7 @@
       "collapsed": false
     },
     {
+      "id": 15,
       "type": "timeseries",
       "title": "Cascor worker GPU saturation (max across workers)",
       "description": "Highest per-worker GPU utilization across the fleet — saturation indicator for cascor worker capacity.",
@@ -402,6 +417,7 @@
       }
     },
     {
+      "id": 16,
       "type": "row",
       "title": "Resource Usage (PoC)",
       "description": "Process-level metrics exposed by prometheus_client on every Juniper service. See notes/POC_PROMETHEUS_GRAFANA_2026-05-27.md.",
@@ -409,6 +425,7 @@
       "collapsed": false
     },
     {
+      "id": 17,
       "type": "timeseries",
       "title": "Service Memory — Resident Set Size (PoC)",
       "description": "Resident memory per Juniper service, scraped from process_resident_memory_bytes. Added as a proof-of-concept panel demonstrating the end-to-end PromQL → Grafana workflow.",

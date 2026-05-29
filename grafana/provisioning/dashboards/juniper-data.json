@@ -32,12 +32,14 @@
   },
   "panels": [
     {
+      "id": 1,
       "type": "row",
       "title": "RED Overview",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "collapsed": false
     },
     {
+      "id": 2,
       "type": "stat",
       "title": "Request Rate",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -66,6 +68,7 @@
       }
     },
     {
+      "id": 3,
       "type": "stat",
       "title": "Error Rate",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -96,6 +99,7 @@
       }
     },
     {
+      "id": 4,
       "type": "stat",
       "title": "p95 Latency",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -126,12 +130,14 @@
       }
     },
     {
+      "id": 5,
       "type": "row",
       "title": "HTTP Metrics",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
       "collapsed": false
     },
     {
+      "id": 6,
       "type": "timeseries",
       "title": "Request Rate by Endpoint",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -154,6 +160,7 @@
       }
     },
     {
+      "id": 7,
       "type": "heatmap",
       "title": "Request Duration Heatmap",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -173,12 +180,14 @@
       }
     },
     {
+      "id": 8,
       "type": "row",
       "title": "Dataset Generation",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
       "collapsed": false
     },
     {
+      "id": 9,
       "type": "timeseries",
       "title": "Dataset Generations by Type",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -201,6 +210,7 @@
       }
     },
     {
+      "id": 10,
       "type": "timeseries",
       "title": "Generation Duration Distribution",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -231,6 +241,7 @@
       }
     },
     {
+      "id": 11,
       "type": "stat",
       "title": "Cached Datasets",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -258,12 +269,14 @@
       }
     },
     {
+      "id": 12,
       "type": "row",
       "title": "Build Info",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
       "collapsed": false
     },
     {
+      "id": 13,
       "type": "stat",
       "title": "Service Version",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -289,6 +302,7 @@
       }
     },
     {
+      "id": 14,
       "type": "stat",
       "title": "Python Version",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -314,12 +328,14 @@
       }
     },
     {
+      "id": 15,
       "type": "row",
       "title": "Dataset POST (R4.5)",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
       "collapsed": false
     },
     {
+      "id": 16,
       "type": "timeseries",
       "title": "Dataset POST Rate by cache (hit/miss)",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -348,6 +364,7 @@
       }
     },
     {
+      "id": 17,
       "type": "timeseries",
       "title": "Dataset POST Rate by status",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
