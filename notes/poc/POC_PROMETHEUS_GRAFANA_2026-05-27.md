@@ -226,50 +226,37 @@ prometheus     | up |
 
 ## 5. Reproduce the PoC from a clean checkout
 
-### 5.1 After Wave 3 (current main, post-2026-05-29)
+**Updated 2026-05-29 (post-Waves 1+2+3)**: no local workarounds are
+needed any more. The `.env.local` + `docker-compose.override.yml` pair
+in [`POC_LOCAL_ENV_TEMPLATE.md`](POC_LOCAL_ENV_TEMPLATE.md) is kept for
+historical reference only — all three workarounds it captured are now
+upstream:
 
-After juniper-data, juniper-cascor, and juniper-deploy have all merged
-their remediation PRs (see
-[`POC_ISSUES_DISCOVERED.md`](POC_ISSUES_DISCOVERED.md) for the per-issue
-status table), the local workaround files are no longer needed. From a
-clean checkout:
+- **`JUNIPER_DATA_METRICS_TRUSTED_IPS`** is wired into compose
+  (juniper-deploy #98), accepts CIDR (juniper-data #157), and the four
+  Docker bridge subnets are pre-populated in `.env.observability` so
+  `make monitor` brings the target `up` out of the box.
+- **`JUNIPER_CASCOR_METRICS_TRUSTED_IPS`** is wired into compose
+  (Wave-3, this PR), accepts CIDR + `/metrics` is exempt from
+  `SecurityMiddleware` (juniper-cascor #313), and the same bridge
+  subnets are pre-populated in `.env.observability`.
+- **`/metrics` exempt from `SecurityMiddleware`** on both juniper-data
+  (#155) and juniper-cascor (#313), so the IP allowlist is the only
+  gate; the PoC's "point the api-keys secret at empty files to disable
+  auth" hack is no longer required.
 
-```bash
-# from juniper-deploy/
-make build       # rebuild juniper-data + juniper-cascor images with the
-                 # merged remediation work; ~10 GB cascor image takes time
-make monitor     # loads .env.observability + observability profile
-
-# verify
-curl -s http://localhost:9090/api/v1/targets \
-  | python3 -c 'import json,sys; [print(t["labels"]["job"], "->", t["health"]) for t in json.load(sys.stdin)["data"]["activeTargets"]]'
-# all four should print "up"
-```
-
-### 5.2 Pre-Wave-3 reproduction (older juniper-data / juniper-cascor images)
-
-If running an older image pin (e.g. an image baked before the
-SecurityMiddleware exempt or before CIDR support landed), the original
-PoC workaround still works. Drop in the two local-override files
-documented in [`POC_LOCAL_ENV_TEMPLATE.md`](POC_LOCAL_ENV_TEMPLATE.md)
-and run:
+Clean-checkout reproduce:
 
 ```bash
 # from juniper-deploy/
 make prepare-secrets
-
-# write .env.local (template in POC_LOCAL_ENV_TEMPLATE.md)
-# write docker-compose.override.yml (template in POC_LOCAL_ENV_TEMPLATE.md)
-
-docker compose \
-  --env-file .env.observability \
-  --env-file .env.local \
-  --profile full --profile observability up -d
+make monitor   # alias for: docker compose --env-file .env.observability
+               #            --profile full --profile observability up -d
 
 # verify
 curl -s http://localhost:9090/api/v1/targets \
   | python3 -c 'import json,sys; [print(t["labels"]["job"], "->", t["health"]) for t in json.load(sys.stdin)["data"]["activeTargets"]]'
-# all four should print "up"
+# all four (data, cascor, canopy, prometheus) should print "up"
 ```
 
 ## 6. Files touched

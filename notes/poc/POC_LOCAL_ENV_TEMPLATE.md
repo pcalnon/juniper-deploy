@@ -1,28 +1,29 @@
 # Verbatim local overrides used by the Prometheus PoC
 
-**Date**: 2026-05-27
+**Date**: 2026-05-27 (Waves 1+2+3 landed 2026-05-29 — workarounds below
+are no longer needed)
 **Parent doc**: [`POC_PROMETHEUS_GRAFANA_2026-05-27.md`](POC_PROMETHEUS_GRAFANA_2026-05-27.md)
 
-> **Obsolescence note (2026-05-29)**: after Wave 1 + Wave 2 of the remediation
-> plan landed (see [`POC_ISSUES_DISCOVERED.md`](POC_ISSUES_DISCOVERED.md)
-> status lines), both overrides below are **no longer required** for
-> stacks running juniper-data and juniper-cascor images built from
-> current main. From a clean checkout, `make build && make monitor`
-> yields all four Prometheus targets `up`.
->
-> The file content is kept here verbatim for two reasons:
->
-> 1. Stacks running older image pins (e.g. pre-2026-05-29 builds of
->    juniper-data or juniper-cascor) still need the workaround.
-> 2. The `JUNIPER_DATA_METRICS_TRUSTED_IPS` override pattern remains the
->    documented way to allowlist non-default scraper IPs / CIDRs —
->    operators just no longer need it for the docker-compose
->    loopback case.
+## Status — historical, kept for reference
 
-Both files below are gitignored (`.env.local`, `docker-compose.override.yml`
-are in `.gitignore`). Copy them into the `juniper-deploy/` root to reproduce
-the pre-Wave-3 PoC end-state, then re-up the stack as described in the
-parent doc §5.2.
+The `.env.local` and `docker-compose.override.yml` templates below were
+the **local PoC workaround** for three upstream gaps. All three are now
+fixed upstream:
+
+| Workaround                                                  | Status                       | Replaced with                                       |
+| ----------------------------------------------------------- | ---------------------------- | --------------------------------------------------- |
+| `JUNIPER_DATA_METRICS_TRUSTED_IPS` env-var override         | Wired into compose (#98)     | Set in `.env.observability` defaults                |
+| `JUNIPER_CASCOR_METRICS_TRUSTED_IPS` env-var override       | Wired into compose (Wave-3)  | Set in `.env.observability` defaults                |
+| Literal Prometheus IPs (e.g. `172.18.0.8`)                  | CIDR support (#157, #313)    | `172.18.0.0/16` — stable across `down/up`           |
+| `JUNIPER_*_API_KEYS_FILE=./secrets/<empty>` auth-disable    | `/metrics` exempt (#155, #313) | No override — exempt path is upstream             |
+
+After [`POC_PROMETHEUS_GRAFANA_2026-05-27.md` §5](POC_PROMETHEUS_GRAFANA_2026-05-27.md#5-reproduce-the-poc-from-a-clean-checkout)
+was updated, the canonical reproduce flow is just `make monitor` — no
+hand-written local overrides.
+
+The original templates are kept verbatim below for any future operator
+who needs to reconstruct the PoC's exact 2026-05-27 starting state
+(e.g., when bisecting a regression).
 
 ---
 
