@@ -411,14 +411,17 @@ services:
       # plain env var removed.
       CANOPY_API_KEY_FILE: /run/secrets/canopy_api_key
       JUNIPER_CASCOR_API_KEY_FILE: /run/secrets/juniper_cascor_api_keys
-      # E.2 PR-2-D: Origin header for canopy → cascor /ws/control
-      # upgrade (juniper-canopy#328 / juniper-cascor-client>=0.5.0).
-      # The canopy Settings default is already
-      # `http://juniper-canopy:8050` — declaring it here makes the
-      # contract explicit in compose so future env-rewrites cannot
-      # silently drop it.  Pair with
-      # `JUNIPER_CASCOR_WS_CONTROL_ALLOWED_ORIGINS` on cascor above.
-      JUNIPER_CANOPY_CASCOR_WS_ORIGIN: "${JUNIPER_CANOPY_CASCOR_WS_ORIGIN:-http://juniper-canopy:8050}"
+      # Outbound X-API-Key canopy sends on every juniper-data request.
+      # juniper-canopy 0.5.1 ``Settings.juniper_data_api_key`` field
+      # validator reads this via the canopy-side `secrets_util.get_secret`
+      # helper (`_FILE`-suffix indirection). Before juniper-canopy#329
+      # the canopy code never sent an outbound juniper-data key, which
+      # silently 401'd every canopy → juniper-data call once
+      # juniper-deploy#100 enabled juniper-data auth — canopy's own
+      # ``/v1/health`` continued to report ``juniper_data_available:
+      # true`` because data's ``/v1/health`` is auth-exempt, so the
+      # failure was invisible at the dashboard layer.
+      JUNIPER_CANOPY_JUNIPER_DATA_API_KEY_FILE: /run/secrets/juniper_data_api_keys
       JUNIPER_CANOPY_LOG_FORMAT: "${CANOPY_LOG_FORMAT:-text}"
       JUNIPER_CANOPY_SENTRY_DSN: "${CANOPY_SENTRY_DSN:-}"
       JUNIPER_CANOPY_METRICS_ENABLED: "${CANOPY_METRICS_ENABLED:-false}"
@@ -426,6 +429,7 @@ services:
     secrets:
       - canopy_api_key
       - juniper_cascor_api_keys
+      - juniper_data_api_keys
     depends_on:
       juniper-data:
         condition: service_healthy
