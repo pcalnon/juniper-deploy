@@ -8,12 +8,28 @@ operator impact, not engineering effort. "Workaround" describes what the PoC
 applied locally; "Suggested permanent fix" describes the lasting change that
 removes the trap for future operators.
 
+**Status (2026-05-29)**: all five issues are now RESOLVED across six PRs in
+three repos. Each section below carries a `**Status**:` line linking to the
+landing PR; the rollout sequence and validator evidence are in
+[`POC_REMEDIATION_PLAN_2026-05-27.md`](POC_REMEDIATION_PLAN_2026-05-27.md).
+After rebuilding the juniper-data and juniper-cascor images
+(`make build` from `juniper-deploy/`), the PoC `.env.local` +
+`docker-compose.override.yml` workarounds documented in
+[`POC_LOCAL_ENV_TEMPLATE.md`](POC_LOCAL_ENV_TEMPLATE.md) are no longer
+required — `make monitor` from a clean checkout yields all four
+Prometheus targets `up`.
+
 ---
 
 ## Issue 1 — `.env.observability` is not loaded by `make monitor`
 
 **Severity**: high (every fresh `make monitor` ships a broken observability
 stack with all three Juniper targets down).
+
+**Status**: RESOLVED in [juniper-deploy#96](https://github.com/pcalnon/juniper-deploy/pull/96)
+(Wave 0). `monitor:` now loads `.env.observability`, chains
+`prepare-secrets`, prints the correct port (3001), and has an `obs` alias.
+`tests/test_makefile_observability_entrypoint.py` pins the wiring.
 
 **Observed**: With the stack started via `make monitor`, every Juniper service
 target reports `down`. Prometheus + Grafana are healthy; only the scraped apps
@@ -69,6 +85,17 @@ docker compose --env-file .env.observability --profile full --profile observabil
 **Severity**: medium (any operator who actually sets API keys — i.e. anyone
 operating the stack the way it's documented — will get 401 on every scrape).
 
+**Status**: RESOLVED in [juniper-data#155](https://github.com/pcalnon/juniper-data/pull/155)
+(Wave 1, data side) and
+[juniper-cascor#313](https://github.com/pcalnon/juniper-cascor/pull/313)
+(Wave 2, cascor side). Both repos now exempt `/metrics` and `/metrics/`
+from `EXEMPT_PATHS`. The trailing-slash entry is required because
+`prometheus_client.make_asgi_app` is mounted as an ASGI sub-app and
+FastAPI 307-redirects `/metrics → /metrics/`. The cascor PR also added a
+duplicate-inline `MetricsAuthMiddleware` (parallel to juniper-data's
+SEC-16) so bare-exempt doesn't widen the unintentional-exposure surface
+— validator A's strongest finding from the plan.
+
 **Observed**: With `JUNIPER_*_METRICS_ENABLED=true`, `juniper-canopy` is
 scrape-able but `juniper-cascor` and `juniper-data` return `401 Unauthorized`.
 Health endpoints (`/v1/health`, `/v1/health/live`, `/v1/health/ready`) work,
@@ -116,6 +143,14 @@ and crosses the SEC-16 contract; not recommended.
 **Severity**: high (silently no-ops; an operator following the prometheus.yml
 comment will lose hours).
 
+**Status**: RESOLVED in [juniper-deploy#98](https://github.com/pcalnon/juniper-deploy/pull/98)
+(Wave 0). `JUNIPER_DATA_METRICS_TRUSTED_IPS` is now declared on
+`services.juniper-data.environment` in `docker-compose.yml`,
+documented in `.env.example`, and the stale `_ALLOW_IPS` references
+have been corrected across `prometheus.yml`, `METRICS_AUTH_RATIONALE.md`,
+and the Helm chart. `tests/test_compose_metrics_trusted_ips_wired.py`
+asserts the declaration is present and no `_ALLOW_IPS` references remain.
+
 **Observed**: After fixing Issue 2, `juniper-data` still returned `403
 Forbidden` from `MetricsAuthMiddleware`. Setting
 `JUNIPER_DATA_METRICS_TRUSTED_IPS=[…]` in `.env.local` had no effect — the
@@ -158,6 +193,15 @@ services:
 **Severity**: low (cosmetic for dev; would be high if `MetricsAuthMiddleware`
 were enforced in production-like environments).
 
+**Status**: RESOLVED in [juniper-data#156](https://github.com/pcalnon/juniper-data/pull/156)
+(Wave 1). `MetricsAuthMiddleware` now compiles each entry via
+`ipaddress.ip_network(entry, strict=False)` so CIDR ranges like
+`172.18.0.0/16` are accepted alongside bare IPs. IPv6 zone-ids are
+stripped and IPv4-mapped IPv6 clients are unwrapped before membership
+checks. Bad entries raise `ValueError` at `Settings` construction
+(fail-loud) instead of silently producing an empty allowlist. The cascor
+side (PR 313) carries the same implementation.
+
 **Observed**: `JUNIPER_DATA_METRICS_TRUSTED_IPS` requires an exact IP-string
 match (no CIDR support — see
 `juniper-data/juniper_data/api/observability.py:75-93`). The prometheus
@@ -192,6 +236,13 @@ patterns (kube-prometheus uses CIDR allowlists for its scrape proxies).
 
 **Severity**: low (cosmetic; complicates deep-linking and screenshot
 automation).
+
+**Status**: RESOLVED in [juniper-deploy#99](https://github.com/pcalnon/juniper-deploy/pull/99)
+(Wave 0). Sequential `1..N` integer panel IDs assigned across all four
+dashboards (74 panels total) via a regex insertion that produced zero
+formatting churn. `tests/test_grafana_dashboard_ids.py` enforces
+integer + uniqueness without monotonicity, so future panel insertions
+do not cascade-renumber.
 
 **Observed**: the panels in `juniper-overview.json` carry no explicit `"id"`
 field. Grafana auto-assigns IDs on render, so `?viewPanel=<n>` and `d-solo`
