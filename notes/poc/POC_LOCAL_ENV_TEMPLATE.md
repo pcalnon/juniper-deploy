@@ -3,9 +3,26 @@
 **Date**: 2026-05-27
 **Parent doc**: [`POC_PROMETHEUS_GRAFANA_2026-05-27.md`](POC_PROMETHEUS_GRAFANA_2026-05-27.md)
 
+> **Obsolescence note (2026-05-29)**: after Wave 1 + Wave 2 of the remediation
+> plan landed (see [`POC_ISSUES_DISCOVERED.md`](POC_ISSUES_DISCOVERED.md)
+> status lines), both overrides below are **no longer required** for
+> stacks running juniper-data and juniper-cascor images built from
+> current main. From a clean checkout, `make build && make monitor`
+> yields all four Prometheus targets `up`.
+>
+> The file content is kept here verbatim for two reasons:
+>
+> 1. Stacks running older image pins (e.g. pre-2026-05-29 builds of
+>    juniper-data or juniper-cascor) still need the workaround.
+> 2. The `JUNIPER_DATA_METRICS_TRUSTED_IPS` override pattern remains the
+>    documented way to allowlist non-default scraper IPs / CIDRs —
+>    operators just no longer need it for the docker-compose
+>    loopback case.
+
 Both files below are gitignored (`.env.local`, `docker-compose.override.yml`
 are in `.gitignore`). Copy them into the `juniper-deploy/` root to reproduce
-the PoC end-state, then re-up the stack as described in the parent doc §5.
+the pre-Wave-3 PoC end-state, then re-up the stack as described in the
+parent doc §5.2.
 
 ---
 

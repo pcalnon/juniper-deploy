@@ -6,6 +6,7 @@
 [`POC_PROMETHEUS_GRAFANA_2026-05-27.md`](POC_PROMETHEUS_GRAFANA_2026-05-27.md),
 [`POC_ISSUES_DISCOVERED.md`](POC_ISSUES_DISCOVERED.md)
 **Status**: drafted + validated by 4 independent sub-agents (see §7); ready for review.
+**Outcome (2026-05-29)**: SHIPPED — all 6 PRs merged, see table below for PR references.
 
 ---
 
@@ -19,14 +20,14 @@ bump but are otherwise independent. Issue 2 expands scope beyond
 (juniper-cascor needs a parallel `MetricsAuthMiddleware`, not just an exempt
 path — otherwise we widen the unintentional-exposure surface).
 
-| # | Issue                                              | Wave | Repo            | PRs | Severity |
-| - | -------------------------------------------------- | ---- | --------------- | --- | -------- |
-| 1 | `make monitor` doesn't load `.env.observability`   | 0    | juniper-deploy  | 1   | high     |
-| 3 | `*_TRUSTED_IPS` not plumbed; doc/Helm drift        | 0    | juniper-deploy  | 1   | high     |
-| 5 | Provisioned dashboards lack stable panel IDs       | 0    | juniper-deploy  | 1   | low      |
-| 2 | `SecurityMiddleware` gates `/metrics` (data)       | 1    | juniper-data    | 1   | medium   |
-| 4 | `MetricsAuthMiddleware` needs CIDR support         | 1    | juniper-data    | 1   | low      |
-| 2 | `SecurityMiddleware` gates `/metrics` (cascor) **+ new IP allowlist** | 2 | juniper-cascor | 1 | medium |
+| # | Issue                                              | Wave | Repo            | PR (merged) | Severity |
+| - | -------------------------------------------------- | ---- | --------------- | ----------- | -------- |
+| 1 | `make monitor` doesn't load `.env.observability`   | 0    | juniper-deploy  | [#96](https://github.com/pcalnon/juniper-deploy/pull/96) | high |
+| 3 | `*_TRUSTED_IPS` not plumbed; doc/Helm drift        | 0    | juniper-deploy  | [#98](https://github.com/pcalnon/juniper-deploy/pull/98) | high |
+| 5 | Provisioned dashboards lack stable panel IDs       | 0    | juniper-deploy  | [#99](https://github.com/pcalnon/juniper-deploy/pull/99) | low |
+| 2 | `SecurityMiddleware` gates `/metrics` (data)       | 1    | juniper-data    | [#155](https://github.com/pcalnon/juniper-data/pull/155) | medium |
+| 4 | `MetricsAuthMiddleware` needs CIDR support         | 1    | juniper-data    | [#156](https://github.com/pcalnon/juniper-data/pull/156) | low |
+| 2 | `SecurityMiddleware` gates `/metrics` (cascor) **+ new IP allowlist** | 2 | juniper-cascor | [#313](https://github.com/pcalnon/juniper-cascor/pull/313) | medium |
 
 ## 1. Wave-0 — juniper-deploy (3 PRs, independent)
 
