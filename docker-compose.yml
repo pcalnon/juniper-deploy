@@ -187,6 +187,19 @@ services:
       JUNIPER_CASCOR_LOG_FORMAT: "${JUNIPER_CASCOR_LOG_FORMAT:-text}"
       JUNIPER_CASCOR_SENTRY_DSN: "${JUNIPER_CASCOR_SENTRY_DSN:-}"
       JUNIPER_CASCOR_METRICS_ENABLED: "${JUNIPER_CASCOR_METRICS_ENABLED:-false}"
+      # E.2 PR-2-D: /ws/control Origin allowlist (juniper-cascor#312).
+      # The default cascor allowlist only includes localhost:8050; inside
+      # docker compose canopy connects from `http://juniper-canopy:8050`,
+      # so without this override every /ws/control upgrade is
+      # 403-rejected with `Control WS: no Origin header — rejecting`
+      # (the Python `websockets` library auto-emits no Origin for
+      # non-browser callers, so juniper-cascor-client>=0.5.0 forwards
+      # the explicit Origin we configure on canopy's side via
+      # `JUNIPER_CANOPY_CASCOR_WS_ORIGIN` below).  Comma-CSV form is
+      # parsed by juniper-cascor#312's `_parse_ws_control_allowed_origins`
+      # validator. See juniper-ml
+      # notes/STACK_REGRESSION_CORRECTIONS_2026-05-27.md §E.2.
+      JUNIPER_CASCOR_WS_CONTROL_ALLOWED_ORIGINS: "${JUNIPER_CASCOR_WS_CONTROL_ALLOWED_ORIGINS:-http://juniper-canopy:8050,http://localhost:8050,http://127.0.0.1:8050}"
     volumes:
       - juniper-cascor-snapshots:/app/data
       - juniper-cascor-logs:/app/logs
