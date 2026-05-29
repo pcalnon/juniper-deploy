@@ -648,21 +648,43 @@ services:
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Secrets — File-based secrets mounted at /run/secrets/<name>
-# Copy secrets.example/ to secrets/ and fill in real values.
+#
+# Defaults below point at `./secrets/<name>.txt`, which is populated by
+# `bash scripts/prepare_secrets.bash` (chained by `make up`). When the
+# canonical SOPS bundle (`.env.secrets.enc`) decrypts on this host, each
+# file carries the real value; otherwise the script touches a 0-byte
+# placeholder which cascor's `_parse_api_keys` validator (juniper-cascor#311)
+# and canopy's `get_secret()` helper treat as "auth disabled".
+#
+# This is the symmetric-mount design: every service that mounts a given
+# named secret (e.g. `juniper_cascor_api_keys`) resolves to the SAME source
+# file, so canopy + cascor + worker always see byte-identical content. The
+# earlier default of `./secrets.example/…` allowed `--env-file .env.local`
+# to override *some* of the mounts but not their siblings, producing an
+# asymmetric state where canopy sent the placeholder and cascor accepted a
+# populated token — every canopy → cascor call returned `401 Invalid API
+# key`. See notes/SECRET_MOUNT_SYMMETRY_2026-05-28.md.
+#
+# To bring the stack up without SOPS access (fresh clone): `bash
+# scripts/prepare_secrets.bash` first; then `docker compose up`. The
+# `.env.local` PoC override is no longer required for symmetry.
+# `cascor_sentry_dsn`, `grafana_admin_password`, and
+# `alertmanager_smtp_password` retain `./secrets.example/…` defaults
+# because they are not part of the canopy ↔ cascor auth path.
 # ═══════════════════════════════════════════════════════════════════════════
 secrets:
   juniper_data_api_keys:
-    file: "${JUNIPER_DATA_API_KEYS_FILE:-./secrets.example/juniper_data_api_keys.txt}"
+    file: "${JUNIPER_DATA_API_KEYS_FILE:-./secrets/juniper_data_api_keys.txt}"
   juniper_cascor_api_key:
-    file: "${JUNIPER_CASCOR_API_KEY_FILE:-./secrets.example/juniper_cascor_api_key.txt}"
+    file: "${JUNIPER_CASCOR_API_KEY_FILE:-./secrets/juniper_cascor_api_key.txt}"
   juniper_cascor_api_keys:
-    file: "${JUNIPER_CASCOR_API_KEYS_FILE:-./secrets.example/juniper_cascor_api_keys.txt}"
+    file: "${JUNIPER_CASCOR_API_KEYS_FILE:-./secrets/juniper_cascor_api_keys.txt}"
   cascor_sentry_dsn:
     file: "${CASCOR_SENTRY_DSN_FILE:-./secrets.example/cascor_sentry_dsn.txt}"
   canopy_api_key:
-    file: "${CANOPY_API_KEY_FILE:-./secrets.example/canopy_api_key.txt}"
+    file: "${CANOPY_API_KEY_FILE:-./secrets/canopy_api_key.txt}"
   cascor_auth_token:
-    file: "${CASCOR_AUTH_TOKEN_FILE:-./secrets.example/cascor_auth_token.txt}"
+    file: "${CASCOR_AUTH_TOKEN_FILE:-./secrets/cascor_auth_token.txt}"
   grafana_admin_password:
     file: "${GRAFANA_ADMIN_PASSWORD_FILE:-./secrets.example/grafana_admin_password.txt}"
   # OBS-ROUTE-01: SMTP auth password for the alertmanager email receivers
