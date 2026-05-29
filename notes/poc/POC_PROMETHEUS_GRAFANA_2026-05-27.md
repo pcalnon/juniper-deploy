@@ -226,6 +226,34 @@ prometheus     | up |
 
 ## 5. Reproduce the PoC from a clean checkout
 
+### 5.1 After Wave 3 (current main, post-2026-05-29)
+
+After juniper-data, juniper-cascor, and juniper-deploy have all merged
+their remediation PRs (see
+[`POC_ISSUES_DISCOVERED.md`](POC_ISSUES_DISCOVERED.md) for the per-issue
+status table), the local workaround files are no longer needed. From a
+clean checkout:
+
+```bash
+# from juniper-deploy/
+make build       # rebuild juniper-data + juniper-cascor images with the
+                 # merged remediation work; ~10 GB cascor image takes time
+make monitor     # loads .env.observability + observability profile
+
+# verify
+curl -s http://localhost:9090/api/v1/targets \
+  | python3 -c 'import json,sys; [print(t["labels"]["job"], "->", t["health"]) for t in json.load(sys.stdin)["data"]["activeTargets"]]'
+# all four should print "up"
+```
+
+### 5.2 Pre-Wave-3 reproduction (older juniper-data / juniper-cascor images)
+
+If running an older image pin (e.g. an image baked before the
+SecurityMiddleware exempt or before CIDR support landed), the original
+PoC workaround still works. Drop in the two local-override files
+documented in [`POC_LOCAL_ENV_TEMPLATE.md`](POC_LOCAL_ENV_TEMPLATE.md)
+and run:
+
 ```bash
 # from juniper-deploy/
 make prepare-secrets
