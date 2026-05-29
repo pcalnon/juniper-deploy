@@ -50,6 +50,61 @@ def test_trusted_ips_value_substitutes_env_var() -> None:
     )
 
 
+def test_trusted_ips_declared_on_juniper_cascor() -> None:
+    """`docker-compose.yml`'s juniper-cascor env block must declare TRUSTED_IPS.
+
+    POC remediation §3.1 added ``MetricsAuthMiddleware`` to juniper-cascor
+    (PR juniper-cascor#313). Wave-3 (this PR) wires its env-var override into
+    compose so ``make monitor`` can widen the allowlist to the Docker bridge
+    subnets via ``.env.observability`` — same posture juniper-data has had
+    since PR juniper-deploy#98.
+    """
+    compose = _load_compose()
+    env_block = compose["services"]["juniper-cascor"]["environment"]
+    assert "JUNIPER_CASCOR_METRICS_TRUSTED_IPS" in env_block, (
+        "Wave-3 regression: `JUNIPER_CASCOR_METRICS_TRUSTED_IPS` is missing "
+        "from services.juniper-cascor.environment in docker-compose.yml. "
+        "Without the declaration, `--env-file` substitution silently no-ops "
+        "and the cascor `/metrics` scrape returns HTTP 403 from "
+        "MetricsAuthMiddleware even after the operator sets the env var. "
+        "Mirrors the juniper-data wiring established in juniper-deploy#98."
+    )
+
+
+def test_cascor_trusted_ips_value_substitutes_env_var() -> None:
+    """The cascor declared value must support `${JUNIPER_CASCOR_METRICS_TRUSTED_IPS:-...}` substitution."""
+    compose = _load_compose()
+    value = compose["services"]["juniper-cascor"]["environment"]["JUNIPER_CASCOR_METRICS_TRUSTED_IPS"]
+    assert isinstance(value, str)
+    assert "${JUNIPER_CASCOR_METRICS_TRUSTED_IPS" in value, (
+        "TRUSTED_IPS value must reference the env var via "
+        "`${JUNIPER_CASCOR_METRICS_TRUSTED_IPS:-...}` so operator overrides work."
+    )
+    assert "127.0.0.1" in value and "::1" in value, (
+        "Default value must keep loopback-only behaviour: ['127.0.0.1', '::1']."
+    )
+
+
+def test_env_observability_widens_both_services_to_bridge_cidrs() -> None:
+    """`.env.observability` must pre-set TRUSTED_IPS for data + cascor.
+
+    Without this, ``make monitor`` (which loads `.env.observability`) brings
+    up the observability profile with METRICS_ENABLED=true but the two app
+    targets stay ``down: 403`` because the literal-default
+    ``["127.0.0.1","::1"]`` does not match Prometheus's bridge-network IP.
+
+    Pins the four Docker bridge subnets from the compose ``networks:`` block.
+    """
+    env_obs = (REPO_ROOT / ".env.observability").read_text(encoding="utf-8")
+    for service_var in ("JUNIPER_DATA_METRICS_TRUSTED_IPS", "JUNIPER_CASCOR_METRICS_TRUSTED_IPS"):
+        assert f"{service_var}=" in env_obs, f"`.env.observability` must set `{service_var}` (Wave-3 of POC remediation)."
+    # Every bridge subnet enumerated in compose `networks:` should be
+    # represented in the allowlist so the prometheus container's bridge IP
+    # matches regardless of which network it's reached from.
+    for cidr in ("172.18.0.0/16", "172.19.0.0/16", "172.20.0.0/16", "172.21.0.0/16"):
+        assert cidr in env_obs, f"`.env.observability` must include bridge subnet `{cidr}` in METRICS_TRUSTED_IPS."
+
+
 def test_no_stale_allow_ips_references_in_repo() -> None:
     """No file should reference the wrong env-var name `_ALLOW_IPS`."""
     # Files most likely to drift, per validator C findings (POC remediation

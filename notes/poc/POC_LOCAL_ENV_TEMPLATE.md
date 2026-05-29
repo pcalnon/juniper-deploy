@@ -1,11 +1,29 @@
 # Verbatim local overrides used by the Prometheus PoC
 
-**Date**: 2026-05-27
+**Date**: 2026-05-27 (Waves 1+2+3 landed 2026-05-29 — workarounds below
+are no longer needed)
 **Parent doc**: [`POC_PROMETHEUS_GRAFANA_2026-05-27.md`](POC_PROMETHEUS_GRAFANA_2026-05-27.md)
 
-Both files below are gitignored (`.env.local`, `docker-compose.override.yml`
-are in `.gitignore`). Copy them into the `juniper-deploy/` root to reproduce
-the PoC end-state, then re-up the stack as described in the parent doc §5.
+## Status — historical, kept for reference
+
+The `.env.local` and `docker-compose.override.yml` templates below were
+the **local PoC workaround** for three upstream gaps. All three are now
+fixed upstream:
+
+| Workaround                                                  | Status                       | Replaced with                                       |
+| ----------------------------------------------------------- | ---------------------------- | --------------------------------------------------- |
+| `JUNIPER_DATA_METRICS_TRUSTED_IPS` env-var override         | Wired into compose (#98)     | Set in `.env.observability` defaults                |
+| `JUNIPER_CASCOR_METRICS_TRUSTED_IPS` env-var override       | Wired into compose (Wave-3)  | Set in `.env.observability` defaults                |
+| Literal Prometheus IPs (e.g. `172.18.0.8`)                  | CIDR support (#157, #313)    | `172.18.0.0/16` — stable across `down/up`           |
+| `JUNIPER_*_API_KEYS_FILE=./secrets/<empty>` auth-disable    | `/metrics` exempt (#155, #313) | No override — exempt path is upstream             |
+
+After [`POC_PROMETHEUS_GRAFANA_2026-05-27.md` §5](POC_PROMETHEUS_GRAFANA_2026-05-27.md#5-reproduce-the-poc-from-a-clean-checkout)
+was updated, the canonical reproduce flow is just `make monitor` — no
+hand-written local overrides.
+
+The original templates are kept verbatim below for any future operator
+who needs to reconstruct the PoC's exact 2026-05-27 starting state
+(e.g., when bisecting a regression).
 
 ---
 

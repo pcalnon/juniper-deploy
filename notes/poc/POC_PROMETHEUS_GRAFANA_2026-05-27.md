@@ -226,22 +226,37 @@ prometheus     | up |
 
 ## 5. Reproduce the PoC from a clean checkout
 
+**Updated 2026-05-29 (post-Waves 1+2+3)**: no local workarounds are
+needed any more. The `.env.local` + `docker-compose.override.yml` pair
+in [`POC_LOCAL_ENV_TEMPLATE.md`](POC_LOCAL_ENV_TEMPLATE.md) is kept for
+historical reference only — all three workarounds it captured are now
+upstream:
+
+- **`JUNIPER_DATA_METRICS_TRUSTED_IPS`** is wired into compose
+  (juniper-deploy #98), accepts CIDR (juniper-data #157), and the four
+  Docker bridge subnets are pre-populated in `.env.observability` so
+  `make monitor` brings the target `up` out of the box.
+- **`JUNIPER_CASCOR_METRICS_TRUSTED_IPS`** is wired into compose
+  (Wave-3, this PR), accepts CIDR + `/metrics` is exempt from
+  `SecurityMiddleware` (juniper-cascor #313), and the same bridge
+  subnets are pre-populated in `.env.observability`.
+- **`/metrics` exempt from `SecurityMiddleware`** on both juniper-data
+  (#155) and juniper-cascor (#313), so the IP allowlist is the only
+  gate; the PoC's "point the api-keys secret at empty files to disable
+  auth" hack is no longer required.
+
+Clean-checkout reproduce:
+
 ```bash
 # from juniper-deploy/
 make prepare-secrets
-
-# write .env.local (template in POC_LOCAL_ENV_TEMPLATE.md)
-# write docker-compose.override.yml (template in POC_LOCAL_ENV_TEMPLATE.md)
-
-docker compose \
-  --env-file .env.observability \
-  --env-file .env.local \
-  --profile full --profile observability up -d
+make monitor   # alias for: docker compose --env-file .env.observability
+               #            --profile full --profile observability up -d
 
 # verify
 curl -s http://localhost:9090/api/v1/targets \
   | python3 -c 'import json,sys; [print(t["labels"]["job"], "->", t["health"]) for t in json.load(sys.stdin)["data"]["activeTargets"]]'
-# all four should print "up"
+# all four (data, cascor, canopy, prometheus) should print "up"
 ```
 
 ## 6. Files touched
