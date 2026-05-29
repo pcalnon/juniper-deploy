@@ -199,6 +199,16 @@ services:
       # the same secret name on its side of the wire.
       - juniper_cascor_api_keys
       - juniper_cascor_api_key
+      # `juniper_data_api_keys` is cascor's OUTBOUND key when calling
+      # juniper-data — JUNIPER_DATA_API_KEY_FILE above reads from
+      # `/run/secrets/juniper_data_api_keys`. Same mount-not-declared
+      # mistake as the `juniper_cascor_api_keys` line above (PR #87): the
+      # env var was set but the secret wasn't mounted, so cascor->data
+      # calls silently sent no X-API-Key. Surfaces only when juniper-data
+      # has auth enabled (populated `juniper_data_api_keys.txt`); pre-this-PR
+      # the placeholder file was empty so juniper-data auth was disabled
+      # and the missing mount was inert.
+      - juniper_data_api_keys
       - cascor_sentry_dsn
     depends_on:
       juniper-data:
