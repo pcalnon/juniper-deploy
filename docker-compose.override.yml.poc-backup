@@ -1,0 +1,14 @@
+# =============================================================================
+# docker-compose.override.yml — local Prometheus PoC overrides (gitignored)
+#
+# Wires JUNIPER_DATA_METRICS_TRUSTED_IPS into the juniper-data container so
+# SEC-16's MetricsAuthMiddleware allows the prometheus scraper. The variable
+# is not in the base compose file's `environment:` block, so a .env-file
+# substitution alone has no effect — the override has to declare it.
+#
+# See notes/POC_PROMETHEUS_GRAFANA_2026-05-27.md (Issue 3).
+# =============================================================================
+services:
+  juniper-data:
+    environment:
+      JUNIPER_DATA_METRICS_TRUSTED_IPS: "${JUNIPER_DATA_METRICS_TRUSTED_IPS:-[\"127.0.0.1\",\"::1\"]}"

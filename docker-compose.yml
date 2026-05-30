@@ -434,6 +434,17 @@ services:
       JUNIPER_CANOPY_LOG_FORMAT: "${CANOPY_LOG_FORMAT:-text}"
       JUNIPER_CANOPY_SENTRY_DSN: "${CANOPY_SENTRY_DSN:-}"
       JUNIPER_CANOPY_METRICS_ENABLED: "${CANOPY_METRICS_ENABLED:-false}"
+      # SEC-16 parity with juniper-data and juniper-cascor (juniper-canopy
+      # #331, consuming juniper-observability 0.3.0's
+      # ``MetricsAuthMiddleware``): IP allowlist for the Prometheus
+      # ``/metrics`` mount. JSON list of IP literals or CIDR ranges.
+      # Defaults to loopback only; override via
+      # ``JUNIPER_CANOPY_METRICS_TRUSTED_IPS`` (set in
+      # ``.env.observability`` to include the Docker bridge subnets so
+      # ``make monitor`` brings Prometheus's juniper-canopy target ``up``
+      # out of the box). See
+      # notes/poc/POC_REMEDIATION_PLAN_2026-05-27.md §6.
+      JUNIPER_CANOPY_METRICS_TRUSTED_IPS: "${JUNIPER_CANOPY_METRICS_TRUSTED_IPS:-[\"127.0.0.1\",\"::1\"]}"
       REDIS_URL: "redis://redis:6379/0"
     secrets:
       - canopy_api_key
