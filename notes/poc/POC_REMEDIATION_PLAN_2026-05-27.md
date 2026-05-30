@@ -514,11 +514,34 @@ throughout the rollout.
 
 ## 6. Out of scope (deferred follow-ups, trigger-conditioned)
 
-- **Promote `MetricsAuthMiddleware` to `juniper-observability`** instead of
-  duplicating it in cascor. Trigger: next juniper-observability minor
-  release that's already touching the security surface.
-- **Add `MetricsAuthMiddleware` to juniper-canopy**. Trigger: any future
-  topology change that exposes canopy's `/metrics` beyond loopback.
+- ✅ **DONE 2026-05-29 / 2026-05-30**: **Promote `MetricsAuthMiddleware` to
+  `juniper-observability`** instead of duplicating it in cascor.
+  Original trigger: "next juniper-observability minor release that's
+  already touching the security surface." Closed by:
+  - **juniper-ml#335** (2026-05-29) — promoted `MetricsAuthMiddleware` +
+    `parse_trusted_networks` + `normalize_client_ip` +
+    `METRICS_DEFAULT_TRUSTED_IPS` + `TrustedNetwork` to
+    `juniper-observability` 0.3.0.
+  - **juniper-ml#337** (2026-05-30) — `juniper-observability` 0.3.1
+    aligned the shared wrapper with the `logging.warning` cascor had
+    been carrying inline since juniper-cascor#313, so the consumer
+    cleanup migrations are byte-for-byte equivalent.
+  - **juniper-cascor#314** (2026-05-30) — dropped cascor's inline
+    `MetricsAuthMiddleware` (-74 LOC), re-exports from
+    `juniper-observability>=0.3.1`.
+  - **juniper-data#158** (2026-05-30) — same cleanup migration on
+    juniper-data (-50 LOC effective); adopts the new
+    `logging.warning` (data's inline copy was silent on that path).
+- ✅ **DONE 2026-05-29**: **Add `MetricsAuthMiddleware` to juniper-canopy**.
+  Original trigger: "any future topology change that exposes
+  canopy's `/metrics` beyond loopback." Closed by **juniper-canopy#331**
+  (consume `MetricsAuthMiddleware` from `juniper-observability` 0.3.0
+  + wrap canopy's `/metrics` mount) + **juniper-canopy#332**
+  (lockfile follow-up for the `>=0.3.0` floor) +
+  **juniper-deploy#106** (`JUNIPER_CANOPY_METRICS_TRUSTED_IPS` wiring
+  + `.env.observability` default). All four Prometheus targets
+  (canopy, cascor, data, prometheus itself) now show `up` from a
+  clean `make monitor` checkout.
 - **A real `obs-demo` Makefile target** with a demo-aware
   `prometheus.demo.yml` that scrapes the `-demo`-suffixed compose names.
   Trigger: demand from anyone debugging metrics under the demo profile.
