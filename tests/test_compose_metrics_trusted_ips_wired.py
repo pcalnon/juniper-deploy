@@ -85,19 +85,60 @@ def test_cascor_trusted_ips_value_substitutes_env_var() -> None:
     )
 
 
-def test_env_observability_widens_both_services_to_bridge_cidrs() -> None:
-    """`.env.observability` must pre-set TRUSTED_IPS for data + cascor.
+def test_trusted_ips_declared_on_juniper_canopy() -> None:
+    """`docker-compose.yml`'s juniper-canopy env block must declare TRUSTED_IPS.
+
+    POC remediation §6 added ``MetricsAuthMiddleware`` to juniper-canopy
+    (PR juniper-canopy#331), via the helper promoted to
+    ``juniper-observability`` 0.3.0 (PR juniper-ml#335). This PR wires
+    its env-var override into compose so ``make monitor`` can widen the
+    allowlist to the Docker bridge subnets via ``.env.observability``.
+    """
+    compose = _load_compose()
+    env_block = compose["services"]["juniper-canopy"]["environment"]
+    assert "JUNIPER_CANOPY_METRICS_TRUSTED_IPS" in env_block, (
+        "POC §6 regression: `JUNIPER_CANOPY_METRICS_TRUSTED_IPS` is "
+        "missing from services.juniper-canopy.environment in "
+        "docker-compose.yml. Without the declaration, `--env-file` "
+        "substitution silently no-ops and the canopy `/metrics` scrape "
+        "returns HTTP 403 from MetricsAuthMiddleware even after the "
+        "operator sets the env var. Mirrors the juniper-data wiring "
+        "(juniper-deploy#98) and juniper-cascor wiring "
+        "(juniper-deploy#105 Wave-3)."
+    )
+
+
+def test_canopy_trusted_ips_value_substitutes_env_var() -> None:
+    """The canopy declared value must support `${JUNIPER_CANOPY_METRICS_TRUSTED_IPS:-...}` substitution."""
+    compose = _load_compose()
+    value = compose["services"]["juniper-canopy"]["environment"]["JUNIPER_CANOPY_METRICS_TRUSTED_IPS"]
+    assert isinstance(value, str)
+    assert "${JUNIPER_CANOPY_METRICS_TRUSTED_IPS" in value, (
+        "TRUSTED_IPS value must reference the env var via "
+        "`${JUNIPER_CANOPY_METRICS_TRUSTED_IPS:-...}` so operator overrides work."
+    )
+    assert "127.0.0.1" in value and "::1" in value, (
+        "Default value must keep loopback-only behaviour: ['127.0.0.1', '::1']."
+    )
+
+
+def test_env_observability_widens_all_three_services_to_bridge_cidrs() -> None:
+    """`.env.observability` must pre-set TRUSTED_IPS for data + cascor + canopy.
 
     Without this, ``make monitor`` (which loads `.env.observability`) brings
-    up the observability profile with METRICS_ENABLED=true but the two app
+    up the observability profile with METRICS_ENABLED=true but the three app
     targets stay ``down: 403`` because the literal-default
     ``["127.0.0.1","::1"]`` does not match Prometheus's bridge-network IP.
 
     Pins the four Docker bridge subnets from the compose ``networks:`` block.
     """
     env_obs = (REPO_ROOT / ".env.observability").read_text(encoding="utf-8")
-    for service_var in ("JUNIPER_DATA_METRICS_TRUSTED_IPS", "JUNIPER_CASCOR_METRICS_TRUSTED_IPS"):
-        assert f"{service_var}=" in env_obs, f"`.env.observability` must set `{service_var}` (Wave-3 of POC remediation)."
+    for service_var in (
+        "JUNIPER_DATA_METRICS_TRUSTED_IPS",
+        "JUNIPER_CASCOR_METRICS_TRUSTED_IPS",
+        "JUNIPER_CANOPY_METRICS_TRUSTED_IPS",
+    ):
+        assert f"{service_var}=" in env_obs, f"`.env.observability` must set `{service_var}` (POC remediation completeness)."
     # Every bridge subnet enumerated in compose `networks:` should be
     # represented in the allowlist so the prometheus container's bridge IP
     # matches regardless of which network it's reached from.
