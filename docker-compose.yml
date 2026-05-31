@@ -357,9 +357,20 @@ services:
       JUNIPER_CASCOR_AUTO_DATASET_PARAMS: '{"n_spirals": 2, "n_points_per_spiral": 200, "noise": 0.15, "seed": 42}'
       JUNIPER_CASCOR_AUTO_NETWORK: '{"input_size": 2, "output_size": 2, "learning_rate": 0.01}'
       JUNIPER_CASCOR_AUTO_TRAIN_EPOCHS: "500"
+      # Outbound key for cascor's juniper-data-client. Auto-start POSTs
+      # /v1/datasets to juniper-data, which since DEPLOY-09 hardening
+      # requires X-API-Key — without this the spiral-dataset creation
+      # 401s and the demo never starts training. Same secret juniper-data
+      # uses to validate incoming X-API-Key headers (single source of
+      # truth), matching the canonical ``juniper-cascor`` service wiring.
+      JUNIPER_DATA_API_KEY_FILE: /run/secrets/juniper_data_api_keys
     volumes:
       - juniper-cascor-snapshots:/app/data
       - juniper-cascor-logs:/app/logs
+    secrets:
+      # Outbound juniper-data key for the cascor-demo auto-start flow.
+      # See JUNIPER_DATA_API_KEY_FILE comment above.
+      - juniper_data_api_keys
     depends_on:
       juniper-data:
         condition: service_healthy
