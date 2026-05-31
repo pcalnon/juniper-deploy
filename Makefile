@@ -55,7 +55,7 @@ endif
 .PHONY: help up down restart logs logs-data logs-cascor logs-canopy \
         status build build-no-cache clean \
         shell-data shell-cascor shell-canopy \
-        health wait ps demo dev test monitor obs
+        health wait ps demo dev test monitor obs obs-demo
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Help
@@ -105,6 +105,13 @@ monitor: prepare-secrets ## Start full stack with observability (Prometheus + Gr
 	@echo -e "$(GREEN)Full stack + observability starting. Prometheus: http://localhost:9090, Grafana: http://localhost:$${GRAFANA_HOST_PORT:-3001}$(RESET)"
 
 obs: monitor  ## Alias for `make monitor` (referenced from .env.observability)
+
+obs-demo: prepare-secrets  ## Start demo stack with observability (scrapes juniper-{cascor,canopy}-demo via prometheus.demo.yml)
+	@PROMETHEUS_CONFIG_FILE=prometheus.demo.yml \
+		$(COMPOSE) -f $(COMPOSE_FILE) \
+		--env-file .env.observability \
+		--profile demo --profile observability up -d
+	@echo -e "$(GREEN)Demo stack + observability starting. Prometheus: http://localhost:9090 (scraping -demo-suffixed services), Grafana: http://localhost:$${GRAFANA_HOST_PORT:-3001}$(RESET)"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Logs
