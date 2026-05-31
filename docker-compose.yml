@@ -340,6 +340,17 @@ services:
       # bridge subnets so prometheus can scrape this container. Same
       # mechanism as the canonical ``juniper-cascor`` service above.
       JUNIPER_CASCOR_METRICS_TRUSTED_IPS: "${JUNIPER_CASCOR_METRICS_TRUSTED_IPS:-[\"127.0.0.1\",\"::1\"]}"
+      # /ws/control Origin allowlist — demo-flavoured. The default in
+      # cascor's settings is loopback-only, and the canonical
+      # ``juniper-cascor`` service overrides to add
+      # ``http://juniper-canopy:8050``. Under the demo profile canopy
+      # runs as ``juniper-canopy-demo:8050`` and sends Origin
+      # ``http://juniper-canopy-demo:8050`` (set via
+      # ``JUNIPER_CANOPY_CASCOR_WS_ORIGIN`` on the canopy-demo service);
+      # without this allowlist entry every /ws/control upgrade is
+      # 403-rejected, breaking canopy↔cascor live control under the
+      # demo profile.
+      JUNIPER_CASCOR_WS_CONTROL_ALLOWED_ORIGINS: "${JUNIPER_CASCOR_WS_CONTROL_ALLOWED_ORIGINS:-http://juniper-canopy-demo:8050,http://localhost:8050,http://127.0.0.1:8050}"
       # --- Demo auto-start configuration ---
       JUNIPER_CASCOR_AUTO_START: "true"
       JUNIPER_CASCOR_AUTO_DATASET: "spiral"
@@ -524,6 +535,16 @@ services:
       JUNIPER_CANOPY_CASCOR_SERVICE_URL: "http://juniper-cascor-demo:8200"
       JUNIPER_CANOPY_SERVER__HOST: "0.0.0.0"
       JUNIPER_CANOPY_SERVER__PORT: "8050"
+      # Origin header canopy-demo sends to cascor-demo on the /ws/control
+      # upgrade. Default in canopy's settings is ``http://juniper-canopy:8050``
+      # which is correct for the canonical full-profile flow but wrong for
+      # the demo profile (canopy-demo's actual hostname is
+      # ``juniper-canopy-demo``); cascor-demo's allowlist (above on the
+      # juniper-cascor-demo service) is paired with this value so the two
+      # ends agree on the demo identity. Without this override every
+      # /ws/control upgrade gets 403-rejected, breaking canopy↔cascor
+      # interactive control under the demo profile.
+      JUNIPER_CANOPY_CASCOR_WS_ORIGIN: "${JUNIPER_CANOPY_CASCOR_WS_ORIGIN:-http://juniper-canopy-demo:8050}"
       # DEPLOY-10: rate-limit even in the demo profile (see cascor-demo notes).
       JUNIPER_CANOPY_RATE_LIMIT_ENABLED: "${CANOPY_RATE_LIMIT_ENABLED:-true}"
       JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE: "${CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
