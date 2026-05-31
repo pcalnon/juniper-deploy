@@ -328,6 +328,12 @@ services:
       # the demo over.
       JUNIPER_CASCOR_RATE_LIMIT_ENABLED: "${JUNIPER_CASCOR_RATE_LIMIT_ENABLED:-true}"
       JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE: "${JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
+      # ``make obs-demo`` loads ``.env.observability`` which sets
+      # ``JUNIPER_CASCOR_METRICS_ENABLED=true``; default off-out-of-the-box
+      # matches the canonical ``juniper-cascor`` service so the demo
+      # service has no /metrics endpoint when run without the observability
+      # profile.
+      JUNIPER_CASCOR_METRICS_ENABLED: "${JUNIPER_CASCOR_METRICS_ENABLED:-false}"
       # SEC-16 / POC §6: ``MetricsAuthMiddleware`` gates ``/metrics`` by IP
       # allowlist. ``make obs-demo`` loads ``.env.observability`` which
       # widens the default loopback-only allowlist to cover the compose
@@ -372,8 +378,23 @@ services:
       - python
       - -c
       - |
-        import urllib.request, json, time, sys
+        import urllib.request, json, time, sys, pathlib
         base = 'http://juniper-data:8100/v1'
+        # juniper-data ships with auth enabled (populated juniper_data_api_keys.txt
+        # — DEPLOY-09 hardening). Read the first key from the mounted Docker
+        # secret and send it as X-API-Key. Empty file → unauth call (back-compat
+        # for the pre-DEPLOY-09 setup where auth was off).
+        key_path = pathlib.Path('/run/secrets/juniper_data_api_keys')
+        api_key = ''
+        if key_path.exists():
+            for line in key_path.read_text().splitlines():
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    api_key = line.split(',', 1)[0].strip()
+                    break
+        headers = {'Content-Type': 'application/json'}
+        if api_key:
+            headers['X-API-Key'] = api_key
         for i in range(30):
             try:
                 urllib.request.urlopen(f'{base}/health', timeout=5)
@@ -387,13 +408,19 @@ services:
             'params': {'n_spirals': 2, 'n_points_per_spiral': 200, 'noise': 0.15, 'seed': 42},
             'persist': True
         }).encode()
-        req = urllib.request.Request(f'{base}/datasets', data=params,
-            headers={'Content-Type': 'application/json'})
+        req = urllib.request.Request(f'{base}/datasets', data=params, headers=headers)
         resp = urllib.request.urlopen(req, timeout=30)
         print(f'Demo dataset created: {json.loads(resp.read())}')
     depends_on:
       juniper-data:
         condition: service_healthy
+    # Mount juniper-data's API-keys file so demo-seed can authenticate to the
+    # protected POST /v1/datasets endpoint. Same secret juniper-data uses to
+    # validate incoming X-API-Key headers, so a single source of truth covers
+    # both ends. Mount-only (no env var) — the entrypoint reads the path
+    # directly.
+    secrets:
+      - juniper_data_api_keys
     networks:
       - backend
     restart: "no"
@@ -500,6 +527,11 @@ services:
       # DEPLOY-10: rate-limit even in the demo profile (see cascor-demo notes).
       JUNIPER_CANOPY_RATE_LIMIT_ENABLED: "${CANOPY_RATE_LIMIT_ENABLED:-true}"
       JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE: "${CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
+      # ``make obs-demo`` loads ``.env.observability`` which sets
+      # ``CANOPY_METRICS_ENABLED=true``; default off matches the canonical
+      # ``juniper-canopy`` service so the demo service has no /metrics
+      # endpoint when run without the observability profile.
+      JUNIPER_CANOPY_METRICS_ENABLED: "${CANOPY_METRICS_ENABLED:-false}"
       # SEC-16 / POC §6: ``MetricsAuthMiddleware`` gates ``/metrics`` by IP
       # allowlist. ``make obs-demo`` loads ``.env.observability`` which
       # widens the default loopback-only allowlist to cover the compose
