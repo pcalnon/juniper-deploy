@@ -542,9 +542,24 @@ throughout the rollout.
   + `.env.observability` default). All four Prometheus targets
   (canopy, cascor, data, prometheus itself) now show `up` from a
   clean `make monitor` checkout.
-- **A real `obs-demo` Makefile target** with a demo-aware
-  `prometheus.demo.yml` that scrapes the `-demo`-suffixed compose names.
-  Trigger: demand from anyone debugging metrics under the demo profile.
+- ✅ **DONE 2026-05-30**: **A real `obs-demo` Makefile target** with a
+  demo-aware `prometheus.demo.yml` that scrapes the `-demo`-suffixed
+  compose names. Original trigger: "demand from anyone debugging metrics
+  under the demo profile." Closed by **juniper-deploy#TBD** which adds:
+  - `prometheus/prometheus.demo.yml` — same shape as `prometheus.yml`
+    but targeting `juniper-cascor-demo:8200` and
+    `juniper-canopy-demo:8050` (juniper-data is shared between
+    `full` and `demo` profiles so its target is unchanged).
+  - `PROMETHEUS_CONFIG_FILE` env var on the prometheus container's
+    `--config.file` so the scrape topology can be swapped without
+    forking a parallel prometheus service.
+  - `JUNIPER_CASCOR_METRICS_TRUSTED_IPS` /
+    `JUNIPER_CANOPY_METRICS_TRUSTED_IPS` wiring on the two demo
+    services (previously default loopback-only — would have 403'd
+    every scrape from the prometheus container).
+  - `make obs-demo` target that sets `PROMETHEUS_CONFIG_FILE=prometheus.demo.yml`
+    and brings up `--profile demo --profile observability` with the
+    same `.env.observability` defaults that `make monitor` uses.
 - **Hostname-based allowlist in `MetricsAuthMiddleware`**
   (resolve `prometheus` via compose DNS at startup, refresh on SIGHUP).
   Trigger: CIDR turns out to be insufficient in shared/CNI environments.

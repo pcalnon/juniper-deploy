@@ -1,0 +1,103 @@
+---
+# =============================================================================
+# Juniper Deploy — Prometheus Configuration for the `demo` profile
+#
+# This file is the demo-profile counterpart of ``prometheus.yml``. Use it
+# via ``make obs-demo`` (which sets ``PROMETHEUS_CONFIG_FILE=prometheus.demo.yml``
+# so the prometheus container's ``--config.file`` flag points here).
+#
+# Why a separate file: the ``demo`` compose profile renames the cascor /
+# canopy services to ``juniper-cascor-demo`` / ``juniper-canopy-demo``, so
+# ``prometheus.yml``'s ``juniper-cascor:8200`` and ``juniper-canopy:8050``
+# scrape targets fail with NXDOMAIN under that profile. juniper-data does
+# NOT get renamed (the canonical ``juniper-data`` service runs under both
+# ``full`` and ``demo`` profiles per docker-compose.yml line 117), so that
+# job is identical to ``prometheus.yml``.
+#
+# This was the deferred follow-up tracked in
+# ``notes/poc/POC_REMEDIATION_PLAN_2026-05-27.md`` §6
+# ("A real obs-demo Makefile target with a demo-aware prometheus.demo.yml
+# that scrapes the -demo-suffixed compose names").
+#
+# Anything that changes in ``prometheus.yml`` (recording / alert rules,
+# scrape intervals, the ``juniper-data`` job) MUST be mirrored here. The
+# ``alert_rules.yml`` and ``recording_rules.yml`` files are shared via the
+# same ``./prometheus:/etc/prometheus:ro`` volume mount.
+#
+# Auth notes (same shape as ``prometheus.yml``):
+#   All three Juniper services ship ``MetricsAuthMiddleware`` (SEC-16 /
+#   POC §6 promotion to juniper-observability 0.3.0+) gating /metrics by
+#   an IP allowlist. Inside docker-compose the prometheus container's
+#   bridge-network IP must be in
+#   JUNIPER_{DATA,CASCOR,CANOPY}_METRICS_TRUSTED_IPS for scrapes to
+#   succeed. The defaults in docker-compose.yml are loopback-only; widen
+#   via ``.env.observability`` (loaded by ``make obs-demo``).
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    deployment: "docker-compose-demo"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+rule_files:
+  - "recording_rules.yml"
+  - "alert_rules.yml"
+
+scrape_configs:
+  - job_name: "prometheus"
+    metrics_path: "/metrics"
+    scheme: "http"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: "prometheus"
+          environment: "docker-demo"
+
+  # juniper-data — shared between `full` and `demo` profiles; same
+  # canonical service name in both. Gated by MetricsAuthMiddleware.
+  - job_name: "juniper-data"
+    metrics_path: "/metrics"
+    scheme: "http"
+    scrape_interval: 10s
+    scrape_timeout: 10s
+    honor_labels: false
+    static_configs:
+      - targets: ["juniper-data:8100"]
+        labels:
+          service: "juniper-data"
+          environment: "docker-demo"
+
+  # juniper-cascor-demo — the demo-profile counterpart of the canonical
+  # juniper-cascor service (different container_name, same internal
+  # port 8200). Demo runs with auth_enabled=False (intentionally open
+  # for guest poking) but METRICS_TRUSTED_IPS still gates /metrics.
+  - job_name: "juniper-cascor"
+    metrics_path: "/metrics"
+    scheme: "http"
+    scrape_interval: 10s
+    scrape_timeout: 10s
+    honor_labels: false
+    static_configs:
+      - targets: ["juniper-cascor-demo:8200"]
+        labels:
+          service: "juniper-cascor"
+          environment: "docker-demo"
+
+  - job_name: "juniper-canopy"
+    metrics_path: "/metrics"
+    scheme: "http"
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    honor_labels: false
+    static_configs:
+      - targets: ["juniper-canopy-demo:8050"]
+        labels:
+          service: "juniper-canopy"
+          environment: "docker-demo"

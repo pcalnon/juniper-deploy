@@ -328,6 +328,12 @@ services:
       # the demo over.
       JUNIPER_CASCOR_RATE_LIMIT_ENABLED: "${JUNIPER_CASCOR_RATE_LIMIT_ENABLED:-true}"
       JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE: "${JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
+      # SEC-16 / POC §6: ``MetricsAuthMiddleware`` gates ``/metrics`` by IP
+      # allowlist. ``make obs-demo`` loads ``.env.observability`` which
+      # widens the default loopback-only allowlist to cover the compose
+      # bridge subnets so prometheus can scrape this container. Same
+      # mechanism as the canonical ``juniper-cascor`` service above.
+      JUNIPER_CASCOR_METRICS_TRUSTED_IPS: "${JUNIPER_CASCOR_METRICS_TRUSTED_IPS:-[\"127.0.0.1\",\"::1\"]}"
       # --- Demo auto-start configuration ---
       JUNIPER_CASCOR_AUTO_START: "true"
       JUNIPER_CASCOR_AUTO_DATASET: "spiral"
@@ -494,6 +500,12 @@ services:
       # DEPLOY-10: rate-limit even in the demo profile (see cascor-demo notes).
       JUNIPER_CANOPY_RATE_LIMIT_ENABLED: "${CANOPY_RATE_LIMIT_ENABLED:-true}"
       JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE: "${CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
+      # SEC-16 / POC §6: ``MetricsAuthMiddleware`` gates ``/metrics`` by IP
+      # allowlist. ``make obs-demo`` loads ``.env.observability`` which
+      # widens the default loopback-only allowlist to cover the compose
+      # bridge subnets so prometheus can scrape this container. Same
+      # mechanism as the canonical ``juniper-canopy`` service above.
+      JUNIPER_CANOPY_METRICS_TRUSTED_IPS: "${JUNIPER_CANOPY_METRICS_TRUSTED_IPS:-[\"127.0.0.1\",\"::1\"]}"
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -559,7 +571,11 @@ services:
     container_name: juniper-prometheus
     profiles: ["observability"]
     command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
+      # ``PROMETHEUS_CONFIG_FILE`` lets ``make obs-demo`` swap in
+      # ``prometheus.demo.yml`` (which scrapes ``juniper-{cascor,canopy}-demo``)
+      # without forking a parallel prometheus service. Default
+      # ``prometheus.yml`` is the canonical full-profile config.
+      - "--config.file=/etc/prometheus/${PROMETHEUS_CONFIG_FILE:-prometheus.yml}"
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=30d"
       - "--web.enable-lifecycle"
