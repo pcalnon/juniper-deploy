@@ -486,6 +486,18 @@ services:
       # true`` because data's ``/v1/health`` is auth-exempt, so the
       # failure was invisible at the dashboard layer.
       JUNIPER_CANOPY_JUNIPER_DATA_API_KEY_FILE: /run/secrets/juniper_data_api_keys
+      # E.2 PR-2-D: Origin header for canopy → cascor /ws/control
+      # upgrade (juniper-canopy#328 / juniper-cascor-client>=0.5.0).
+      # The canopy Settings default is already
+      # `http://juniper-canopy:8050` — declaring it here makes the
+      # contract explicit in compose so future env-rewrites cannot
+      # silently drop it.  Pair with
+      # `JUNIPER_CASCOR_WS_CONTROL_ALLOWED_ORIGINS` on cascor above.
+      # Restored after being dropped from this production block during
+      # the #103 `_FILE`-env restructure; the juniper-canopy-demo service
+      # kept its own variant (default `http://juniper-canopy-demo:8050`),
+      # which masked the loss behind a single file-wide occurrence.
+      JUNIPER_CANOPY_CASCOR_WS_ORIGIN: "${JUNIPER_CANOPY_CASCOR_WS_ORIGIN:-http://juniper-canopy:8050}"
       JUNIPER_CANOPY_LOG_FORMAT: "${CANOPY_LOG_FORMAT:-text}"
       JUNIPER_CANOPY_SENTRY_DSN: "${CANOPY_SENTRY_DSN:-}"
       JUNIPER_CANOPY_METRICS_ENABLED: "${CANOPY_METRICS_ENABLED:-false}"
