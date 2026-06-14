@@ -134,7 +134,10 @@ class TestJuniperCanopyHealth:
         resp = http.get(f"{canopy_url}/v1/health", timeout=DEFAULT_TIMEOUT)
         assert resp.status_code == 200
         body = resp.json()
-        assert body.get("status") == "healthy"
+        # API-01: canopy aligned /v1/health status to the ecosystem-standard
+        # "ok" (matching juniper-data and juniper-cascor above); it previously
+        # returned "healthy". See juniper-canopy src/main.py::health_check.
+        assert body.get("status") == "ok"
         assert "version" in body
 
     def test_liveness_backward_compat(self, canopy_url: str, http: requests.Session):
