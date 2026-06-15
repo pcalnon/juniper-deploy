@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Build-provenance drift checker — `make doctor`** (juniper-ml design [#412](https://github.com/pcalnon/juniper-ml/pull/412), Part 7). New `scripts/doctor.sh` reads each Juniper image's `org.opencontainers.image.revision` OCI label via `docker inspect` (the running container's image when up, else the built `:latest`) and compares it to the sibling source repo's `git rev-parse --short HEAD`, reporting **FRESH / STALE / UNKNOWN** per service and exiting non-zero when any image is STALE. `docker inspect` is used rather than `/v1/health` so the check works for services whose port is not host-published (e.g. juniper-data). `scripts/health_check.sh` gains companion **GIT_SHA + DRIFT** columns (sourced from the new `/v1/health` `git_sha` field). Follow-up to the build-args wiring in [#118](https://github.com/pcalnon/juniper-deploy/pull/118); fully populated once the service provenance PRs land and images are rebuilt. Regression test: `tests/test_makefile_doctor.py` (9 tests).
+
 - **METRICS-MON R1.3 / seed-04 (Helm chart 1.0.0 → 1.1.0)**: opt-in HTTP probe wiring for the `juniper-cascor-worker` Deployment, gated by the new `worker.healthcheck.enabled` flag (default **`false`**). When flag is `false`, `worker-deployment.yaml` continues to render the legacy `exec: kill -0 1` probes — operators on older worker images are unaffected. When the flag is `true`, the chart:
   - exposes a named container port `health` on `worker.healthcheck.port` (default `8210`);
   - injects `CASCOR_WORKER_HEALTH_BIND=0.0.0.0` and `CASCOR_WORKER_HEALTH_PORT=<port>` into the worker pod env (the worker image at >= 0.4.0 binds localhost-only by default);
