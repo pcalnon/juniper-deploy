@@ -105,7 +105,11 @@ except Exception as e:
     # (service unreachable, pre-provenance image, or sibling repo absent). The
     # authoritative, host-port-independent check is `make doctor`.
     src_sha="$(git -C "${SIBLING_ROOT}/${name}" rev-parse --short HEAD 2>/dev/null || true)"
-    if [[ "$ok" == "ok" && -n "${gitsha:-}" && "$gitsha" != "n/a" && -n "$src_sha" ]]; then
+    if [[ "$ok" == "ok" && "${gitsha:-}" == *-dirty ]]; then
+        # Image built from uncommitted tracked changes (see scripts/doctor.sh /
+        # scripts/provenance_sha.sh) — flagged regardless of the base SHA.
+        drift="DIRTY"; drift_col="${RED}"
+    elif [[ "$ok" == "ok" && -n "${gitsha:-}" && "$gitsha" != "n/a" && -n "$src_sha" ]]; then
         if [[ "$gitsha" == "$src_sha"* || "$src_sha" == "$gitsha"* ]]; then
             drift="FRESH"; drift_col="${GREEN}"
         else

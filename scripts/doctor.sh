@@ -87,6 +87,7 @@ printf "  %-22s %-12s %-12s %s\n" "SERVICE" "IMAGE SHA" "SOURCE HEAD" "STATUS"
 printf "  %-22s %-12s %-12s %s\n" "──────────────────────" "──────────" "──────────" "──────"
 
 stale_found=false
+dirty_found=false
 
 for entry in "${SERVICES[@]}"; do
     IFS='|' read -r name image repo <<< "$entry"
@@ -108,6 +109,13 @@ for entry in "${SERVICES[@]}"; do
     if [[ -z "$img_sha" ]]; then
         status="${YELLOW}UNKNOWN${RESET}"
         note="no revision label (pre-provenance image, or not built)"
+    elif [[ "$img_sha" == *-dirty ]]; then
+        # provenance_sha.sh appended -dirty: the image was built from a tree
+        # with uncommitted tracked changes, so it contains code in no commit.
+        # Flag regardless of how the base SHA compares to HEAD.
+        status="${RED}DIRTY${RESET}"
+        note="image built from uncommitted changes — rebuild from a clean checkout"
+        dirty_found=true
     elif [[ -z "$src" ]]; then
         status="${YELLOW}UNKNOWN${RESET}"
         note="source repo not found at ../${repo}"
@@ -126,8 +134,13 @@ for entry in "${SERVICES[@]}"; do
 done
 
 echo ""
+if $dirty_found; then
+    echo -e "  ${RED}Dirty image(s) detected — built from uncommitted changes; rebuild from a clean tree.${RESET}"
+fi
 if $stale_found; then
     echo -e "  ${RED}Stale image(s) detected — rebuild with: make build${RESET}"
+fi
+if $stale_found || $dirty_found; then
     exit 1
 fi
-echo -e "  ${GREEN}No stale images detected.${RESET}"
+echo -e "  ${GREEN}No stale or dirty images detected.${RESET}"
