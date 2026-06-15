@@ -118,6 +118,10 @@ services:
     build:
       context: ../juniper-data
       dockerfile: Dockerfile
+      args:
+        GIT_SHA: "${GIT_SHA_DATA:-}"
+        BUILD_DATE: "${BUILD_DATE:-}"
+        APP_VERSION: "${APP_VERSION_DATA:-}"
     image: juniper-data:latest
     container_name: juniper-data
     ports:
@@ -165,6 +169,10 @@ services:
     build:
       context: ../juniper-cascor
       dockerfile: Dockerfile
+      args:
+        GIT_SHA: "${GIT_SHA_CASCOR:-}"
+        BUILD_DATE: "${BUILD_DATE:-}"
+        APP_VERSION: "${APP_VERSION_CASCOR:-}"
     image: juniper-cascor:latest
     container_name: juniper-cascor
     ports:
@@ -256,6 +264,10 @@ services:
     build:
       context: ../juniper-cascor-worker
       dockerfile: Dockerfile
+      args:
+        GIT_SHA: "${GIT_SHA_WORKER:-}"
+        BUILD_DATE: "${BUILD_DATE:-}"
+        APP_VERSION: "${APP_VERSION_WORKER:-}"
     image: juniper-cascor-worker:latest
     security_opt:
       - no-new-privileges:true
@@ -309,6 +321,10 @@ services:
     build:
       context: ../juniper-cascor
       dockerfile: Dockerfile
+      args:
+        GIT_SHA: "${GIT_SHA_CASCOR:-}"
+        BUILD_DATE: "${BUILD_DATE:-}"
+        APP_VERSION: "${APP_VERSION_CASCOR:-}"
     image: juniper-cascor:latest
     container_name: juniper-cascor-demo
     ports:
@@ -456,6 +472,10 @@ services:
     build:
       context: ../juniper-canopy
       dockerfile: Dockerfile
+      args:
+        GIT_SHA: "${GIT_SHA_CANOPY:-}"
+        BUILD_DATE: "${BUILD_DATE:-}"
+        APP_VERSION: "${APP_VERSION_CANOPY:-}"
     image: juniper-canopy:latest
     container_name: juniper-canopy
     ports:
@@ -545,6 +565,10 @@ services:
     build:
       context: ../juniper-canopy
       dockerfile: Dockerfile
+      args:
+        GIT_SHA: "${GIT_SHA_CANOPY:-}"
+        BUILD_DATE: "${BUILD_DATE:-}"
+        APP_VERSION: "${APP_VERSION_CANOPY:-}"
     image: juniper-canopy:latest
     container_name: juniper-canopy-demo
     ports:
@@ -608,6 +632,10 @@ services:
     build:
       context: ../juniper-canopy
       dockerfile: Dockerfile
+      args:
+        GIT_SHA: "${GIT_SHA_CANOPY:-}"
+        BUILD_DATE: "${BUILD_DATE:-}"
+        APP_VERSION: "${APP_VERSION_CANOPY:-}"
     image: juniper-canopy:latest
     container_name: juniper-canopy-dev
     ports:

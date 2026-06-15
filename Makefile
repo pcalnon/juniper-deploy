@@ -149,11 +149,29 @@ wait:  ## Block until all services are healthy
 # Build
 # ═══════════════════════════════════════════════════════════════════════════
 
-build:  ## Build/rebuild all images
-	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev --profile test --profile observability build
+# Build provenance (juniper-ml notes/BUILD_PROVENANCE_DESIGN_2026-06-14.md):
+# stamp each image with ITS OWN source repo's short git SHA (a single global
+# GIT_SHA would mislabel a multi-service build), a shared ISO-8601 build date,
+# and the per-repo package version. docker-compose interpolates these per
+# service via `build.args`. The companion `make doctor` compares the running
+# image revision against the source HEAD to surface stale images. A missing
+# sibling repo resolves to an empty string (image built with empty provenance
+# → reported UNKNOWN, "rebuild").
+PROVENANCE_ENV = BUILD_DATE="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+	GIT_SHA_DATA="$$(git -C ../juniper-data rev-parse --short HEAD 2>/dev/null)" \
+	GIT_SHA_CASCOR="$$(git -C ../juniper-cascor rev-parse --short HEAD 2>/dev/null)" \
+	GIT_SHA_CANOPY="$$(git -C ../juniper-canopy rev-parse --short HEAD 2>/dev/null)" \
+	GIT_SHA_WORKER="$$(git -C ../juniper-cascor-worker rev-parse --short HEAD 2>/dev/null)" \
+	APP_VERSION_DATA="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-data/pyproject.toml 2>/dev/null | head -1)" \
+	APP_VERSION_CASCOR="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-cascor/pyproject.toml 2>/dev/null | head -1)" \
+	APP_VERSION_CANOPY="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-canopy/pyproject.toml 2>/dev/null | head -1)" \
+	APP_VERSION_WORKER="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-cascor-worker/pyproject.toml 2>/dev/null | head -1)"
 
-build-no-cache:  ## Full rebuild without cache
-	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev --profile test --profile observability build --no-cache
+build:  ## Build/rebuild all images (stamped with per-repo git SHA + build date)
+	@$(PROVENANCE_ENV) $(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev --profile test --profile observability build
+
+build-no-cache:  ## Full rebuild without cache (stamped with per-repo git SHA + build date)
+	@$(PROVENANCE_ENV) $(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev --profile test --profile observability build --no-cache
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Cleanup
