@@ -159,12 +159,14 @@ doctor:  ## Detect stale images: built/running revision vs source HEAD (FRESH/ST
 # service via `build.args`. The companion `make doctor` compares the running
 # image revision against the source HEAD to surface stale images. A missing
 # sibling repo resolves to an empty string (image built with empty provenance
-# → reported UNKNOWN, "rebuild").
+# → reported UNKNOWN, "rebuild"). `scripts/provenance_sha.sh` appends `-dirty`
+# when a repo's working tree has uncommitted *tracked* changes (OQ-2), so an
+# image built from uncommitted code is reported DIRTY rather than FRESH.
 PROVENANCE_ENV = BUILD_DATE="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-	GIT_SHA_DATA="$$(git -C ../juniper-data rev-parse --short HEAD 2>/dev/null)" \
-	GIT_SHA_CASCOR="$$(git -C ../juniper-cascor rev-parse --short HEAD 2>/dev/null)" \
-	GIT_SHA_CANOPY="$$(git -C ../juniper-canopy rev-parse --short HEAD 2>/dev/null)" \
-	GIT_SHA_WORKER="$$(git -C ../juniper-cascor-worker rev-parse --short HEAD 2>/dev/null)" \
+	GIT_SHA_DATA="$$(bash scripts/provenance_sha.sh ../juniper-data)" \
+	GIT_SHA_CASCOR="$$(bash scripts/provenance_sha.sh ../juniper-cascor)" \
+	GIT_SHA_CANOPY="$$(bash scripts/provenance_sha.sh ../juniper-canopy)" \
+	GIT_SHA_WORKER="$$(bash scripts/provenance_sha.sh ../juniper-cascor-worker)" \
 	APP_VERSION_DATA="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-data/pyproject.toml 2>/dev/null | head -1)" \
 	APP_VERSION_CASCOR="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-cascor/pyproject.toml 2>/dev/null | head -1)" \
 	APP_VERSION_CANOPY="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-canopy/pyproject.toml 2>/dev/null | head -1)" \

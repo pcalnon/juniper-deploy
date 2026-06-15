@@ -105,3 +105,23 @@ def test_health_check_surfaces_git_sha_and_drift() -> None:
     text = _read(HEALTH_CHECK)
     assert "git_sha" in text, "health_check.sh must read git_sha from /v1/health."
     assert "GIT_SHA" in text and "DRIFT" in text, "health_check.sh must show GIT_SHA + DRIFT columns."
+
+
+def test_doctor_flags_dirty_images() -> None:
+    """OQ-2: an image whose revision ends in `-dirty` (built from uncommitted tracked
+    changes) must be reported DIRTY, not FRESH — checked before the FRESH prefix compare."""
+    text = _read(DOCTOR)
+    assert "*-dirty" in text, "doctor.sh must detect the -dirty provenance marker."
+    assert "DIRTY" in text, "doctor.sh must report a DIRTY status."
+
+
+def test_makefile_stamps_dirty_via_helper() -> None:
+    """PROVENANCE_ENV must stamp SHAs through provenance_sha.sh (which appends `-dirty`)
+    rather than a bare rev-parse, so an image built from uncommitted code is detectable."""
+    assert "provenance_sha.sh" in _read(MAKEFILE), "Makefile PROVENANCE_ENV must use scripts/provenance_sha.sh for -dirty-aware SHA stamping."
+
+
+def test_health_check_flags_dirty() -> None:
+    """health_check.sh's DRIFT column must surface DIRTY for a `-dirty` image revision."""
+    text = _read(HEALTH_CHECK)
+    assert "DIRTY" in text and "-dirty" in text, "health_check.sh must flag -dirty images as DIRTY."
