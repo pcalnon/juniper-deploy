@@ -55,7 +55,7 @@ endif
 .PHONY: help up down restart logs logs-data logs-cascor logs-canopy \
         status build build-no-cache clean \
         shell-data shell-cascor shell-canopy \
-        health wait ps demo dev test monitor obs obs-demo
+        health doctor wait ps demo dev test monitor obs obs-demo
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Help
@@ -144,6 +144,9 @@ health:  ## Detailed health report for all services
 
 wait:  ## Block until all services are healthy
 	@bash scripts/wait_for_services.sh
+
+doctor:  ## Detect stale images: built/running revision vs source HEAD (FRESH/STALE/UNKNOWN)
+	@bash scripts/doctor.sh
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Build
