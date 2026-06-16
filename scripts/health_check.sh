@@ -26,6 +26,42 @@ SIBLING_ROOT="$(cd "${REPO_ROOT}/.." && pwd)"
 # shellcheck source=scripts/config.sh
 source "${SCRIPT_DIR}/config.sh"
 
+# Internal-only services (attached solely to `internal: true` Docker networks)
+# have no published host port, so they cannot be reached from the host. Query
+# them via `docker compose exec` against their in-container localhost; the
+# host-published services are probed directly. See the juniper-data note in
+# docker-compose.yml. COMPOSE_FILE is overridable for tests / non-default layouts.
+COMPOSE_FILE="${COMPOSE_FILE:-${REPO_ROOT}/docker-compose.yml}"
+INTERNAL_SERVICES=" juniper-data "
+
+# Shared probe payload. Reads the target URL from argv[1] and a per-request
+# timeout (seconds) from argv[2], so the identical code runs on the host and
+# inside a container via `docker compose exec`. Always exits 0 (failures are
+# reported on stdout as `error|unreachable|...`) so `set -e` is not tripped.
+PROBE_PY='
+import urllib.request, json, time, sys
+url = sys.argv[1]
+try:
+    start = time.monotonic()
+    resp = urllib.request.urlopen(url, timeout=float(sys.argv[2]))
+    elapsed = (time.monotonic() - start) * 1000
+    data = json.loads(resp.read().decode())
+    status = data.get("status", "unknown")
+    version = data.get("version", "n/a")
+    git_sha = data.get("git_sha") or "n/a"
+    deps = data.get("dependencies", {})
+    dep_parts = []
+    for dk, dv in deps.items():
+        ds = dv.get("status", "?")
+        dl = dv.get("latency_ms")
+        dl_str = f" {dl:.0f}ms" if dl is not None else ""
+        dep_parts.append(f"{dk}={ds}{dl_str}")
+    dep_str = ", ".join(dep_parts) if dep_parts else ""
+    print(f"ok|{status}|{version}|{git_sha}|{elapsed:.0f}ms|{dep_str}")
+except Exception:
+    print("error|unreachable|n/a|n/a|—|")
+'
+
 # Colors (disabled if NO_COLOR is set)
 if [[ -z "${NO_COLOR:-}" ]]; then
     GREEN='\033[0;32m'
@@ -74,29 +110,16 @@ for entry in "${SERVICES[@]}"; do
     port="${entry##*:}"
     url="http://localhost:${port}/v1/health/ready"
 
-    result=$(python3 -c "
-import urllib.request, json, time, sys
-url = sys.argv[1]
-try:
-    start = time.monotonic()
-    resp = urllib.request.urlopen(url, timeout=${HEALTH_TIMEOUT})
-    elapsed = (time.monotonic() - start) * 1000
-    data = json.loads(resp.read().decode())
-    status = data.get('status', 'unknown')
-    version = data.get('version', 'n/a')
-    git_sha = data.get('git_sha') or 'n/a'
-    deps = data.get('dependencies', {})
-    dep_parts = []
-    for dk, dv in deps.items():
-        ds = dv.get('status', '?')
-        dl = dv.get('latency_ms')
-        dl_str = f' {dl:.0f}ms' if dl is not None else ''
-        dep_parts.append(f'{dk}={ds}{dl_str}')
-    dep_str = ', '.join(dep_parts) if dep_parts else ''
-    print(f'ok|{status}|{version}|{git_sha}|{elapsed:.0f}ms|{dep_str}')
-except Exception as e:
-    print(f'error|unreachable|n/a|n/a|—|')
-" "$url" 2>/dev/null)
+    # Internal-only services are queried from inside their own container (the
+    # in-container localhost:${port} reaches the service over the Docker network);
+    # host-published services are queried directly. `|| result=""` keeps a failed
+    # exec/probe from tripping `set -e` — the empty result parses as unreachable.
+    if [[ "$INTERNAL_SERVICES" == *" $name "* ]]; then
+        result=$(docker compose -f "${COMPOSE_FILE}" exec -T "$name" \
+            python -c "$PROBE_PY" "$url" "${HEALTH_TIMEOUT}" 2>/dev/null) || result=""
+    else
+        result=$(python3 -c "$PROBE_PY" "$url" "${HEALTH_TIMEOUT}" 2>/dev/null) || result=""
+    fi
 
     IFS='|' read -r ok status version gitsha latency deps <<< "$result"
 

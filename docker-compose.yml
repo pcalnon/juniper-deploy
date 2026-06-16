@@ -124,8 +124,14 @@ services:
         APP_VERSION: "${APP_VERSION_DATA:-}"
     image: juniper-data:latest
     container_name: juniper-data
-    ports:
-      - "${BIND_HOST:-127.0.0.1}:${JUNIPER_DATA_PORT:-8100}:${JUNIPER_DATA_PORT:-8100}"
+    # No host port is published: juniper-data is attached only to the `backend`
+    # and `data` networks, both `internal: true`. Docker cannot publish a host
+    # port from an internal-only network, so a `ports:` mapping here would be
+    # silently ineffective (visible in `docker inspect` but never bound/listening).
+    # Other services reach data over the Docker network (http://juniper-data:8100);
+    # scripts/{health_check,wait_for_services}.sh probe it via `docker compose exec`.
+    # To expose data on the host, also attach it to the non-internal `frontend`
+    # network and restore a `ports:` mapping.
     security_opt:
       - no-new-privileges:true
     cap_drop:

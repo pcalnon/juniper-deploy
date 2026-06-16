@@ -25,6 +25,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/config.sh
 source "${SCRIPT_DIR}/config.sh"
 
+# juniper-data is attached only to `internal: true` Docker networks (it has no
+# published host port), so it must be probed from inside its container over the
+# Docker network rather than via the host. COMPOSE_FILE is overridable for tests.
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+COMPOSE_FILE="${COMPOSE_FILE:-${REPO_ROOT}/docker-compose.yml}"
+
 TIMEOUT=${1:-${WAIT_TIMEOUT_DEFAULT}}
 POLL_INTERVAL=${POLL_INTERVAL_DEFAULT}
 ELAPSED=0
@@ -47,7 +53,16 @@ echo "Waiting for Juniper services (timeout: ${TIMEOUT}s)..."
 check_service() {
     local name="$1"
     local url="$2"
-    if python3 -c "import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=${CURL_TIMEOUT})" "$url" 2>/dev/null; then
+    local internal_svc="${3:-}"
+    local probe='import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=float(sys.argv[2]))'
+    if [[ -n "$internal_svc" ]]; then
+        # Internal-only service: probe from inside its container (Docker network).
+        if docker compose -f "${COMPOSE_FILE}" exec -T "$internal_svc" \
+            python -c "$probe" "$url" "${CURL_TIMEOUT}" 2>/dev/null; then
+            echo "  ✓ ${name} is healthy"
+            return 0
+        fi
+    elif python3 -c "$probe" "$url" "${CURL_TIMEOUT}" 2>/dev/null; then
         echo "  ✓ ${name} is healthy"
         return 0
     fi
@@ -59,7 +74,7 @@ while true; do
     cascor_ok=0
     canopy_ok=0
 
-    check_service "juniper-data   " "${DATA_URL}"   && data_ok=1   || true
+    check_service "juniper-data   " "${DATA_URL}"   "juniper-data" && data_ok=1 || true
     check_service "juniper-cascor " "${CASCOR_URL}" && cascor_ok=1 || true
     check_service "juniper-canopy " "${CANOPY_URL}" && canopy_ok=1 || true
 
