@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import subprocess
+import tempfile
 import threading
 from contextlib import ExitStack, contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -59,6 +61,39 @@ def _health_server(port: int = 0, healthy: bool = True) -> Iterator[int]:
         thread.join(timeout=2)
 
 
+# wait_for_services.sh probes the internal-only juniper-data service via
+# `docker compose exec` (juniper-data publishes no host port — PR #123). The unit
+# test has no compose stack, so a stub `docker` runs that exec'd command directly
+# on the host, where the mock health server is reachable as localhost:<port> just
+# as it is from inside the container.
+_FAKE_DOCKER = r"""#!/usr/bin/env bash
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  if [[ "${args[i]}" == "exec" ]]; then
+    j=$((i + 1))
+    while [[ "${args[j]}" == -* ]]; do j=$((j + 1)); done   # skip flags (e.g. -T)
+    j=$((j + 1))                                            # skip the service name
+    cmd=("${args[@]:j}")
+    [[ "${cmd[0]}" == "python" ]] && cmd[0]="python3"        # slim image -> host runner
+    exec "${cmd[@]}"
+  fi
+done
+exit 0
+"""
+
+
+@contextmanager
+def _fake_docker_on_path(env: dict[str, str]) -> Iterator[None]:
+    """Prepend a stub ``docker`` to ``env['PATH']`` so the internal juniper-data
+    readiness probe (``docker compose exec``) runs on the host during the test."""
+    with tempfile.TemporaryDirectory() as tmp:
+        docker = Path(tmp) / "docker"
+        docker.write_text(_FAKE_DOCKER, encoding="utf-8")
+        docker.chmod(docker.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        env["PATH"] = f"{tmp}{os.pathsep}{env.get('PATH', '')}"
+        yield
+
+
 def _run_wait_script(
     timeout: int,
     *,
@@ -73,15 +108,16 @@ def _run_wait_script(
     env["JUNIPER_DATA_PORT"] = str(data_port)
     env["CASCOR_HOST_PORT"] = str(cascor_port)
     env["CANOPY_PORT"] = str(canopy_port)
-    return subprocess.run(
-        ["bash", str(WAIT_SCRIPT), str(timeout)],
-        cwd=REPO_ROOT,
-        env=env,
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
+    with _fake_docker_on_path(env):
+        return subprocess.run(
+            ["bash", str(WAIT_SCRIPT), str(timeout)],
+            cwd=REPO_ROOT,
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
 
 
 def test_wait_for_services_succeeds_when_all_ready_statuses() -> None:
