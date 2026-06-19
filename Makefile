@@ -167,10 +167,12 @@ PROVENANCE_ENV = BUILD_DATE="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 	GIT_SHA_CASCOR="$$(bash scripts/provenance_sha.sh ../juniper-cascor)" \
 	GIT_SHA_CANOPY="$$(bash scripts/provenance_sha.sh ../juniper-canopy)" \
 	GIT_SHA_WORKER="$$(bash scripts/provenance_sha.sh ../juniper-cascor-worker)" \
+	GIT_SHA_RECURRENCE="$$(bash scripts/provenance_sha.sh ../juniper-recurrence)" \
 	APP_VERSION_DATA="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-data/pyproject.toml 2>/dev/null | head -1)" \
 	APP_VERSION_CASCOR="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-cascor/pyproject.toml 2>/dev/null | head -1)" \
 	APP_VERSION_CANOPY="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-canopy/pyproject.toml 2>/dev/null | head -1)" \
-	APP_VERSION_WORKER="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-cascor-worker/pyproject.toml 2>/dev/null | head -1)"
+	APP_VERSION_WORKER="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-cascor-worker/pyproject.toml 2>/dev/null | head -1)" \
+	APP_VERSION_RECURRENCE="$$(sed -nE 's/^__version__ = \"(.+)\"/\1/p' ../juniper-recurrence/juniper-recurrence/juniper_recurrence/_version.py 2>/dev/null | head -1)"
 
 build:  ## Build/rebuild all images (stamped with per-repo git SHA + build date)
 	@$(PROVENANCE_ENV) $(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev --profile test --profile observability build

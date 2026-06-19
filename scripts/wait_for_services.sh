@@ -36,7 +36,7 @@ POLL_INTERVAL=${POLL_INTERVAL_DEFAULT}
 ELAPSED=0
 
 # Validate port values are numeric to prevent injection
-for var in JUNIPER_DATA_PORT JUNIPER_CASCOR_PORT JUNIPER_CANOPY_PORT; do
+for var in JUNIPER_DATA_PORT JUNIPER_CASCOR_PORT JUNIPER_RECURRENCE_PORT JUNIPER_CANOPY_PORT; do
     val="${!var}"
     if ! [[ "$val" =~ ^[0-9]+$ ]]; then
         echo "ERROR: ${var} contains non-numeric value: ${val}"
@@ -46,6 +46,9 @@ done
 
 DATA_URL="http://localhost:${JUNIPER_DATA_PORT}/v1/health/live"
 CASCOR_URL="http://localhost:${JUNIPER_CASCOR_PORT}/v1/health/live"
+# juniper-recurrence (on juniper-service-core) exposes /v1/health + /v1/health/ready
+# only — there is no /v1/health/live — so probe liveness via /v1/health.
+RECURRENCE_URL="http://localhost:${JUNIPER_RECURRENCE_PORT}/v1/health"
 CANOPY_URL="http://localhost:${JUNIPER_CANOPY_PORT}/v1/health/live"
 
 echo "Waiting for Juniper services (timeout: ${TIMEOUT}s)..."
@@ -76,6 +79,9 @@ while true; do
 
     check_service "juniper-data   " "${DATA_URL}"   "juniper-data" && data_ok=1 || true
     check_service "juniper-cascor " "${CASCOR_URL}" && cascor_ok=1 || true
+    # juniper-recurrence is reported but NOT gated: it is a newer, optional model
+    # backend, so the core data/cascor/canopy readiness wait does not block on it.
+    check_service "juniper-recurrence " "${RECURRENCE_URL}" || true
     check_service "juniper-canopy " "${CANOPY_URL}" && canopy_ok=1 || true
 
     if [[ $data_ok -eq 1 && $cascor_ok -eq 1 && $canopy_ok -eq 1 ]]; then

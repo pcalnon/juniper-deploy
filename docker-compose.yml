@@ -61,6 +61,15 @@ x-healthcheck-canopy: &healthcheck-canopy
   retries: ${HEALTHCHECK_RETRIES:-5}
   start_period: ${HEALTHCHECK_START_PERIOD_CANOPY:-20s}
 
+# juniper-recurrence imports a heavy pure-Python stack (service-core, model-core,
+# recurrence-model, data-client, numpy, fastapi) — ~10-15s — before uvicorn binds,
+# so it gets a longer start_period than the other HTTP services.
+x-healthcheck-recurrence: &healthcheck-recurrence
+  interval: ${HEALTHCHECK_INTERVAL:-15s}
+  timeout: ${HEALTHCHECK_TIMEOUT:-10s}
+  retries: ${HEALTHCHECK_RETRIES:-5}
+  start_period: ${HEALTHCHECK_START_PERIOD_RECURRENCE:-40s}
+
 x-healthcheck-worker: &healthcheck-worker
   interval: ${HEALTHCHECK_WORKER_INTERVAL:-30s}
   timeout: ${HEALTHCHECK_WORKER_TIMEOUT:-10s}
@@ -468,6 +477,66 @@ services:
     networks:
       - backend
     restart: "no"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # JuniperRecurrence — Δt-native LMU recurrence service (container port 8210)
+  # Host 8211 -> container 8210 (OQ-15/G7). A shared backend service like
+  # juniper-data: it runs under every profile (no -demo rename needed) so both
+  # prometheus.yml and prometheus.demo.yml scrape the same `juniper-recurrence`
+  # target. numpy-only (no torch), so it gets the resources-light tier.
+  # ═══════════════════════════════════════════════════════════════════════════
+  juniper-recurrence:
+    profiles: ["full", "demo", "dev", "test"]
+    build:
+      context: ../juniper-recurrence/juniper-recurrence
+      dockerfile: Dockerfile
+      args:
+        GIT_SHA: "${GIT_SHA_RECURRENCE:-}"
+        BUILD_DATE: "${BUILD_DATE:-}"
+        APP_VERSION: "${APP_VERSION_RECURRENCE:-}"
+    image: juniper-recurrence:latest
+    container_name: juniper-recurrence
+    ports:
+      - "${BIND_HOST:-127.0.0.1}:${RECURRENCE_HOST_PORT:-8211}:${RECURRENCE_PORT:-8210}"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      JUNIPER_RECURRENCE_HOST: "${RECURRENCE_HOST:-0.0.0.0}"
+      JUNIPER_RECURRENCE_PORT: "${RECURRENCE_PORT:-8210}"
+      JUNIPER_RECURRENCE_LOG_LEVEL: "${RECURRENCE_LOG_LEVEL:-INFO}"
+      # The LMU /train + /crossval paths fetch datasets from juniper-data.
+      JUNIPER_DATA_URL: "${JUNIPER_DATA_URL:-http://juniper-data:8100}"
+      # Outbound juniper-data API key — the shared cross-service secret
+      # (same convention cascor / canopy use via the *_FILE indirection).
+      JUNIPER_DATA_API_KEY_FILE: /run/secrets/juniper_data_api_keys
+      JUNIPER_RECURRENCE_RATE_LIMIT_ENABLED: "${JUNIPER_RECURRENCE_RATE_LIMIT_ENABLED:-true}"
+      # Metrics off by default (parity with data / cascor); enable + extend the
+      # trusted-IPs allowlist with the compose-network CIDR via .env.observability
+      # so `make monitor` brings the prometheus juniper-recurrence target up.
+      JUNIPER_RECURRENCE_METRICS_ENABLED: "${JUNIPER_RECURRENCE_METRICS_ENABLED:-false}"
+      # SEC-16 parity: IP allowlist for /metrics. JSON list of IP literals / CIDRs.
+      JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS: "${JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS:-[\"127.0.0.1\",\"::1\"]}"
+      # Inbound API-key auth is opt-in (the app allows open access when no keys are
+      # configured; the host port binds to 127.0.0.1 via BIND_HOST by default). To
+      # enable it, add a `juniper_recurrence_api_keys` secret (top-level + below) and
+      # set JUNIPER_RECURRENCE_API_KEYS_FILE=/run/secrets/juniper_recurrence_api_keys.
+    secrets:
+      - juniper_data_api_keys
+    depends_on:
+      juniper-data:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8210/v1/health', timeout=5)"]
+      <<: *healthcheck-recurrence
+    networks:
+      - backend
+      - data
+      - frontend
+    deploy:
+      <<: *resources-light
+    restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
   # juniper-canopy — Monitoring Dashboard (port 8050)
