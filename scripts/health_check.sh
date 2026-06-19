@@ -84,7 +84,7 @@ fi
 # Validate port values are numeric to prevent injection. The JUNIPER_*_PORT
 # vars come from scripts/config.sh, which falls back through CASCOR_HOST_PORT
 # / CANOPY_PORT for backward compatibility.
-for varname in JUNIPER_DATA_PORT JUNIPER_CASCOR_PORT JUNIPER_CANOPY_PORT; do
+for varname in JUNIPER_DATA_PORT JUNIPER_CASCOR_PORT JUNIPER_RECURRENCE_PORT JUNIPER_CANOPY_PORT; do
     val="${!varname:-}"
     if [[ -n "$val" ]] && ! [[ "$val" =~ ^[0-9]+$ ]]; then
         echo "ERROR: ${varname} contains non-numeric value: ${val}"
@@ -95,6 +95,7 @@ done
 SERVICES=(
     "juniper-data:${JUNIPER_DATA_PORT}"
     "juniper-cascor:${JUNIPER_CASCOR_PORT}"
+    "juniper-recurrence:${JUNIPER_RECURRENCE_PORT}"
     "juniper-canopy:${JUNIPER_CANOPY_PORT}"
 )
 

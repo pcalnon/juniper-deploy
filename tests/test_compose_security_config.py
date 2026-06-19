@@ -168,7 +168,10 @@ def test_published_ports_default_to_loopback_bind(): # DEPLOY-08
     compose_text = _read_text(COMPOSE_PATH)
     services = _extract_two_space_blocks(compose_text, "services")
 
-    for name in ("juniper-data", "juniper-cascor", "juniper-cascor-demo",
+    # juniper-data is intentionally internal-only (no host port published; see the
+    # docker-compose.yml note on the juniper-data service), so it is excluded here.
+    # juniper-recurrence is host-published (8211 -> 8210) and must bind to loopback.
+    for name in ("juniper-cascor", "juniper-cascor-demo", "juniper-recurrence",
                  "juniper-canopy", "juniper-canopy-demo", "juniper-canopy-dev"):
         block = services[name]
         # Match a `- "...":port:port` ports list item.

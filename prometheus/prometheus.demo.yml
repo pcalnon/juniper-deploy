@@ -90,6 +90,21 @@ scrape_configs:
           service: "juniper-cascor"
           environment: "docker-demo"
 
+  # juniper-recurrence — shared between `full` and `demo` profiles; same
+  # canonical service name in both (no -demo rename), like juniper-data.
+  # Gated by MetricsAuthMiddleware; metrics off by default (.env.observability).
+  - job_name: "juniper-recurrence"
+    metrics_path: "/metrics"
+    scheme: "http"
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    honor_labels: false
+    static_configs:
+      - targets: ["juniper-recurrence:8210"]
+        labels:
+          service: "juniper-recurrence"
+          environment: "docker-demo"
+
   - job_name: "juniper-canopy"
     metrics_path: "/metrics"
     scheme: "http"

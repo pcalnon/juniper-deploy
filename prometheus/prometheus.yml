@@ -96,6 +96,23 @@ scrape_configs:
           service: "juniper-cascor"
           environment: "docker"
 
+  # juniper-recurrence — container port 8210 (host-side mapping is 8211, unused
+  # here: Prometheus scrapes inside the compose network). Gated by
+  # MetricsAuthMiddleware (SEC-16) — the prometheus container IP must be in
+  # JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS or the scrape returns HTTP 403.
+  # Metrics are off by default; enable both via .env.observability.
+  - job_name: "juniper-recurrence"
+    metrics_path: "/metrics"
+    scheme: "http"
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    honor_labels: false
+    static_configs:
+      - targets: ["juniper-recurrence:8210"]
+        labels:
+          service: "juniper-recurrence"
+          environment: "docker"
+
   - job_name: "juniper-canopy"
     metrics_path: "/metrics"
     scheme: "http"
