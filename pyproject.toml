@@ -10,6 +10,8 @@ addopts = [
     # `playwright` is missing.
     "-p", "no:dash",
     "-p", "no:playwright",
+    "--strict-markers",
+    "--strict-config",
 ]
 markers = [
     "health: health endpoint checks",
