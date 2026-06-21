@@ -77,8 +77,6 @@ jobs:
             pre-commit-${{ runner.os }}-${{ env.PYTHON_VERSION }}-
 
       - name: Run pre-commit hooks
-        env:
-          SKIP: docker-compose-check
         run: |
           echo "╔════════════════════════════════════════════════════════════╗"
           echo "║       juniper-deploy - Pre-commit Checks                   ║"
