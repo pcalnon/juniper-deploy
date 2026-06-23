@@ -562,6 +562,11 @@ services:
     environment:
       JUNIPER_CANOPY_JUNIPER_DATA_URL: "${JUNIPER_DATA_URL:-http://juniper-data:8100}"
       JUNIPER_CANOPY_CASCOR_SERVICE_URL: "${CASCOR_SERVICE_URL:-http://juniper-cascor:8200}"
+      # A1-iv: outbound URL the dashboard uses to reach the juniper-recurrence (LMU)
+      # one-shot model service in-stack. canopy resolves it via
+      # Settings.recurrence_service_url (juniper-canopy A1-i): the prefixed
+      # JUNIPER_CANOPY_RECURRENCE_SERVICE_URL wins over the shared RECURRENCE_SERVICE_URL.
+      JUNIPER_CANOPY_RECURRENCE_SERVICE_URL: "${RECURRENCE_SERVICE_URL:-http://juniper-recurrence:8210}"
       JUNIPER_CANOPY_SERVER__HOST: "${CANOPY_HOST:-0.0.0.0}"
       JUNIPER_CANOPY_SERVER__PORT: "${CANOPY_PORT:-8050}"
       JUNIPER_CANOPY_RATE_LIMIT_ENABLED: "${CANOPY_RATE_LIMIT_ENABLED:-true}"
@@ -655,6 +660,9 @@ services:
     environment:
       JUNIPER_CANOPY_JUNIPER_DATA_URL: "http://juniper-data:8100"
       JUNIPER_CANOPY_CASCOR_SERVICE_URL: "http://juniper-cascor-demo:8200"
+      # A1-iv: recurrence (LMU) runs as one service across profiles (no demo variant)
+      # and joins the ``demo`` profile, so the demo dashboard reaches it directly.
+      JUNIPER_CANOPY_RECURRENCE_SERVICE_URL: "http://juniper-recurrence:8210"
       JUNIPER_CANOPY_SERVER__HOST: "0.0.0.0"
       JUNIPER_CANOPY_SERVER__PORT: "8050"
       # Origin header canopy-demo sends to cascor-demo on the /ws/control
