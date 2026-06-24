@@ -15,7 +15,7 @@ Juniper is an AI/ML research platform for investigating dynamic neural network a
 
 ## Juniper Deploy
 
-`juniper-deploy` is the **Docker Compose orchestration repository** for the full Juniper stack. It manages service dependency ordering, health-gated startup, environment-variable wiring, Docker-secret distribution, network isolation, container hardening, and the observability stack (Prometheus, AlertManager, Grafana) across the four operational profiles — `full`, `demo`, `dev`, and the additive `observability` profile. The repository is consumed directly via `git clone`; it is not distributed as a Python package, and it does not own service code. Operators interact with it through a 23-target Makefile that wraps Docker Compose; integration tests run either inside a `test-runner` container or against a started stack from the host.
+`juniper-deploy` is the **Docker Compose orchestration repository** for the full Juniper stack. It manages service dependency ordering, health-gated startup, environment-variable wiring, Docker-secret distribution, network isolation, container hardening, and the observability stack (Prometheus, AlertManager, Grafana) across five Docker Compose profiles — `full`, `demo`, `dev`, `test`, and the additive `observability` profile. The repository is consumed directly via `git clone`; it is not distributed as a Python package, and it does not own service code. Operators interact with it through a 23-target Makefile that wraps Docker Compose; integration tests run either inside a `test-runner` container or against a started stack from the host.
 
 > **⚠️ Before deploying anywhere reachable from a network**
 >
@@ -67,7 +67,7 @@ The service images are built from sibling repositories that must be cloned next 
 
 ## Architecture
 
-`juniper-deploy` orchestrates twelve containers across four Docker Compose profiles. The diagram below shows the runtime dependency graph for the production-like `full` profile, plus the additive `observability` profile.
+`juniper-deploy` orchestrates the Juniper platform across five Docker Compose profiles (`full`, `demo`, `dev`, `test`, and the additive `observability`). The diagram below shows the core runtime dependency spine of the production-like `full` profile, plus the additive `observability` profile.
 
 ```text
         ┌─────────────────────────────────────────────────────┐
@@ -91,6 +91,8 @@ The service images are built from sibling repositories that must be cloned next 
         │                            redis (6379)             │
         └─────────────────────────────────────────────────────┘
 ```
+
+Beyond the spine shown, the `full` profile also starts **`juniper-cascor-worker`** (which connects outbound to `juniper-cascor` over the `/ws/v1/workers` protocol to parallelise candidate-unit training) and **`juniper-recurrence`** (the Δt-native LMU model service on `8211`, monitored by `juniper-canopy` alongside `juniper-cascor`).
 
 The `demo`, `dev`, and `test` profiles substitute service variants — `juniper-cascor-demo` and `juniper-canopy-demo` for `demo`, `juniper-canopy-dev` for `dev` — but preserve the dependency shape: every variant of canopy depends on a healthy data service, and every variant of cascor depends on a healthy data service. Internal services (`juniper-data`, `redis`, the entire observability stack) bind to `127.0.0.1` on the host; external-facing services (`juniper-cascor`, `juniper-canopy`) bind to `0.0.0.0` by default. Four Docker networks (`frontend`, `backend` — internal, `data` — internal, `monitoring`) enforce service-to-service communication boundaries.
 
