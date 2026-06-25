@@ -1,19 +1,18 @@
 <!-- markdownlint-disable MD013 MD033 MD041 -->
 <!--
-  MD013 (line-length): README contains prose paragraphs that intentionally
-                       exceed the 512-char ecosystem limit. Disabled file-wide
-                       since wrapping mid-sentence harms PyPI rendering.
-  MD033 (no-inline-html): The right-aligned logo + spacing rely on HTML.
-  MD041 (first-line-heading): The HTML logo is the first line by design.
+  MD013 (line-length): operator-runbook prose intentionally exceeds the 512-char
+                       ecosystem limit; wrapping mid-sentence harms rendering.
+  MD033/MD041: the markdownlint-disable comment precedes the H1 by design.
 -->
-<div align="right" width="150px" height="150px" align="right" valign="top"> <img src="images/Juniper_Logo_150px.png" alt="Juniper" align="right" valign="top" width="150px" /></div>
-<br /> <br /> <br /> <br />
 
-# Juniper: Dynamic Neural Network Research Platform
+# juniper-deploy
 
-Juniper is an AI/ML research platform for investigating dynamic neural network architectures and novel learning paradigms.  The project emphasizes ground-up implementations from primary literature, enabling a more transparent exploration of fundamental algorithms.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
+[![Docker Compose](https://img.shields.io/badge/Docker_Compose-stack-2496ED?logo=docker)](https://docs.docker.com/compose/)
 
-## Juniper Deploy
+**One-command Docker-Compose orchestration for the full Juniper stack.**
+
+> **Part of the Juniper platform.** juniper-deploy is the Docker-Compose orchestration for [Juniper](https://github.com/pcalnon/juniper-ml) — a multi-package ML research platform built around constructive (Cascade-Correlation) and recurrent neural networks. It assembles the platform's services into a runnable stack.
 
 `juniper-deploy` is the **Docker Compose orchestration repository** for the full Juniper stack. It manages service dependency ordering, health-gated startup, environment-variable wiring, Docker-secret distribution, network isolation, container hardening, and the observability stack (Prometheus, AlertManager, Grafana) across five Docker Compose profiles — `full`, `demo`, `dev`, `test`, and the additive `observability` profile. The repository is consumed directly via `git clone`; it is not distributed as a Python package, and it does not own service code. Operators interact with it through a 23-target Makefile that wraps Docker Compose; integration tests run either inside a `test-runner` container or against a started stack from the host.
 
@@ -41,29 +40,6 @@ Juniper is an AI/ML research platform for investigating dynamic neural network a
 > [`docs/SECRETS_ONBOARDING.md`](docs/SECRETS_ONBOARDING.md) for the
 > SOPS-encrypted-canonical-copy workflow. Default `BIND_HOST=127.0.0.1`
 > keeps published ports loopback-only until you opt in via `.env`.
-
-## Distribution
-
-`juniper-deploy` is not distributed as a Python package. The repository is
-consumed directly via `git clone` and orchestrates the published Juniper
-service images through Docker Compose. The platform meta-package
-[`juniper-ml`](https://pypi.org/project/juniper-ml/) provides the Python
-client libraries used in standalone client work.
-
-```bash
-git clone https://github.com/pcalnon/juniper-deploy.git
-```
-
-## Ecosystem Compatibility
-
-This orchestration repository is part of the [Juniper](https://github.com/pcalnon/juniper-ml) ecosystem.
-Verified compatible versions:
-
-| juniper-data | juniper-cascor | juniper-canopy | data-client | cascor-client | cascor-worker |
-|--------------|----------------|----------------|-------------|---------------|---------------|
-| 0.6.x        | 0.5.x          | 0.5.x          | >=0.4.1     | >=0.4.0       | >=0.4.0       |
-
-The service images are built from sibling repositories that must be cloned next to `juniper-deploy/`. See [Quick Start Guide](#quick-start-guide) for the expected layout.
 
 ## Architecture
 
@@ -395,12 +371,6 @@ For the full profile / dev profile / per-profile service listings, see the [Dock
 - [`docs/SECRETS_ONBOARDING.md`](docs/SECRETS_ONBOARDING.md) — SOPS-encrypted-canonical-copy workflow for the `secrets/` directory
 - [`docs/OBSERVABILITY_GUIDE.md`](docs/OBSERVABILITY_GUIDE.md) — Prometheus, Grafana, AlertManager, Sentry
 - [`docs/testing/TESTING_QUICK_START.md`](docs/testing/TESTING_QUICK_START.md) — integration test guide
-
-## Research Philosophy
-
-The Juniper platform exists to study learning algorithms whose network architecture is not fixed in advance. Its initial anchor is the Cascade-Correlation algorithm of Fahlman and Lebiere (1990), implemented from the primary literature without recourse to higher-level abstractions that elide the algorithm's operational detail. The organising commitment is that algorithm implementations remain inspectable at the level at which they were originally specified: candidate units, correlation objectives, weight-freezing semantics, and the structural events that grow the network are first-class artifacts of the codebase rather than internal details of a library wrapper. This permits comparative work — across algorithms, datasets, and hyperparameter regimes — to be conducted on a known and reproducible substrate.
-
-The current platform comprises a Cascade-Correlation training service exposing a REST and WebSocket interface, a dataset-generation service with a named-version registry that includes the ARC-AGI families, a real-time monitoring dashboard for inspecting training dynamics as they occur, and a distributed worker that parallelises candidate-unit training across hosts. Near-term work extends the architectural-growth catalogue beyond Cascade-Correlation, introduces multi-network orchestration for comparative experiments at the level of network populations rather than individual runs, and tightens the dataset–training–monitoring loop into a reproducible research workbench. The longer-term direction is the systematic empirical study of constructive and architecture-growing learning algorithms, with first-class infrastructure for the ablation, comparison, and replication that such a study requires.
 
 ## Documentation
 
