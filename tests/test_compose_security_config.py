@@ -250,3 +250,43 @@ def test_secrets_only_no_plain_api_key_env_vars(): # DEPLOY-09 + DEPLOY-11
                 f"Service {service_name} sets plain `{var}` env var — must use "
                 f"{var}_FILE / Docker secret instead (DEPLOY-09/11)."
             )
+
+
+def test_hardened_services_forbid_privilege_escalation_and_drop_capabilities(): # SEC-F15
+    """Container hardening parity: first-party app services + redis must set
+    `security_opt: [no-new-privileges:true]` and `cap_drop: [ALL]`.
+
+    redis was added to this set by SEC-F15 (audit
+    notes/JUNIPER_STACK_SECURITY_AUDIT_PLAN_2026-07-02.md §4.5) so the store
+    container matches the five first-party app containers, which already carry
+    both opts (compose :144-147,195-198,287-290,501-504,558-561).
+
+    The observability services (prometheus/grafana/alertmanager) also lack
+    these opts and are a tracked follow-up — they are intentionally NOT asserted
+    here yet. The one-shot demo-seed / test-runner containers are likewise out
+    of scope for this guard.
+    """
+    compose_text = _read_text(COMPOSE_PATH)
+    services = _extract_two_space_blocks(compose_text, "services")
+
+    hardened_services = (
+        "juniper-data",
+        "juniper-cascor",
+        "juniper-cascor-worker",
+        "juniper-cascor-demo",
+        "juniper-recurrence",
+        "juniper-canopy",
+        "juniper-canopy-demo",
+        "juniper-canopy-dev",
+        "redis",
+    )
+    for name in hardened_services:
+        block = services[name]
+        assert re.search(r"^\s+security_opt:\s*$", block, flags=re.MULTILINE), (
+            f"Service {name} missing `security_opt:` block (SEC-F15 hardening)"
+        )
+        _assert_list_item(block, "no-new-privileges:true")
+        assert re.search(r"^\s+cap_drop:\s*$", block, flags=re.MULTILINE), (
+            f"Service {name} missing `cap_drop:` block (SEC-F15 hardening)"
+        )
+        _assert_list_item(block, "ALL")

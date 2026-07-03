@@ -860,6 +860,14 @@ services:
     image: redis:7.4-alpine
     container_name: juniper-redis
     profiles: ["full", "test"]
+    # SEC-F15: container hardening parity with the first-party app services
+    # (juniper-data/cascor/cascor-worker/recurrence/canopy). Stock
+    # redis:7.4-alpine needs no special Linux capabilities, so cap_drop:[ALL]
+    # is safe. See notes/JUNIPER_STACK_SECURITY_AUDIT_PLAN_2026-07-02.md §4.5.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - backend
     healthcheck:
