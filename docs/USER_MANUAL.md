@@ -2,9 +2,9 @@
 
 ## Comprehensive Guide to juniper-deploy
 
-**Version:** 0.2.0
+**Version:** 0.2.1
 **Status:** Active
-**Last Updated:** April 6, 2026
+**Last Updated:** July 4, 2026
 **Project:** Juniper - Docker Compose & Kubernetes Orchestration
 
 ---
@@ -39,7 +39,7 @@ juniper-deploy orchestrates the full Juniper stack using Docker Compose and Kube
 - **juniper-canopy** (port 8050) -- Real-time monitoring dashboard
 - **juniper-cascor-worker** -- Distributed training workers (WebSocket clients, no exposed port)
 - **Prometheus** (port 9090) -- Metrics collection
-- **Grafana** (port 3000) -- Metrics visualization
+- **Grafana** (host port 3001 by default; container port 3000) -- Metrics visualization
 
 ### Deployment Modes
 
@@ -91,7 +91,7 @@ Frontend development mode. Starts juniper-data and juniper-cascor as real servic
 docker compose --profile observability up -d
 ```
 
-Adds Prometheus and Grafana. Can be combined with any other profile.
+Adds Prometheus, AlertManager, and Grafana. Can be combined with any other profile.
 
 ### Profile Matrix
 
@@ -325,6 +325,16 @@ CANOPY_METRICS_ENABLED=true
 
 All services expose metrics at `/metrics`.
 
+When using `make obs` or `make obs-demo`, `.env.observability` also sets the metrics trusted-IP allowlists. Those allowlists are pinned to the static Docker subnets in `docker-compose.yml`:
+
+| Target | Trusted networks |
+|--------|------------------|
+| juniper-data | `backend` (`172.28.0.0/16`) + `data` (`172.29.0.0/16`) + loopback |
+| juniper-cascor | `backend` + `data` + `frontend` (`172.30.0.0/16`) + loopback |
+| juniper-canopy | `backend` + `data` + `frontend` + loopback |
+
+Treat these CIDRs as **network-scope authorization** for Prometheus scraping, not per-host authentication. The `monitoring` subnet (`172.31.0.0/16`) is intentionally not trusted by the service metrics endpoints because no scrape target lives there.
+
 ### Prometheus
 
 - **URL**: http://localhost:9090
@@ -334,10 +344,10 @@ All services expose metrics at `/metrics`.
 
 ### Grafana
 
-- **URL**: http://localhost:3000
-- **Default credentials**: admin / admin
+- **URL**: http://localhost:3001
+- **Default credentials**: admin / value from `secrets/grafana_admin_password.txt`
 - **Datasource**: Prometheus (pre-configured)
-- **Dashboards**: Create manually via the Grafana UI
+- **Dashboards**: Auto-provisioned into the "Juniper" folder
 
 ### Sentry Integration
 
@@ -352,6 +362,12 @@ CANOPY_SENTRY_DSN=https://...@sentry.io/...
 ---
 
 ## Security
+
+### Deployment Trust Boundary
+
+Published Juniper service ports bind to `127.0.0.1` by default through `${BIND_HOST:-127.0.0.1}`. This loopback bind is part of the stack's current trust boundary: the browser-facing training-control surface is intended for single-user or trusted-host operation unless a fronting authenticating proxy is present.
+
+Set `BIND_HOST=0.0.0.0` only when an authenticating reverse proxy is the only external entry point. The proxy requirement is not provided by this compose stack today; see `notes/DEPLOYMENT_TRUST_CONTRACT_2026-07-04.md` for the full contract and deferred bind-guard/proxy work.
 
 ### API Key Authentication
 
@@ -553,7 +569,7 @@ curl http://localhost:8100/v1/health
 ### Port Conflicts
 
 ```bash
-ss -tlnp | grep -E '8100|8200|8050|9090|3000'
+ss -tlnp | grep -E '8100|8200|8050|9090|9093|3001'
 ```
 
 Stop conflicting services or change ports in `.env`.
@@ -586,6 +602,6 @@ If services are killed by OOM, increase Docker's memory limit. The full stack re
 
 ---
 
-**Last Updated:** April 6, 2026
-**Version:** 0.2.0
+**Last Updated:** July 4, 2026
+**Version:** 0.2.1
 **Maintainer:** Paul Calnon

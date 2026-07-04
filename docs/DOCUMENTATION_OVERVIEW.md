@@ -80,7 +80,7 @@
 | **juniper-canopy** | `../juniper-canopy/` | 8050 |
 | **juniper-cascor-worker** | `../juniper-cascor-worker/` | -- (WebSocket client) |
 | **Prometheus** | Official image | 9090 |
-| **Grafana** | Official image | 3000 |
+| **Grafana** | Official image | 3001 host / 3000 container |
 
 ### Deployment Profiles
 
