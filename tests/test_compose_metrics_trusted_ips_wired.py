@@ -130,7 +130,11 @@ def test_env_observability_widens_all_three_services_to_bridge_cidrs() -> None:
     targets stay ``down: 403`` because the literal-default
     ``["127.0.0.1","::1"]`` does not match Prometheus's bridge-network IP.
 
-    Pins the four Docker bridge subnets from the compose ``networks:`` block.
+    SEC-F19 / D5 pinned the four compose networks to static ipam subnets
+    (172.28–172.31/16); the allowlists reference exactly the pinned subnets
+    each target shares with Prometheus. The precise subnet<->allowlist
+    agreement is enforced by tests/test_compose_metrics_subnet_alignment.py;
+    this test keeps the coarse presence check.
     """
     env_obs = (REPO_ROOT / ".env.observability").read_text(encoding="utf-8")
     for service_var in (
@@ -139,11 +143,13 @@ def test_env_observability_widens_all_three_services_to_bridge_cidrs() -> None:
         "JUNIPER_CANOPY_METRICS_TRUSTED_IPS",
     ):
         assert f"{service_var}=" in env_obs, f"`.env.observability` must set `{service_var}` (POC remediation completeness)."
-    # Every bridge subnet enumerated in compose `networks:` should be
-    # represented in the allowlist so the prometheus container's bridge IP
-    # matches regardless of which network it's reached from.
-    for cidr in ("172.18.0.0/16", "172.19.0.0/16", "172.20.0.0/16", "172.21.0.0/16"):
-        assert cidr in env_obs, f"`.env.observability` must include bridge subnet `{cidr}` in METRICS_TRUSTED_IPS."
+    # The pinned bridge subnets Prometheus shares with a scrape target
+    # (backend/data/frontend) must each appear in the allowlist so the
+    # prometheus container's source IP matches regardless of which shared
+    # network the scrape is routed over. monitoring (172.31) hosts no scrape
+    # target, so it is intentionally NOT in any allowlist.
+    for cidr in ("172.28.0.0/16", "172.29.0.0/16", "172.30.0.0/16"):
+        assert cidr in env_obs, f"`.env.observability` must include pinned subnet `{cidr}` in METRICS_TRUSTED_IPS."
 
 
 def test_no_stale_allow_ips_references_in_repo() -> None:

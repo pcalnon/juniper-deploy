@@ -956,16 +956,52 @@ secrets:
 # Networks
 # ═══════════════════════════════════════════════════════════════════════════
 networks:
+  # SEC-F19 / D5 — deterministic metrics subnets (design: juniper-ml
+  # notes/JUNIPER_CANOPY_CONTROL_SURFACE_AUTH_AND_NAT_DESIGN_2026-07-03.md §5 Option C1).
+  # Each network is pinned to a STATIC ipam.config.subnet so Prometheus's scrape
+  # source address is deterministic and the `*_METRICS_TRUSTED_IPS` allowlist in
+  # .env.observability can be pinned to EXACTLY these CIDRs. The two MUST AGREE —
+  # enforced by tests/test_compose_metrics_subnet_alignment.py so they cannot drift.
+  # Previously there was no ipam block: Docker assigned subnets dynamically and the
+  # live bridge drifted to 172.23.0.0/16 — outside the old 172.18–21 allowlist
+  # (audit HO-3) — yielding either a 403 scrape failure (availability) or a
+  # too-wide allowlist (authorization).
+  #
+  # Subnet choice (design §8 OQ-3 / §9 R3 — must avoid collision with other host
+  # Docker networks): the top four /16s of Docker's default address pool
+  # (172.17–172.31). The default bridge holds 172.17.0.0/16 and Docker auto-assigns
+  # user networks bottom-up from 172.18, so pinning the TOP avoids both
+  # auto-assignment and the audit's observed 172.23. Collision-checked 2026-07-04
+  # against the host daemon (`docker network inspect`): only 172.17.0.0/16 (the
+  # default bridge) was allocated — 172.28.0.0/16 … 172.31.0.0/16 all free.
+  #
+  # These CIDRs are NETWORK-SCOPE AUTHORIZATION (which subnets may scrape), backed
+  # by internal:true isolation on backend/data and the fail-closed
+  # MetricsAuthMiddleware — NOT per-host authentication. SEC-F19: Docker NAT
+  # collapses every client to the bridge gateway, so per-IP identity is unreliable
+  # inside the NAT; do not read these CIDRs as a per-client authenticator.
   backend:
     driver: bridge
     internal: true
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
   data:
     driver: bridge
     internal: true
+    ipam:
+      config:
+        - subnet: 172.29.0.0/16
   frontend:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
   monitoring:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/16
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Volumes
