@@ -175,6 +175,13 @@ def test_env_observability_widens_all_scraped_services_to_bridge_cidrs() -> None
     """
     env_obs = (REPO_ROOT / ".env.observability").read_text(encoding="utf-8")
     for service_var in (
+        "JUNIPER_DATA_METRICS_ENABLED",
+        "JUNIPER_CASCOR_METRICS_ENABLED",
+        "JUNIPER_RECURRENCE_METRICS_ENABLED",
+        "CANOPY_METRICS_ENABLED",
+    ):
+        assert f"{service_var}=true" in env_obs, f"`.env.observability` must enable `{service_var}`."
+    for service_var in (
         "JUNIPER_DATA_METRICS_TRUSTED_IPS",
         "JUNIPER_CASCOR_METRICS_TRUSTED_IPS",
         "JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS",
