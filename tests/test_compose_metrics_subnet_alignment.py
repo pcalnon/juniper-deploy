@@ -39,17 +39,28 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_PATH = REPO_ROOT / "docker-compose.yml"
 ENV_OBS_PATH = REPO_ROOT / ".env.observability"
+PROMETHEUS_PATHS = (
+    REPO_ROOT / "prometheus" / "prometheus.yml",
+    REPO_ROOT / "prometheus" / "prometheus.demo.yml",
+)
 
 # The four networks declared in the compose `networks:` block. Pinning them is
 # the whole point of D5, so their absence is itself a drift.
 EXPECTED_NETWORKS = ("backend", "data", "frontend", "monitoring")
 
-# Metrics-scraping target service -> its allowlist env var. These are the three
-# services `.env.observability` widens (mirrors test_compose_metrics_trusted_ips_wired).
+# Metrics-scraping target service -> its allowlist env var. These are the
+# MetricsAuthMiddleware-gated services `.env.observability` widens.
 TARGETS = {
     "juniper-data": "JUNIPER_DATA_METRICS_TRUSTED_IPS",
     "juniper-cascor": "JUNIPER_CASCOR_METRICS_TRUSTED_IPS",
+    "juniper-recurrence": "JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS",
     "juniper-canopy": "JUNIPER_CANOPY_METRICS_TRUSTED_IPS",
+}
+METRICS_ENABLED_VARS = {
+    "juniper-data": "JUNIPER_DATA_METRICS_ENABLED",
+    "juniper-cascor": "JUNIPER_CASCOR_METRICS_ENABLED",
+    "juniper-recurrence": "JUNIPER_RECURRENCE_METRICS_ENABLED",
+    "juniper-canopy": "CANOPY_METRICS_ENABLED",
 }
 SCRAPER = "prometheus"
 LOOPBACK = {ipaddress.ip_address("127.0.0.1"), ipaddress.ip_address("::1")}
@@ -109,6 +120,37 @@ def _split_allowlist(value: str) -> tuple[set, set]:
     return cidrs, addrs
 
 
+def _normalize_scrape_service(target: str) -> str:
+    """Return compose service name from a Prometheus static target."""
+    host, _, _port = target.partition(":")
+    if host.endswith("-demo"):
+        return host.removesuffix("-demo")
+    return host
+
+
+def _prometheus_app_targets() -> set[str]:
+    """Derive Juniper app scrape targets from full and demo Prometheus configs."""
+    targets: set[str] = set()
+    for path in PROMETHEUS_PATHS:
+        config = yaml.safe_load(path.read_text(encoding="utf-8"))
+        for scrape in config.get("scrape_configs", []):
+            for static_config in scrape.get("static_configs", []):
+                for target in static_config.get("targets", []):
+                    service = _normalize_scrape_service(target)
+                    if service.startswith("juniper-"):
+                        targets.add(service)
+    return targets
+
+
+def test_target_contract_covers_every_prometheus_app_scrape() -> None:
+    """Adding a Prometheus app target must update this allowlist-alignment contract."""
+    assert _prometheus_app_targets() == set(TARGETS), (
+        "TARGETS must match the Juniper app services scraped by prometheus.yml "
+        "and prometheus.demo.yml so no metrics endpoint is left out of the "
+        "subnet/allowlist drift gate."
+    )
+
+
 def test_every_network_pins_a_unique_static_subnet() -> None:
     """All four compose networks must carry a static ipam.config.subnet (no dynamic IPAM)."""
     compose = _load_compose()
@@ -152,6 +194,20 @@ def test_allowlist_cidrs_equal_shared_pinned_subnets() -> None:
         assert LOOPBACK <= allow_addrs, (
             f"`{var}` must preserve loopback {sorted(map(str, LOOPBACK))} for host-local scrapes; "
             f"MetricsAuthMiddleware default is loopback-only."
+        )
+
+
+def test_env_observability_enables_metrics_for_all_scraped_targets() -> None:
+    """Every Prometheus-scraped app target must have metrics enabled in the env file.
+
+    `make monitor` and `make obs-demo` load `.env.observability`; omitting any
+    target's flag leaves that service scraped but serving no `/metrics` endpoint.
+    """
+    env = _parse_env_file(ENV_OBS_PATH)
+    for service, var in METRICS_ENABLED_VARS.items():
+        assert env.get(var) == "true", (
+            f"`.env.observability` must set `{var}=true` because Prometheus scrapes "
+            f"`{service}` under the observability profile."
         )
 
 

@@ -85,6 +85,43 @@ def test_cascor_trusted_ips_value_substitutes_env_var() -> None:
     )
 
 
+def test_trusted_ips_declared_on_juniper_recurrence() -> None:
+    """`docker-compose.yml`'s juniper-recurrence env block must declare TRUSTED_IPS."""
+    compose = _load_compose()
+    env_block = compose["services"]["juniper-recurrence"]["environment"]
+    assert "JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS" in env_block, (
+        "`JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS` is missing from "
+        "services.juniper-recurrence.environment in docker-compose.yml. "
+        "Without the declaration, `.env.observability` substitution silently "
+        "no-ops and the recurrence `/metrics` scrape returns HTTP 403."
+    )
+
+
+def test_recurrence_trusted_ips_value_substitutes_env_var() -> None:
+    """The recurrence TRUSTED_IPS value must support env-file substitution."""
+    compose = _load_compose()
+    value = compose["services"]["juniper-recurrence"]["environment"]["JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS"]
+    assert isinstance(value, str)
+    assert "${JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS" in value, (
+        "TRUSTED_IPS value must reference the env var via "
+        "`${JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS:-...}` so operator overrides work."
+    )
+    assert "127.0.0.1" in value and "::1" in value, (
+        "Default value must keep loopback-only behaviour: ['127.0.0.1', '::1']."
+    )
+
+
+def test_recurrence_metrics_enabled_value_substitutes_env_var() -> None:
+    """The recurrence METRICS_ENABLED value must support env-file substitution."""
+    compose = _load_compose()
+    value = compose["services"]["juniper-recurrence"]["environment"]["JUNIPER_RECURRENCE_METRICS_ENABLED"]
+    assert value == "${JUNIPER_RECURRENCE_METRICS_ENABLED:-false}", (
+        "`JUNIPER_RECURRENCE_METRICS_ENABLED` must use `${...:-false}` so "
+        "`.env.observability` can turn recurrence metrics on without changing "
+        "the default non-observability posture."
+    )
+
+
 def test_trusted_ips_declared_on_juniper_canopy() -> None:
     """`docker-compose.yml`'s juniper-canopy env block must declare TRUSTED_IPS.
 
@@ -122,11 +159,11 @@ def test_canopy_trusted_ips_value_substitutes_env_var() -> None:
     )
 
 
-def test_env_observability_widens_all_three_services_to_bridge_cidrs() -> None:
-    """`.env.observability` must pre-set TRUSTED_IPS for data + cascor + canopy.
+def test_env_observability_widens_all_scraped_services_to_bridge_cidrs() -> None:
+    """`.env.observability` must pre-set TRUSTED_IPS for every scraped app service.
 
     Without this, ``make monitor`` (which loads `.env.observability`) brings
-    up the observability profile with METRICS_ENABLED=true but the three app
+    up the observability profile with METRICS_ENABLED=true but app scrape
     targets stay ``down: 403`` because the literal-default
     ``["127.0.0.1","::1"]`` does not match Prometheus's bridge-network IP.
 
@@ -140,6 +177,7 @@ def test_env_observability_widens_all_three_services_to_bridge_cidrs() -> None:
     for service_var in (
         "JUNIPER_DATA_METRICS_TRUSTED_IPS",
         "JUNIPER_CASCOR_METRICS_TRUSTED_IPS",
+        "JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS",
         "JUNIPER_CANOPY_METRICS_TRUSTED_IPS",
     ):
         assert f"{service_var}=" in env_obs, f"`.env.observability` must set `{service_var}` (POC remediation completeness)."
