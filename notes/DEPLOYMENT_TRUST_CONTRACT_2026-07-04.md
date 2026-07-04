@@ -18,9 +18,9 @@ an *implicit default* today, and two live-confirmed audit findings (SEC-F19, SEC
 understanding — and not silently defeating — that perimeter.
 
 It is the **D8 / Phase 0** deliverable of the remediation design of record:
-`juniper-ml/notes/JUNIPER_CANOPY_CONTROL_SURFACE_AUTH_AND_NAT_DESIGN_2026-07-03.md`
+`juniper-ml/notes/JUNIPER_2026-07-03_JUNIPER-CANOPY_CONTROL-SURFACE-AUTH-AND-NAT-DESIGN.md`
 (§3 shared root cause, §4 Option A, §5 Option C, §7 sequencing, §8 D1/D5/D6/D7/D8). The findings were
-surfaced by `juniper-ml/notes/JUNIPER_STACK_SECURITY_AUDIT_PLAN_2026-07-02.md` (§5.2, HO-3 / HO-6).
+surfaced by `juniper-ml/notes/JUNIPER_2026-07-02_JUNIPER-ECOSYSTEM_STACK-SECURITY-AUDIT-PLAN.md` (§5.2, HO-3 / HO-6).
 
 This document changes no runtime behavior. The one runtime change shipped alongside it is **D5**
 (deterministic metrics subnets — §4 below).
@@ -147,9 +147,9 @@ forge-your-identity footgun).
 
 ## 7. References
 
-- **Design of record**: `juniper-ml/notes/JUNIPER_CANOPY_CONTROL_SURFACE_AUTH_AND_NAT_DESIGN_2026-07-03.md`
+- **Design of record**: `juniper-ml/notes/JUNIPER_2026-07-03_JUNIPER-CANOPY_CONTROL-SURFACE-AUTH-AND-NAT-DESIGN.md`
   (§3 root cause, §4 SEC-F22 options, §5 SEC-F19 options, §6 proxy convergence, §7 sequencing, §8 D1–D8).
-- **Audit**: `juniper-ml/notes/JUNIPER_STACK_SECURITY_AUDIT_PLAN_2026-07-02.md` (§4.1, §4.7, §5.2; HO-3, HO-6).
+- **Audit**: `juniper-ml/notes/JUNIPER_2026-07-02_JUNIPER-ECOSYSTEM_STACK-SECURITY-AUDIT-PLAN.md` (§4.1, §4.7, §5.2; HO-3, HO-6).
 - **canopy auth design (residual acknowledged)**:
   `juniper-canopy/notes/JUNIPER_CANOPY_TRAINING-CONTROL-AUTH_DESIGN_2026-06-30.md` §7.3, §12 OQ-3.
 - **This repo**: `docker-compose.yml` (loopback publishes, `internal:true` networks, pinned `ipam` subnets),

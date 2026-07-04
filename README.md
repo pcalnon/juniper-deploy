@@ -312,7 +312,7 @@ For per-service metrics catalogues, Sentry wiring, structured-JSON logging, and 
 
 ## Stack Composition
 
-> **Note** — per §10.8 of [`../juniper-ml/notes/README_NORMALIZATION_PLAN_2026-05-19.md`](../juniper-ml/notes/README_NORMALIZATION_PLAN_2026-05-19.md), the **Active Research Components** section is replaced by **Stack Composition** for this repository. `juniper-deploy` does not host research code of its own; its role is to assemble the platform's research components into a runnable stack and to expose the operational surface (profiles, secrets, networks, healthchecks, observability) under which those components are exercised.
+> **Note** — per §10.8 of [`../juniper-ml/notes/JUNIPER_2026-05-19_JUNIPER-ECOSYSTEM_README-NORMALIZATION-PLAN.md`](../juniper-ml/notes/JUNIPER_2026-05-19_JUNIPER-ECOSYSTEM_README-NORMALIZATION-PLAN.md), the **Active Research Components** section is replaced by **Stack Composition** for this repository. `juniper-deploy` does not host research code of its own; its role is to assemble the platform's research components into a runnable stack and to expose the operational surface (profiles, secrets, networks, healthchecks, observability) under which those components are exercised.
 
 | Layer | Components Orchestrated | Profile(s) | Where the research lives |
 |-------|------------------------|------------|--------------------------|
