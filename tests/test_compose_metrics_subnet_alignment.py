@@ -44,11 +44,12 @@ ENV_OBS_PATH = REPO_ROOT / ".env.observability"
 # the whole point of D5, so their absence is itself a drift.
 EXPECTED_NETWORKS = ("backend", "data", "frontend", "monitoring")
 
-# Metrics-scraping target service -> its allowlist env var. These are the three
+# Metrics-scraping target service -> its allowlist env var. These are the app
 # services `.env.observability` widens (mirrors test_compose_metrics_trusted_ips_wired).
 TARGETS = {
     "juniper-data": "JUNIPER_DATA_METRICS_TRUSTED_IPS",
     "juniper-cascor": "JUNIPER_CASCOR_METRICS_TRUSTED_IPS",
+    "juniper-recurrence": "JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS",
     "juniper-canopy": "JUNIPER_CANOPY_METRICS_TRUSTED_IPS",
 }
 SCRAPER = "prometheus"

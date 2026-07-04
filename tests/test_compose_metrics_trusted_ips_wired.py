@@ -122,11 +122,11 @@ def test_canopy_trusted_ips_value_substitutes_env_var() -> None:
     )
 
 
-def test_env_observability_widens_all_three_services_to_bridge_cidrs() -> None:
-    """`.env.observability` must pre-set TRUSTED_IPS for data + cascor + canopy.
+def test_env_observability_widens_all_scraped_services_to_bridge_cidrs() -> None:
+    """`.env.observability` must pre-set TRUSTED_IPS for all scraped app services.
 
     Without this, ``make monitor`` (which loads `.env.observability`) brings
-    up the observability profile with METRICS_ENABLED=true but the three app
+    up the observability profile with METRICS_ENABLED=true but app
     targets stay ``down: 403`` because the literal-default
     ``["127.0.0.1","::1"]`` does not match Prometheus's bridge-network IP.
 
@@ -138,8 +138,16 @@ def test_env_observability_widens_all_three_services_to_bridge_cidrs() -> None:
     """
     env_obs = (REPO_ROOT / ".env.observability").read_text(encoding="utf-8")
     for service_var in (
+        "JUNIPER_DATA_METRICS_ENABLED",
+        "JUNIPER_CASCOR_METRICS_ENABLED",
+        "JUNIPER_RECURRENCE_METRICS_ENABLED",
+        "CANOPY_METRICS_ENABLED",
+    ):
+        assert f"{service_var}=true" in env_obs, f"`.env.observability` must enable `{service_var}`."
+    for service_var in (
         "JUNIPER_DATA_METRICS_TRUSTED_IPS",
         "JUNIPER_CASCOR_METRICS_TRUSTED_IPS",
+        "JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS",
         "JUNIPER_CANOPY_METRICS_TRUSTED_IPS",
     ):
         assert f"{service_var}=" in env_obs, f"`.env.observability` must set `{service_var}` (POC remediation completeness)."
