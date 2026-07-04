@@ -3,7 +3,7 @@
 **Project**: Juniper Deploy
 **Sub-Track**: OBS-ROUTE-01
 **Closes audit findings**: 3.2 (P1, juniper-ml#195) and B.1 (P3)
-**State-analysis source**: [`A9_AND_3_2_STATE_ANALYSIS_2026-05-03.md`](https://github.com/pcalnon/juniper-ml/blob/main/notes/observability/A9_AND_3_2_STATE_ANALYSIS_2026-05-03.md) §4 Option B
+**State-analysis source**: [`A9_AND_3_2_STATE_ANALYSIS_2026-05-03.md`](https://github.com/pcalnon/juniper-ml/blob/main/notes/observability/JUNIPER_2026-05-03_JUNIPER-ECOSYSTEM_A9-AND-3-2-STATE-ANALYSIS.md) §4 Option B
 **Author**: Paul Calnon
 **Last Updated**: 2026-05-04
 **Status**: ACTIVE — placeholder credentials shipped; rotate before production paging matters
@@ -197,8 +197,8 @@ If the email arrives, the route + SMTP path is healthy. If not, re-walk §5.4.
 
 ## 6. References
 
-- **Audit**: [`OBSERVABILITY_AUDIT_AND_OUTSTANDING_ISSUES_2026-05-03.md`](https://github.com/pcalnon/juniper-ml/blob/main/notes/code-review/OBSERVABILITY_AUDIT_AND_OUTSTANDING_ISSUES_2026-05-03.md) §3.2 (P1) and §B.1 (P3) — juniper-ml#195
-- **State analysis**: [`A9_AND_3_2_STATE_ANALYSIS_2026-05-03.md`](https://github.com/pcalnon/juniper-ml/blob/main/notes/observability/A9_AND_3_2_STATE_ANALYSIS_2026-05-03.md) §4 Option B — juniper-ml#197
+- **Audit**: [`OBSERVABILITY_AUDIT_AND_OUTSTANDING_ISSUES_2026-05-03.md`](https://github.com/pcalnon/juniper-ml/blob/main/notes/code-review/JUNIPER_2026-05-03_JUNIPER-ECOSYSTEM_OBSERVABILITY-AUDIT-AND-OUTSTANDING-ISSUES.md) §3.2 (P1) and §B.1 (P3) — juniper-ml#195
+- **State analysis**: [`A9_AND_3_2_STATE_ANALYSIS_2026-05-03.md`](https://github.com/pcalnon/juniper-ml/blob/main/notes/observability/JUNIPER_2026-05-03_JUNIPER-ECOSYSTEM_A9-AND-3-2-STATE-ANALYSIS.md) §4 Option B — juniper-ml#197
 - **SOPS pattern**: [`SOPS_AUDIT_AND_REMEDIATION_PLAN.md`](./SOPS_AUDIT_AND_REMEDIATION_PLAN.md) for the age-key + pre-commit-hook arrangement used here
 - **R5.4 burn-rate alerts**: `prometheus/alert_rules.yml` — search for `severity: page` / `severity: ticket`
 - **Upstream alertmanager config reference**: <https://prometheus.io/docs/alerting/latest/configuration/#email_config>
