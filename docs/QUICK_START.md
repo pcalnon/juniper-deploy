@@ -92,10 +92,10 @@ make down
 # Frontend development (canopy in demo mode, no backend dependency)
 make dev
 
-# Monitoring add-on (Prometheus + Grafana)
-docker compose --profile observability up -d
+# Monitoring add-on (Prometheus + AlertManager + Grafana)
+make obs
 # Prometheus: http://localhost:9090
-# Grafana: http://localhost:3000 (admin/admin)
+# Grafana: http://localhost:3001 (admin / secrets/grafana_admin_password.txt)
 ```
 
 ---

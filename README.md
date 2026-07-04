@@ -70,7 +70,7 @@
 
 Beyond the spine shown, the `full` profile also starts **`juniper-cascor-worker`** (which connects outbound to `juniper-cascor` over the `/ws/v1/workers` protocol to parallelise candidate-unit training) and **`juniper-recurrence`** (the Δt-native LMU model service on `8211`, monitored by `juniper-canopy` alongside `juniper-cascor`).
 
-The `demo`, `dev`, and `test` profiles substitute service variants — `juniper-cascor-demo` and `juniper-canopy-demo` for `demo`, `juniper-canopy-dev` for `dev` — but preserve the dependency shape: every variant of canopy depends on a healthy data service, and every variant of cascor depends on a healthy data service. Internal services (`juniper-data`, `redis`, the entire observability stack) bind to `127.0.0.1` on the host; external-facing services (`juniper-cascor`, `juniper-canopy`) bind to `0.0.0.0` by default. Four Docker networks (`frontend`, `backend` — internal, `data` — internal, `monitoring`) enforce service-to-service communication boundaries.
+The `demo`, `dev`, and `test` profiles substitute service variants — `juniper-cascor-demo` and `juniper-canopy-demo` for `demo`, `juniper-canopy-dev` for `dev` — but preserve the dependency shape: every variant of canopy depends on a healthy data service, and every variant of cascor depends on a healthy data service. Published Juniper service ports use `${BIND_HOST:-127.0.0.1}` and therefore bind to loopback by default; setting `BIND_HOST=0.0.0.0` is supported only behind a fronting authenticating proxy. Four Docker networks (`frontend`, `backend` — internal, `data` — internal, `monitoring`) enforce service-to-service communication boundaries.
 
 ## Related Services
 
@@ -263,7 +263,7 @@ curl http://localhost:8201/v1/health        # juniper-cascor (host port)
 curl http://localhost:8050/v1/health        # juniper-canopy
 curl http://localhost:9090/-/healthy        # prometheus  (observability profile)
 curl http://localhost:9093/-/healthy        # alertmanager (observability profile)
-curl http://localhost:3000/api/health       # grafana      (observability profile)
+curl http://localhost:3001/api/health       # grafana      (observability profile)
 ```
 
 ### Security Architecture
@@ -272,9 +272,9 @@ curl http://localhost:3000/api/health       # grafana      (observability profil
 |---------|----------------|
 | **Network isolation** | Four networks: `frontend` (bridge), `backend` (internal), `data` (internal), `monitoring` (bridge). Internal networks have no external connectivity. |
 | **Container hardening** | All Juniper application containers set `security_opt: no-new-privileges:true` and `cap_drop: ALL`. |
-| **Port binding** | Internal services bind to `127.0.0.1` (loopback). External-facing services bind to `0.0.0.0`. Redis has no host binding. |
+| **Port binding** | Published Juniper service ports default to `127.0.0.1` through `${BIND_HOST:-127.0.0.1}`. `BIND_HOST=0.0.0.0` is an explicit escape hatch for deployments with a fronting authenticating proxy. Redis has no host binding. |
 | **Secrets** | API keys, the Grafana admin password, and the cascor auth token are distributed via Docker secrets mounted at `/run/secrets/<name>`. |
-| **Pinned third-party images** | `prom/prometheus:v3.10.0`, `prom/alertmanager:v0.28.1`, `grafana/grafana:12.4.0`, `redis:7.4-alpine`. |
+| **Pinned third-party images** | `prom/prometheus:v3.10.0`, `prom/alertmanager:v0.27.0`, `grafana/grafana:12.4.0`, `redis:7.4-alpine`. |
 
 ### Integration Tests
 
@@ -295,7 +295,7 @@ Test markers (`health`, `data`, `full_stack`) and configurable service URLs (`JU
 
 ### Observability Stack
 
-The `observability` profile attaches Prometheus, AlertManager, and Grafana to a dedicated `monitoring` Docker network; Prometheus additionally joins `backend` and `data` so it can scrape internal service endpoints. Four dashboards auto-provision into the "Juniper" folder on startup: **Juniper Overview**, **JuniperData**, **JuniperCascor**, **JuniperCanopy**. Dashboard JSON files live in [`grafana/provisioning/dashboards/`](grafana/provisioning/dashboards/).
+The `observability` profile attaches Prometheus, AlertManager, and Grafana to a dedicated `monitoring` Docker network; Prometheus additionally joins `backend`, `data`, and `frontend` so it can scrape internal service endpoints. The compose networks have static subnets (`backend` `172.28.0.0/16`, `data` `172.29.0.0/16`, `frontend` `172.30.0.0/16`, `monitoring` `172.31.0.0/16`), and `.env.observability` pins each `*_METRICS_TRUSTED_IPS` allowlist to the subnets each target shares with Prometheus. Four dashboards auto-provision into the "Juniper" folder on startup: **Juniper Overview**, **JuniperData**, **JuniperCascor**, **JuniperCanopy**. Dashboard JSON files live in [`grafana/provisioning/dashboards/`](grafana/provisioning/dashboards/).
 
 ```bash
 make obs        # Full stack + Prometheus + AlertManager + Grafana
@@ -304,7 +304,7 @@ make obs-demo   # Demo stack + Prometheus + AlertManager + Grafana
 
 Access:
 
-- **Grafana**: <http://localhost:3000> (default login: `admin` / `admin`, unless overridden via `secrets/grafana_admin_password.txt`)
+- **Grafana**: <http://localhost:3001> (login: `admin`; password from `secrets/grafana_admin_password.txt`)
 - **Prometheus**: <http://localhost:9090>
 - **AlertManager**: <http://localhost:9093>
 

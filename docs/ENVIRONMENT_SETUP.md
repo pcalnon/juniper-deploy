@@ -2,9 +2,9 @@
 
 ## Complete Environment Configuration for juniper-deploy
 
-**Version:** 0.1.0
+**Version:** 0.2.1
 **Status:** Active
-**Last Updated:** April 1, 2026
+**Last Updated:** July 4, 2026
 **Project:** Juniper - Docker Compose Orchestration
 
 ---
@@ -79,6 +79,7 @@ The `.env.example` contains all configurable variables with sensible defaults. K
 **Service Binding (usually no change needed):**
 
 ```bash
+BIND_HOST=127.0.0.1
 JUNIPER_DATA_HOST=0.0.0.0
 JUNIPER_DATA_PORT=8100
 CASCOR_HOST=0.0.0.0
@@ -86,6 +87,8 @@ CASCOR_PORT=8200
 CANOPY_HOST=0.0.0.0
 CANOPY_PORT=8050
 ```
+
+`BIND_HOST` controls the host-side bind address for published ports and defaults to loopback for safety. Do not set `BIND_HOST=0.0.0.0` unless the stack is behind a fronting authenticating proxy; the compose stack does not provide that proxy by itself.
 
 **Logging (adjust per environment):**
 
@@ -203,7 +206,7 @@ JUNIPER_CASCOR_METRICS_ENABLED=true
 CANOPY_METRICS_ENABLED=true
 ```
 
-### Start Prometheus and Grafana
+### Start Prometheus, AlertManager, and Grafana
 
 ```bash
 docker compose --profile observability up -d
@@ -214,10 +217,18 @@ docker compose --profile observability up -d
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | Prometheus | http://localhost:9090 | None |
-| Grafana | http://localhost:3000 | admin / value from `secrets/grafana_admin_password.txt` (or `GRAFANA_ADMIN_PASSWORD`) |
+| AlertManager | http://localhost:9093 | None |
+| Grafana | http://localhost:3001 | admin / value from `secrets/grafana_admin_password.txt` |
 
 Prometheus scrapes all three services at `/metrics` every 15 seconds.
-Prometheus and Grafana use a dedicated `monitoring` network. Prometheus also joins `backend` and `data` to scrape internal service endpoints.
+Prometheus, AlertManager, and Grafana use a dedicated `monitoring` network. Prometheus also joins `backend`, `data`, and `frontend` to scrape internal service endpoints.
+
+The observability env file also widens the service metrics allowlists from loopback to the pinned compose subnets:
+
+- juniper-data: `172.28.0.0/16` (`backend`) and `172.29.0.0/16` (`data`)
+- juniper-cascor / juniper-canopy: `172.28.0.0/16`, `172.29.0.0/16`, and `172.30.0.0/16` (`frontend`)
+
+Keep those values aligned with `docker-compose.yml`; `tests/test_compose_metrics_subnet_alignment.py` checks for drift. Do not add `172.31.0.0/16` (`monitoring`) unless a metrics target is intentionally moved onto that network.
 
 ---
 
@@ -243,6 +254,8 @@ JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE=60
 CANOPY_RATE_LIMIT_ENABLED=true
 CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE=60
 ```
+
+Rate limits and per-IP WebSocket caps dampen accidental or abusive load, but they are not authentication. Inside Docker networking, client IPs can collapse to a bridge gateway address.
 
 ---
 
@@ -305,6 +318,6 @@ All containers should show `healthy` status.
 
 ---
 
-**Last Updated:** April 1, 2026
-**Version:** 0.1.0
+**Last Updated:** July 4, 2026
+**Version:** 0.2.1
 **Maintainer:** Paul Calnon

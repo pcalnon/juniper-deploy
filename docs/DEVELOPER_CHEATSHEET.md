@@ -37,7 +37,7 @@
 | `full` | `make up` | juniper-data, juniper-cascor, juniper-canopy, juniper-cascor-worker |
 | `demo` | `make demo` | juniper-data, juniper-cascor-demo, juniper-canopy-demo, demo-seed |
 | `dev` | `make dev` | juniper-data, juniper-cascor, juniper-canopy-dev |
-| `observability` | `make obs` | prometheus (9090), grafana (3000) |
+| `observability` | `make obs` | prometheus (9090), alertmanager (9093), grafana (3001 host / 3000 container) |
 
 Profiles can be combined: `docker compose --profile full --profile observability up -d`
 
@@ -53,7 +53,8 @@ Profiles can be combined: `docker compose --profile full --profile observability
 | juniper-cascor | 8201 | 8200 | `/v1/health` |
 | juniper-canopy | 8050 | 8050 | `/v1/health` |
 | Prometheus | 9090 | 9090 | -- |
-| Grafana | 3000 | 3000 | -- |
+| AlertManager | 9093 | 9093 | -- |
+| Grafana | 3001 | 3000 | -- |
 
 ---
 
@@ -80,14 +81,14 @@ make health   # formatted report across all services
 
 Each service exposes `/v1/health`, `/v1/health/live`, and `/v1/health/ready`.
 
-Services are segmented across three Docker bridge networks:
+Services are segmented across four Docker bridge networks:
 
 | Network | Type | Services | Purpose |
 |---------|------|----------|---------|
-| `frontend` | bridge | canopy, canopy-demo, canopy-dev | Public-facing; exposes dashboard services |
-| `backend` | bridge, internal | cascor, cascor-demo, canopy, canopy-demo, redis, cassandra, prometheus | CasCor API and internal backend traffic |
+| `frontend` | bridge | canopy, canopy-demo, canopy-dev, prometheus | Public-facing dashboard path plus Prometheus scrape access |
+| `backend` | bridge, internal | cascor, cascor-demo, canopy, canopy-demo, redis, prometheus | CasCor API and internal backend traffic |
 | `data` | bridge, internal | data, cascor, cascor-demo, canopy, canopy-demo, prometheus | Dataset service network; not reachable from frontend directly |
-| `monitoring` | bridge | prometheus, grafana | Observability-only network for monitoring components |
+| `monitoring` | bridge | prometheus, alertmanager, grafana | Observability-only network for monitoring components |
 
 This architecture provides network segmentation: juniper-data is only accessible from the backend services, not directly from the frontend.
 
@@ -96,8 +97,8 @@ This architecture provides network segmentation: juniper-data is only accessible
 | `juniper-data` | `http://juniper-data:8100` | `http://localhost:8100` | data |
 | `juniper-cascor` | `http://juniper-cascor:8200` | `http://localhost:8201` | backend, data |
 | `juniper-canopy` | `http://juniper-canopy:8050` | `http://localhost:8050` | frontend, backend, data |
-| `prometheus` | `http://prometheus:9090` | `http://localhost:9090` | monitoring, backend, data |
-| `grafana` | `http://grafana:3000` | `http://localhost:3000` | monitoring |
+| `prometheus` | `http://prometheus:9090` | `http://localhost:9090` | monitoring, backend, data, frontend |
+| `grafana` | `http://grafana:3000` | `http://localhost:3001` | monitoring |
 
 Inter-service communication uses container DNS names (e.g., `JUNIPER_DATA_URL=http://juniper-data:8100`). Host-side access uses `localhost` with mapped ports.
 
@@ -115,7 +116,7 @@ make up && make obs
 
 ### Grafana
 
-Access at `http://localhost:3000` (default login: `admin` and password from `secrets/grafana_admin_password.txt`, or `GRAFANA_ADMIN_PASSWORD` fallback).
+Access at `http://localhost:3001` by default (login `admin`; password from `secrets/grafana_admin_password.txt`).
 
 ### Enable Metrics Per Service
 

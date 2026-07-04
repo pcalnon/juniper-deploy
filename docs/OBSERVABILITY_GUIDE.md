@@ -11,7 +11,7 @@
 The Juniper observability stack provides monitoring, metrics, and dashboarding across all three services using:
 
 - **Prometheus** — Metrics collection and time-series storage (port 9090)
-- **Grafana** — Pre-built dashboards and visualization (port 3000)
+- **Grafana** — Pre-built dashboards and visualization (host port 3001 by default; container port 3000)
 - **Structured JSON logging** — Per-service structured log output
 - **Sentry** — Error tracking and alerting (optional, requires DSN)
 
@@ -29,8 +29,9 @@ make obs
 make obs-demo
 
 # Access dashboards
-# Grafana:    http://localhost:3000  (admin / value from secrets/grafana_admin_password.txt or GRAFANA_ADMIN_PASSWORD)
-# Prometheus: http://localhost:9090
+# Grafana:      http://localhost:3001  (admin / value from secrets/grafana_admin_password.txt)
+# Prometheus:   http://localhost:9090
+# AlertManager: http://localhost:9093
 
 # Stop everything
 make down
@@ -38,10 +39,19 @@ make down
 
 The `make obs` and `make obs-demo` targets automatically:
 - Load `.env.observability` which sets `*_METRICS_ENABLED=true` for all services
-- Activate the `observability` profile (Prometheus + Grafana)
+- Activate the `observability` profile (Prometheus + AlertManager + Grafana)
 - Activate the `full` or `demo` profile respectively
 
-When the `observability` profile is enabled, Prometheus and Grafana run on a dedicated `monitoring` Docker network. Prometheus also joins `backend` and `data` networks so it can scrape internal service endpoints.
+When the `observability` profile is enabled, Prometheus, AlertManager, and Grafana run on a dedicated `monitoring` Docker network. Prometheus also joins `backend`, `data`, and `frontend` so it can scrape internal service endpoints.
+
+The compose networks use static `ipam.config.subnet` CIDRs so the Prometheus scrape source address is deterministic:
+
+| Network | CIDR | Notes |
+|---------|------|-------|
+| `backend` | `172.28.0.0/16` | `internal: true` |
+| `data` | `172.29.0.0/16` | `internal: true` |
+| `frontend` | `172.30.0.0/16` | shared by canopy/cascor targets |
+| `monitoring` | `172.31.0.0/16` | Prometheus/Grafana/AlertManager only; not in metrics allowlists |
 
 ---
 
@@ -286,12 +296,25 @@ Visit http://localhost:9090/targets to see all scrape targets and their status. 
 
 When using `make obs` or `make obs-demo`, these are automatically set to `true` via `.env.observability`.
 
+### Metrics trusted IP allowlists
+
+The three service metrics endpoints are guarded by `MetricsAuthMiddleware`. In Docker Compose, the trusted IP lists are network-scope authorization: they identify which pinned Docker subnets may scrape `/metrics`, not individual client hosts. Docker NAT can collapse clients to a bridge gateway address, so these CIDRs must not be treated as per-host authentication.
+
+`.env.observability` sets the allowlists to the exact networks each target shares with Prometheus:
+
+| Variable | Allowed CIDRs | Why |
+|----------|---------------|-----|
+| `JUNIPER_DATA_METRICS_TRUSTED_IPS` | `172.28.0.0/16`, `172.29.0.0/16`, loopback | `juniper-data` shares `backend` and `data` with Prometheus |
+| `JUNIPER_CASCOR_METRICS_TRUSTED_IPS` | `172.28.0.0/16`, `172.29.0.0/16`, `172.30.0.0/16`, loopback | `juniper-cascor` shares `backend`, `data`, and `frontend` |
+| `JUNIPER_CANOPY_METRICS_TRUSTED_IPS` | `172.28.0.0/16`, `172.29.0.0/16`, `172.30.0.0/16`, loopback | `juniper-canopy` shares `backend`, `data`, and `frontend` |
+
+Do not add the `monitoring` subnet (`172.31.0.0/16`) unless a scrape target is intentionally attached there. The invariant is checked by `tests/test_compose_metrics_subnet_alignment.py`.
+
 ### Grafana
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GRAFANA_ADMIN_USER` | `admin` | Grafana admin username |
-| `GRAFANA_ADMIN_PASSWORD` | `admin` | Grafana admin password fallback value |
 | `GF_SECURITY_ADMIN_PASSWORD__FILE` | `/run/secrets/grafana_admin_password` | Preferred password source via Docker secret |
 
 ### Logging
@@ -320,8 +343,9 @@ When using `make obs` or `make obs-demo`, these are automatically set to `true` 
 
 1. **Check `*_METRICS_ENABLED`** — Verify the env var is set to `true`. If using `make obs`, this is automatic via `.env.observability`.
 2. **Check Prometheus targets** — Visit http://localhost:9090/targets. All jobs should show "UP".
-3. **Curl the metrics endpoint** — `curl http://localhost:8100/metrics` should return Prometheus text format.
-4. **Check service logs** — `make logs-data` to see if the metrics middleware loaded.
+3. **Check for allowlist 403s** — If a target returns HTTP 403, verify `.env.observability` is loaded and that `*_METRICS_TRUSTED_IPS` still matches the pinned compose subnets.
+4. **Curl the metrics endpoint** — `curl http://localhost:8100/metrics` should return Prometheus text format from a trusted source.
+5. **Check service logs** — `make logs-data` to see if the metrics middleware loaded.
 
 ### Grafana shows "No data"
 

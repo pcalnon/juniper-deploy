@@ -2,9 +2,9 @@
 
 ## juniper-deploy Technical Reference
 
-**Version:** 0.2.0
+**Version:** 0.2.1
 **Status:** Active
-**Last Updated:** April 6, 2026
+**Last Updated:** July 4, 2026
 **Project:** Juniper - Docker Compose & Kubernetes Orchestration
 
 ---
@@ -45,8 +45,9 @@
 
 | Service | Image | Host Port | Purpose |
 |---------|-------|-----------|---------|
-| `prometheus` | `prom/prometheus:latest` | 9090 | Metrics collection |
-| `grafana` | `grafana/grafana:latest` | 3000 | Metrics visualization |
+| `prometheus` | `prom/prometheus:v3.10.0` | 9090 | Metrics collection |
+| `alertmanager` | `prom/alertmanager:v0.27.0` | 9093 | Alert routing |
+| `grafana` | `grafana/grafana:12.4.0` | 3001 (host) / 3000 (container) | Metrics visualization |
 
 ### Dependency Chain
 
@@ -69,7 +70,7 @@
 | `full` | juniper-data, juniper-cascor, juniper-canopy, juniper-cascor-worker |
 | `demo` | juniper-data, juniper-cascor-demo, juniper-canopy-demo, demo-seed |
 | `dev` | juniper-data, juniper-cascor, juniper-canopy-dev |
-| `observability` | prometheus, grafana |
+| `observability` | prometheus, alertmanager, grafana |
 
 ---
 
@@ -85,6 +86,7 @@
 | `CASCOR_PORT` | `8200` | juniper-cascor |
 | `CANOPY_HOST` | `0.0.0.0` | juniper-canopy |
 | `CANOPY_PORT` | `8050` | juniper-canopy |
+| `BIND_HOST` | `127.0.0.1` | host-side bind for published ports |
 
 ### Inter-Service URLs
 
@@ -148,6 +150,9 @@ Compose secret definitions reference local files in `secrets/`:
 | `JUNIPER_DATA_METRICS_ENABLED` | `false` | Enable /metrics endpoint |
 | `JUNIPER_CASCOR_METRICS_ENABLED` | `false` | Enable /metrics endpoint |
 | `CANOPY_METRICS_ENABLED` | `false` | Enable /metrics endpoint |
+| `JUNIPER_DATA_METRICS_TRUSTED_IPS` | loopback | Trusted CIDRs/IPs for juniper-data /metrics |
+| `JUNIPER_CASCOR_METRICS_TRUSTED_IPS` | loopback | Trusted CIDRs/IPs for juniper-cascor /metrics |
+| `JUNIPER_CANOPY_METRICS_TRUSTED_IPS` | loopback | Trusted CIDRs/IPs for juniper-canopy /metrics |
 | `JUNIPER_DATA_SENTRY_DSN` | (unset) | Sentry error tracking |
 | `JUNIPER_CASCOR_SENTRY_DSN` | (unset) | Sentry error tracking |
 | `CANOPY_SENTRY_DSN` | (unset) | Sentry error tracking |
@@ -167,7 +172,6 @@ Compose secret definitions reference local files in `secrets/`:
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `GRAFANA_ADMIN_USER` | `admin` | Grafana admin username (mapped to `GF_SECURITY_ADMIN_USER`) |
-| `GRAFANA_ADMIN_PASSWORD` | `admin` | Grafana admin password fallback value |
 | `GF_SECURITY_ADMIN_PASSWORD__FILE` | `/run/secrets/grafana_admin_password` | Preferred password source via Docker secret |
 
 ---
@@ -274,12 +278,24 @@ Compose secret definitions reference local files in `secrets/`:
 
 ### Docker Networks
 
-| Network | Type | Services |
-|---------|------|----------|
-| `frontend` | bridge | juniper-canopy, juniper-canopy-demo, juniper-canopy-dev |
-| `backend` | bridge, internal | juniper-cascor, juniper-cascor-demo, juniper-canopy, juniper-canopy-demo, juniper-cascor-worker, redis, cassandra, prometheus |
-| `data` | bridge, internal | juniper-data, juniper-cascor, juniper-cascor-demo, juniper-canopy, juniper-canopy-demo, prometheus |
-| `monitoring` | bridge | prometheus, grafana |
+| Network | Type | Static subnet | Services |
+|---------|------|---------------|----------|
+| `frontend` | bridge | `172.30.0.0/16` | juniper-canopy, juniper-canopy-demo, juniper-canopy-dev, prometheus |
+| `backend` | bridge, internal | `172.28.0.0/16` | juniper-cascor, juniper-cascor-demo, juniper-canopy, juniper-canopy-demo, juniper-cascor-worker, redis, prometheus |
+| `data` | bridge, internal | `172.29.0.0/16` | juniper-data, juniper-cascor, juniper-cascor-demo, juniper-canopy, juniper-canopy-demo, prometheus |
+| `monitoring` | bridge | `172.31.0.0/16` | prometheus, alertmanager, grafana |
+
+The static subnets keep Prometheus's scrape source address deterministic. The CIDRs in `.env.observability` must match the pinned subnets each target shares with Prometheus:
+
+| Metrics target | Shared networks with Prometheus | Trusted CIDRs in `.env.observability` |
+|----------------|---------------------------------|----------------------------------------|
+| `juniper-data` | `backend`, `data` | `172.28.0.0/16`, `172.29.0.0/16`, loopback |
+| `juniper-cascor` | `backend`, `data`, `frontend` | `172.28.0.0/16`, `172.29.0.0/16`, `172.30.0.0/16`, loopback |
+| `juniper-canopy` | `backend`, `data`, `frontend` | `172.28.0.0/16`, `172.29.0.0/16`, `172.30.0.0/16`, loopback |
+
+The `monitoring` subnet is intentionally absent from those allowlists because no scrape target attaches to `monitoring`. `tests/test_compose_metrics_subnet_alignment.py` fails if a network loses its static subnet or if the allowlist CIDRs drift from the shared-network set.
+
+These metrics allowlists are network-scope authorization, not per-host authentication. Docker NAT can collapse clients to a bridge gateway address, so individual client identity must not be inferred from these CIDRs.
 
 ### Host-Side URLs
 
@@ -289,7 +305,10 @@ Compose secret definitions reference local files in `secrets/`:
 | juniper-cascor | http://localhost:8201 |
 | juniper-canopy | http://localhost:8050 |
 | Prometheus | http://localhost:9090 |
-| Grafana | http://localhost:3000 |
+| AlertManager | http://localhost:9093 |
+| Grafana | http://localhost:3001 |
+
+Juniper service ports use `${BIND_HOST:-127.0.0.1}` and therefore publish to loopback by default. Setting `BIND_HOST=0.0.0.0` exposes the control surface on all host interfaces and is supported only behind a fronting authenticating proxy; see `notes/DEPLOYMENT_TRUST_CONTRACT_2026-07-04.md`.
 
 ---
 
@@ -460,6 +479,6 @@ numpy>=1.24
 
 ---
 
-**Last Updated:** April 6, 2026
-**Version:** 0.2.0
+**Last Updated:** July 4, 2026
+**Version:** 0.2.1
 **Maintainer:** Paul Calnon
