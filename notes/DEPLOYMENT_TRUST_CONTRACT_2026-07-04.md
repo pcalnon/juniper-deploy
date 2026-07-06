@@ -3,10 +3,12 @@
 **Project**: Juniper — Cascade Correlation Neural Network Research Platform
 **Application**: juniper-deploy (containerized stack)
 **Author**: Paul Calnon
-**Status**: Adopted posture (Phase 0 / D8). Records the trust model the compose stack already
-relies on; the app-layer enforcing complement (bind-guard, D2) is deferred.
+**Status**: Adopted posture (Phase 0 / D8) + the two-flag bind attestation & verifiable preflight
+(D2, deploy side). The compose now carries the explicit loopback-publish attestation and a bring-up
+preflight verifies it; the app-layer bind-guard lands in the sibling canopy / cascor PRs (this trio
+must merge together).
 **License**: MIT License
-**Last Updated**: 2026-07-04
+**Last Updated**: 2026-07-06
 
 ---
 
@@ -38,9 +40,9 @@ Everything below is a corollary.
 
 | Invariant | Statement | Enforced by (today) | Deferred complement |
 | --- | --- | --- | --- |
-| **I1 — loopback default** | Every published host port binds `127.0.0.1` by default. | compose `${BIND_HOST:-127.0.0.1}:…` publishes + regression test `tests/test_compose_security_config.py::test_published_ports_default_to_loopback_bind` (DEPLOY-08). | App-layer startup **bind-guard** (D2) — see §3. |
+| **I1 — loopback default** | Every published host port binds `127.0.0.1` by default. | compose `${BIND_HOST:-127.0.0.1}:…` publishes + regression test `tests/test_compose_security_config.py::test_published_ports_default_to_loopback_bind` (DEPLOY-08) + the **bind-posture preflight** (`scripts/preflight_bind_posture.sh`, run before every bring-up) verifies the loopback-publish attestation. | App-layer startup **bind-guard** (D2) — sibling canopy / cascor PRs; see §3. |
 | **I2 — internal isolation** | `backend` / `data` carry no external route. | compose `networks: {backend,data}: internal: true`. | — |
-| **I3 — `0.0.0.0` needs a proxy** | Exposing the control surface off-loopback is **only** supported behind a fronting authenticating proxy. | Documentation (this file) + the escape hatch shipped commented at loopback (`.env.example:11`). | The proxy itself (**D7**) does not exist yet; the bind-guard (**D2**) makes the requirement fail-closed. |
+| **I3 — `0.0.0.0` needs a proxy** | Exposing the control surface off-loopback is **only** supported behind a fronting authenticating proxy. | Documentation (this file) + the escape hatch shipped commented at loopback (`.env.example:11`) + the preflight **fails closed** on an un-attested non-loopback publish. | The proxy itself (**D7**) does not exist yet; `JUNIPER_<SVC>_AUTH_PROXY_ATTESTED` is the (attestation-only) opt-in; the app-layer bind-guard (**D2**) is the sibling PR. |
 | **I4 — metrics = network scope** | The `/metrics` IP allowlist authorizes **which subnets** may scrape, not which hosts. | `MetricsAuthMiddleware` (fail-closed) + pinned `ipam` subnets + `internal:true` (**D5**, this PR). | XFF-from-trusted-proxy (**D6/A**), only once the proxy exists. |
 | **I5 — per-IP caps ≠ auth** | The per-IP WS caps and HTTP rate buckets are **DoS-dampening**, not authentication. | Documented here; caps still run (best-effort). | Global + per-session caps (**D4**) restore per-user fairness under NAT. |
 
@@ -60,16 +62,35 @@ login — design §2.1).
 Therefore the **only effective control** for that surface today is that it is **not reachable off-host**:
 the compose publish binds `127.0.0.1`. This is invariant **I1**. It is currently an *implicit default*.
 
-**Enforcing-code complement (deferred — D2, Phase 1).** The design specifies a symmetric app-layer
-**startup bind-guard** in canopy and cascor: refuse to start when configured to bind a non-loopback
-interface **unless** an explicit attestation flag (`JUNIPER_<SVC>_FRONTING_AUTH_ATTESTED=true`) asserts a
-fronting authenticating proxy is present (design §4 Option A, §7 Phase 1, §8 D2). This converts the prose
-assumption into a fail-closed invariant and closes the "silent `BIND_HOST=0.0.0.0`" footgun.
+**Enforcing-code complement (D2, Phase 1) — two-flag attestation + a verifiable preflight.** The design
+specifies a symmetric app-layer **startup bind-guard** in canopy and cascor: refuse to start when
+configured to bind a non-loopback interface **unless** one of two explicit, per-service attestation flags
+is set (design §4 Option A, §7 Phase 1, §8 D2). The attestation is split into a **verifiable** half and an
+**attestation-only** half:
 
-> Status of the enforcing code (verified 2026-07-04, so this contract does not over-claim): there is **no
-> merged bind-guard PR** in either service. cascor has an in-progress `enforce_fronting_auth_bind_guard`
-> in its working tree (not on `main`); canopy has none yet. Until those land, **I1/I3 are enforced only by
-> the compose loopback publish (DEPLOY-08) + this contract** — treat off-loopback exposure as unsupported.
+- `JUNIPER_<SVC>_LOOPBACK_PUBLISH_ATTESTED=true` — the service is reachable **only** via a loopback-only
+  host publish. This is **verifiable**, and is verified: `scripts/preflight_bind_posture.sh` renders
+  `docker compose config` and asserts every published host port of the service binds `127.0.0.0/8`
+  before every bring-up (`make up/demo/dev/monitor/obs-demo`, and standalone `make preflight`). Because
+  the containers bind `0.0.0.0` inside their netns (`..._HOST=0.0.0.0`), the compose sets this flag
+  explicitly on all canopy/cascor services; the preflight makes the claim fail-closed rather than trusted.
+- `JUNIPER_<SVC>_AUTH_PROXY_ATTESTED=true` — a fronting authenticating reverse proxy fronts the service
+  (Phase-4 / D7). This is **attestation-only**: nothing here or in the app can verify a proxy exists, so
+  it is a deliberate operator opt-in that suppresses the loopback-publish requirement. It is set
+  **nowhere** in the shipped compose (no proxy exists yet — D7 is deferred).
+
+Together this converts the prose assumption into a fail-closed invariant and closes the "silent
+`BIND_HOST=0.0.0.0`" footgun. (This flag pair replaces the earlier single-flag sketch, which conflated
+the verifiable loopback-publish claim with the unverifiable proxy claim.)
+
+> Status of the enforcing code (updated 2026-07-06): the **deploy side** of D2 ships in this PR — the
+> compose sets `JUNIPER_<SVC>_LOOPBACK_PUBLISH_ATTESTED=true` on every canopy/cascor service and the
+> **bind-posture preflight** (`scripts/preflight_bind_posture.sh`, gate
+> `tests/test_compose_bind_posture_attestation.py`) verifies it before bring-up. The **app-layer
+> bind-guards** in canopy and cascor are the sibling PRs that read the same two flags; this deploy PR
+> **must merge together with** them (the compose attests a posture the apps enforce). Until all three
+> land, I1/I3 are enforced by the compose loopback publish (DEPLOY-08) + the preflight + this contract —
+> treat off-loopback exposure as unsupported.
 
 The canopy auth design already stated this precondition and is the origin of the requirement:
 `juniper-canopy/notes/JUNIPER_CANOPY_TRAINING-CONTROL-AUTH_DESIGN_2026-06-30.md` §7.3 / §12 OQ-3 —
@@ -124,8 +145,11 @@ with it the SEC-F22 forgeable gate — on all host interfaces, converting SEC-F2
 authenticating reverse proxy that authenticates the dashboard user and is the single trusted source of
 `X-Forwarded-For`.** That proxy is the convergence point of both findings (design §6, decision **D7**) and
 **does not exist in this repo yet** (no traefik/nginx/caddy/haproxy in `docker-compose.yml`). Until it
-exists, keep the default loopback bind. The bind-guard (§3, D2) is the mechanism that will make an
-un-attested non-loopback bind fail closed.
+exists, keep the default loopback bind. Setting `BIND_HOST=0.0.0.0` (or any non-loopback bind) now
+**fails the bind-posture preflight** at bring-up: `scripts/preflight_bind_posture.sh` refuses to continue
+unless the affected service also sets `JUNIPER_<SVC>_AUTH_PROXY_ATTESTED=true` (asserting the still-absent
+fronting proxy). The app-layer bind-guard (§3, D2; sibling canopy/cascor PRs) makes the same requirement
+fail-closed inside the services.
 
 ---
 
@@ -152,12 +176,17 @@ forge-your-identity footgun).
 - **Audit**: `juniper-ml/notes/JUNIPER_2026-07-02_JUNIPER-ECOSYSTEM_STACK-SECURITY-AUDIT-PLAN.md` (§4.1, §4.7, §5.2; HO-3, HO-6).
 - **canopy auth design (residual acknowledged)**:
   `juniper-canopy/notes/JUNIPER_CANOPY_TRAINING-CONTROL-AUTH_DESIGN_2026-06-30.md` §7.3, §12 OQ-3.
-- **This repo**: `docker-compose.yml` (loopback publishes, `internal:true` networks, pinned `ipam` subnets),
+- **This repo**: `docker-compose.yml` (loopback publishes, `internal:true` networks, pinned `ipam` subnets,
+  the `JUNIPER_<SVC>_LOOPBACK_PUBLISH_ATTESTED` two-flag attestation on canopy/cascor),
   `.env.observability` (pinned metrics allowlist), `.env.example:11` (`BIND_HOST` escape hatch),
-  `notes/METRICS_AUTH_RATIONALE.md` (per-service middleware decision),
+  `scripts/preflight_bind_posture.sh` (the verifiable bind-posture preflight; `make preflight` + every
+  bring-up target), `notes/METRICS_AUTH_RATIONALE.md` (per-service middleware decision),
   `tests/test_compose_security_config.py` (DEPLOY-08 loopback guard),
-  `tests/test_compose_metrics_subnet_alignment.py` (D5 subnet↔allowlist drift check).
-- **Enforcing-code complement (deferred)**: bind-guard **D2/D3** (canopy + cascor, Phase 1); global +
-  per-session caps **D4** (Phase 2); fronting proxy + XFF **D6/D7** (Phase 4). None merged as of 2026-07-04.
+  `tests/test_compose_metrics_subnet_alignment.py` (D5 subnet↔allowlist drift check),
+  `tests/test_compose_bind_posture_attestation.py` (the two-flag attestation + preflight gate).
+- **Enforcing-code complement**: bind-guard **D2/D3** — the deploy-side two-flag attestation + verifiable
+  preflight ship 2026-07-06 (this PR); the app-layer bind-guards (canopy + cascor, Phase 1) are the
+  sibling PRs that read the same flags and must merge with it. Global + per-session caps **D4** (Phase 2);
+  fronting proxy + XFF **D6/D7** (Phase 4) remain deferred.
 </content>
 </invoke>
