@@ -48,6 +48,16 @@ PREFLIGHT := bash scripts/preflight_bind_posture.sh
 # Escape hatch: JUNIPER_BUILD_STALE_OK=1 make build (or --allow-stale).
 BUILD_PREFLIGHT := bash scripts/preflight_build_freshness.sh
 
+# Image-provenance preflight — the INVERSE of BUILD_PREFLIGHT: stops the
+# bring-up targets from RUNNING images that no longer match the code on disk
+# ("checkout updated but image not rebuilt"). Compares each built image's
+# org.opencontainers.image.revision label (stamped by PROVENANCE_ENV via
+# scripts/provenance_sha.sh) against its build-context checkout's HEAD;
+# refuses bring-up (exit 1) only on a provable default-branch mismatch.
+# Non-default branches / in-flight dirty builds warn (deliberate dev flows).
+# Fix: make build. Escape hatch: JUNIPER_IMAGE_STALE_OK=1 (or --allow-stale).
+IMAGE_PREFLIGHT := bash scripts/preflight_image_provenance.sh
+
 SECRETS_DIR := secrets
 SECRETS_FILES := $(SECRETS_DIR)/juniper_data_api_keys.txt \
     $(SECRETS_DIR)/juniper_cascor_api_keys.txt \
@@ -75,7 +85,7 @@ endif
 .PHONY: help up down restart logs logs-data logs-cascor logs-canopy \
         status build build-no-cache build-preflight clean \
         shell-data shell-cascor shell-canopy \
-        health doctor wait ps demo dev test monitor obs obs-demo preflight
+        health doctor wait ps demo dev test monitor obs obs-demo preflight image-preflight
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Help
@@ -100,8 +110,12 @@ prepare-secrets:  ## Populate ./secrets/*.txt from .env.secrets.enc (falls back 
 preflight:  ## Verify loopback-publish bind attestation for every profile (no daemon needed)
 	@$(PREFLIGHT) --profile full --profile demo --profile dev --profile observability
 
+image-preflight:  ## Verify built images match their source checkouts (provenance labels; JUNIPER_IMAGE_STALE_OK=1 to bypass)
+	@$(IMAGE_PREFLIGHT) --profile full --profile demo --profile dev --profile test --profile observability
+
 up: prepare-secrets ## Start all services (--profile full, detached)
 	@$(PREFLIGHT) --profile full
+	@$(IMAGE_PREFLIGHT) --profile full
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full up -d
 	@echo -e "$(GREEN)Services starting. Run 'make logs' to follow output.$(RESET)"
 
@@ -113,11 +127,13 @@ restart:  ## Restart all services
 
 demo: prepare-secrets ## Start demo stack (auto-configured CasCor training)
 	@$(PREFLIGHT) --profile demo
+	@$(IMAGE_PREFLIGHT) --profile demo
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile demo up -d
 	@echo -e "$(GREEN)Demo stack starting. Run 'make logs' to follow output.$(RESET)"
 
 dev: prepare-secrets ## Start dev stack (real data + cascor, canopy in demo mode)
 	@$(PREFLIGHT) --profile dev
+	@$(IMAGE_PREFLIGHT) --profile dev
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile dev up -d
 	@echo -e "$(GREEN)Dev stack starting. Run 'make logs' to follow output.$(RESET)"
 
@@ -126,6 +142,7 @@ test:  ## Run integration tests (starts services + test-runner)
 
 monitor: prepare-secrets ## Start full stack with observability (Prometheus + Grafana)
 	@$(PREFLIGHT) --env-file .env.observability --profile full --profile observability
+	@$(IMAGE_PREFLIGHT) --env-file .env.observability --profile full --profile observability
 	@$(COMPOSE) -f $(COMPOSE_FILE) \
 		--env-file .env.observability \
 		--profile full --profile observability up -d
@@ -136,6 +153,8 @@ obs: monitor  ## Alias for `make monitor` (referenced from .env.observability)
 obs-demo: prepare-secrets  ## Start demo stack with observability (scrapes juniper-{cascor,canopy}-demo via prometheus.demo.yml)
 	@PROMETHEUS_CONFIG_FILE=prometheus.demo.yml \
 		$(PREFLIGHT) --env-file .env.observability --profile demo --profile observability
+	@PROMETHEUS_CONFIG_FILE=prometheus.demo.yml \
+		$(IMAGE_PREFLIGHT) --env-file .env.observability --profile demo --profile observability
 	@PROMETHEUS_CONFIG_FILE=prometheus.demo.yml \
 		$(COMPOSE) -f $(COMPOSE_FILE) \
 		--env-file .env.observability \
