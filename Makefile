@@ -38,6 +38,16 @@ export COMPOSE_FILE
 # start; a failure (exit 1) aborts the target before `docker compose up`.
 PREFLIGHT := bash scripts/preflight_bind_posture.sh
 
+# Build-freshness preflight (incident of record 2026-07-07): the compose stack
+# builds its first-party images from LOCAL sibling checkouts (`build.context:
+# ../juniper-cascor` etc.), so image freshness is bounded by local-checkout
+# freshness — not by GitHub main. Refuses `make build` (exit 1) when a
+# build-context checkout sitting on its default branch is BEHIND its origin
+# (the class that shipped an old-flag SEC-F22 guard against the new two-flag
+# env). Non-default branches / dirty trees only warn (deliberate dev flows).
+# Escape hatch: JUNIPER_BUILD_STALE_OK=1 make build (or --allow-stale).
+BUILD_PREFLIGHT := bash scripts/preflight_build_freshness.sh
+
 SECRETS_DIR := secrets
 SECRETS_FILES := $(SECRETS_DIR)/juniper_data_api_keys.txt \
     $(SECRETS_DIR)/juniper_cascor_api_keys.txt \
@@ -63,7 +73,7 @@ else
 endif
 
 .PHONY: help up down restart logs logs-data logs-cascor logs-canopy \
-        status build build-no-cache clean \
+        status build build-no-cache build-preflight clean \
         shell-data shell-cascor shell-canopy \
         health doctor wait ps demo dev test monitor obs obs-demo preflight
 
@@ -193,10 +203,15 @@ PROVENANCE_ENV = BUILD_DATE="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 	APP_VERSION_WORKER="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-cascor-worker/pyproject.toml 2>/dev/null | head -1)" \
 	APP_VERSION_RECURRENCE="$$(sed -nE 's/^__version__ = \"(.+)\"/\1/p' ../juniper-recurrence/juniper-recurrence/juniper_recurrence/_version.py 2>/dev/null | head -1)"
 
+build-preflight:  ## Verify every compose build-context checkout is current with its origin (JUNIPER_BUILD_STALE_OK=1 to bypass)
+	@$(BUILD_PREFLIGHT) --profile full --profile demo --profile dev --profile test --profile observability
+
 build:  ## Build/rebuild all images (stamped with per-repo git SHA + build date)
+	@$(BUILD_PREFLIGHT) --profile full --profile demo --profile dev --profile test --profile observability
 	@$(PROVENANCE_ENV) $(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev --profile test --profile observability build
 
 build-no-cache:  ## Full rebuild without cache (stamped with per-repo git SHA + build date)
+	@$(BUILD_PREFLIGHT) --profile full --profile demo --profile dev --profile test --profile observability
 	@$(PROVENANCE_ENV) $(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev --profile test --profile observability build --no-cache
 
 # ═══════════════════════════════════════════════════════════════════════════
