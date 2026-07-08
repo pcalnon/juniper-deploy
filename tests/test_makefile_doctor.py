@@ -93,11 +93,20 @@ def test_doctor_script_classifies_fresh_stale_unknown() -> None:
         assert verdict in text, f"doctor.sh must be able to report {verdict}."
 
 
-def test_doctor_covers_all_built_services() -> None:
-    """Every locally-built Juniper image must be checked for drift."""
+def test_doctor_derives_services_from_the_compose_render() -> None:
+    """Every locally-built Juniper image must be checked for drift.
+
+    doctor.sh's original hardcoded 4-entry SERVICES array drifted (it lacked
+    juniper-recurrence and the demo/dev variants), so the service list is now
+    DERIVED from `docker compose config --format json` — the same mechanism as
+    the preflight family. This lint pins the derivation mechanism and that no
+    hardcoded per-service array can quietly return; the coverage domain itself
+    is pinned by tests/test_doctor_provenance_derivation.py's drift gate, and
+    the classification behaviour by that file's hermetic offline tests."""
     text = _read(DOCTOR)
-    for image in ("juniper-data", "juniper-cascor", "juniper-canopy", "juniper-cascor-worker"):
-        assert image in text, f"doctor.sh must check the {image} image for drift."
+    assert "config --format json" in text, "doctor.sh must derive its service list from the compose config render."
+    assert "--config-json" in text, "doctor.sh must keep the offline --config-json seam (CI gate)."
+    assert "SERVICES=(" not in text, "doctor.sh must not reintroduce a hardcoded SERVICES array — the list is render-derived."
 
 
 def test_health_check_surfaces_git_sha_and_drift() -> None:
