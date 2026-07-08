@@ -907,9 +907,14 @@ services:
     container_name: juniper-redis
     profiles: ["full", "test"]
     # SEC-F15: container hardening parity with the first-party app services
-    # (juniper-data/cascor/cascor-worker/recurrence/canopy). Stock
-    # redis:7.4-alpine needs no special Linux capabilities, so cap_drop:[ALL]
-    # is safe. See notes/JUNIPER_STACK_SECURITY_AUDIT_PLAN_2026-07-02.md §4.5.
+    # (juniper-data/cascor/cascor-worker/recurrence/canopy). Unlike those images
+    # (which already run as a non-root USER), the stock redis:7.4-alpine entrypoint
+    # starts as root and drops to the redis user via `setpriv`, which needs
+    # CAP_SETUID/CAP_SETGID -- incompatible with cap_drop:[ALL] (setresuid fails →
+    # exit 127 → crash loop). Run as the redis user (999:1000) up front so the
+    # entrypoint skips the privilege drop, keeping cap_drop:[ALL] + no-new-privileges
+    # fully in force. See notes/JUNIPER_STACK_SECURITY_AUDIT_PLAN_2026-07-02.md §4.5.
+    user: "999:1000"  # redis:redis (uid 999, gid 1000) — start non-root, no setpriv drop
     security_opt:
       - no-new-privileges:true
     cap_drop:

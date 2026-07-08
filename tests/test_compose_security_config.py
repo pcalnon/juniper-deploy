@@ -290,3 +290,24 @@ def test_hardened_services_forbid_privilege_escalation_and_drop_capabilities(): 
             f"Service {name} missing `cap_drop:` block (SEC-F15 hardening)"
         )
         _assert_list_item(block, "ALL")
+
+
+def test_redis_runs_as_nonroot_user_for_cap_drop_compat():  # SEC-F15 follow-up
+    """redis must run as the non-root redis user (999:1000 / `redis`).
+
+    Unlike the first-party images (which already declare a non-root USER in their
+    Dockerfiles), the stock redis:7.4-alpine entrypoint starts as root and drops
+    to the redis user via `setpriv` -- which needs CAP_SETUID/CAP_SETGID and so
+    fails under `cap_drop: [ALL]` (`setresuid: Operation not permitted` -> exit
+    127 -> crash loop, which blocks every service gated on redis health). Running
+    as the redis user up front makes the entrypoint skip the privilege drop, so
+    the SEC-F15 hardening (cap_drop:[ALL] + no-new-privileges) stays in force AND
+    the container starts. Regression guard for the SEC-F15 redis crash-loop fix.
+    """
+    compose_text = _read_text(COMPOSE_PATH)
+    services = _extract_two_space_blocks(compose_text, "services")
+    block = services["redis"]
+    assert re.search(r'^\s+user:\s*"?(?:999(?::1000)?|redis)"?', block, flags=re.MULTILINE), (
+        'redis must set `user: "999:1000"` (the redis user) so its entrypoint skips '
+        "the setpriv privilege drop that cap_drop:[ALL] would otherwise break (SEC-F15)."
+    )
