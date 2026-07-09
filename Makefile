@@ -27,6 +27,36 @@ SHELL := /bin/bash
 
 COMPOSE := docker compose
 COMPOSE_FILE ?= docker-compose.yml
+# Exported so scripts/preflight_bind_posture.sh (below) renders the same file.
+export COMPOSE_FILE
+
+# Bind-posture preflight (deployment trust contract §3/§5, design D2): verifies
+# every JUNIPER_<SVC>_LOOPBACK_PUBLISH_ATTESTED service publishes loopback-only
+# in the rendered `docker compose config` BEFORE bring-up, catching a silent
+# BIND_HOST=0.0.0.0. Invoked per bring-up target with the SAME --profile /
+# --env-file flags the bring-up uses, so it checks exactly what is about to
+# start; a failure (exit 1) aborts the target before `docker compose up`.
+PREFLIGHT := bash scripts/preflight_bind_posture.sh
+
+# Build-freshness preflight (incident of record 2026-07-07): the compose stack
+# builds its first-party images from LOCAL sibling checkouts (`build.context:
+# ../juniper-cascor` etc.), so image freshness is bounded by local-checkout
+# freshness — not by GitHub main. Refuses `make build` (exit 1) when a
+# build-context checkout sitting on its default branch is BEHIND its origin
+# (the class that shipped an old-flag SEC-F22 guard against the new two-flag
+# env). Non-default branches / dirty trees only warn (deliberate dev flows).
+# Escape hatch: JUNIPER_BUILD_STALE_OK=1 make build (or --allow-stale).
+BUILD_PREFLIGHT := bash scripts/preflight_build_freshness.sh
+
+# Image-provenance preflight — the INVERSE of BUILD_PREFLIGHT: stops the
+# bring-up targets from RUNNING images that no longer match the code on disk
+# ("checkout updated but image not rebuilt"). Compares each built image's
+# org.opencontainers.image.revision label (stamped by PROVENANCE_ENV via
+# scripts/provenance_sha.sh) against its build-context checkout's HEAD;
+# refuses bring-up (exit 1) only on a provable default-branch mismatch.
+# Non-default branches / in-flight dirty builds warn (deliberate dev flows).
+# Fix: make build. Escape hatch: JUNIPER_IMAGE_STALE_OK=1 (or --allow-stale).
+IMAGE_PREFLIGHT := bash scripts/preflight_image_provenance.sh
 
 SECRETS_DIR := secrets
 SECRETS_FILES := $(SECRETS_DIR)/juniper_data_api_keys.txt \
@@ -53,9 +83,9 @@ else
 endif
 
 .PHONY: help up down restart logs logs-data logs-cascor logs-canopy \
-        status build build-no-cache clean \
+        status build build-no-cache build-preflight clean \
         shell-data shell-cascor shell-canopy \
-        health doctor wait ps demo dev test monitor obs obs-demo
+        health doctor wait ps demo dev test monitor obs obs-demo preflight image-preflight
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Help
@@ -77,7 +107,15 @@ help:  ## Show this help message
 prepare-secrets:  ## Populate ./secrets/*.txt from .env.secrets.enc (falls back to empty placeholders if no SOPS key)
 	@bash scripts/prepare_secrets.bash
 
+preflight:  ## Verify loopback-publish bind attestation for every profile (no daemon needed)
+	@$(PREFLIGHT) --profile full --profile demo --profile dev --profile observability
+
+image-preflight:  ## Verify built images match their source checkouts (provenance labels; JUNIPER_IMAGE_STALE_OK=1 to bypass)
+	@$(IMAGE_PREFLIGHT) --profile full --profile demo --profile dev --profile test --profile observability
+
 up: prepare-secrets ## Start all services (--profile full, detached)
+	@$(PREFLIGHT) --profile full
+	@$(IMAGE_PREFLIGHT) --profile full
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full up -d
 	@echo -e "$(GREEN)Services starting. Run 'make logs' to follow output.$(RESET)"
 
@@ -88,10 +126,14 @@ restart:  ## Restart all services
 	@$(COMPOSE) -f $(COMPOSE_FILE) restart
 
 demo: prepare-secrets ## Start demo stack (auto-configured CasCor training)
+	@$(PREFLIGHT) --profile demo
+	@$(IMAGE_PREFLIGHT) --profile demo
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile demo up -d
 	@echo -e "$(GREEN)Demo stack starting. Run 'make logs' to follow output.$(RESET)"
 
 dev: prepare-secrets ## Start dev stack (real data + cascor, canopy in demo mode)
+	@$(PREFLIGHT) --profile dev
+	@$(IMAGE_PREFLIGHT) --profile dev
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile dev up -d
 	@echo -e "$(GREEN)Dev stack starting. Run 'make logs' to follow output.$(RESET)"
 
@@ -99,6 +141,8 @@ test:  ## Run integration tests (starts services + test-runner)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile test up --abort-on-container-exit --exit-code-from test-runner
 
 monitor: prepare-secrets ## Start full stack with observability (Prometheus + Grafana)
+	@$(PREFLIGHT) --env-file .env.observability --profile full --profile observability
+	@$(IMAGE_PREFLIGHT) --env-file .env.observability --profile full --profile observability
 	@$(COMPOSE) -f $(COMPOSE_FILE) \
 		--env-file .env.observability \
 		--profile full --profile observability up -d
@@ -107,6 +151,10 @@ monitor: prepare-secrets ## Start full stack with observability (Prometheus + Gr
 obs: monitor  ## Alias for `make monitor` (referenced from .env.observability)
 
 obs-demo: prepare-secrets  ## Start demo stack with observability (scrapes juniper-{cascor,canopy}-demo via prometheus.demo.yml)
+	@PROMETHEUS_CONFIG_FILE=prometheus.demo.yml \
+		$(PREFLIGHT) --env-file .env.observability --profile demo --profile observability
+	@PROMETHEUS_CONFIG_FILE=prometheus.demo.yml \
+		$(IMAGE_PREFLIGHT) --env-file .env.observability --profile demo --profile observability
 	@PROMETHEUS_CONFIG_FILE=prometheus.demo.yml \
 		$(COMPOSE) -f $(COMPOSE_FILE) \
 		--env-file .env.observability \
@@ -174,10 +222,15 @@ PROVENANCE_ENV = BUILD_DATE="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 	APP_VERSION_WORKER="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-cascor-worker/pyproject.toml 2>/dev/null | head -1)" \
 	APP_VERSION_RECURRENCE="$$(sed -nE 's/^__version__ = \"(.+)\"/\1/p' ../juniper-recurrence/juniper-recurrence/juniper_recurrence/_version.py 2>/dev/null | head -1)"
 
+build-preflight:  ## Verify every compose build-context checkout is current with its origin (JUNIPER_BUILD_STALE_OK=1 to bypass)
+	@$(BUILD_PREFLIGHT) --profile full --profile demo --profile dev --profile test --profile observability
+
 build:  ## Build/rebuild all images (stamped with per-repo git SHA + build date)
+	@$(BUILD_PREFLIGHT) --profile full --profile demo --profile dev --profile test --profile observability
 	@$(PROVENANCE_ENV) $(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev --profile test --profile observability build
 
 build-no-cache:  ## Full rebuild without cache (stamped with per-repo git SHA + build date)
+	@$(BUILD_PREFLIGHT) --profile full --profile demo --profile dev --profile test --profile observability
 	@$(PROVENANCE_ENV) $(COMPOSE) -f $(COMPOSE_FILE) --profile full --profile demo --profile dev --profile test --profile observability build --no-cache
 
 # ═══════════════════════════════════════════════════════════════════════════
