@@ -199,19 +199,6 @@ services:
     environment:
       JUNIPER_DATA_URL: "${JUNIPER_DATA_URL:-http://juniper-data:8100}"
       JUNIPER_CASCOR_HOST: "${CASCOR_HOST:-0.0.0.0}"
-      # Two-flag bind attestation (deployment trust contract
-      # notes/DEPLOYMENT_TRUST_CONTRACT_2026-07-04.md §3, design D2). The
-      # container binds 0.0.0.0 inside its netns (JUNIPER_CASCOR_HOST above),
-      # so cascor's app-layer startup bind-guard hard-fails the non-loopback
-      # bind UNLESS one attestation flag is set. This flag attests the
-      # reachable surface is the loopback-only HOST publish
-      # (${BIND_HOST:-127.0.0.1}: in `ports:` above) — a VERIFIABLE claim that
-      # `scripts/preflight_bind_posture.sh` checks against the rendered
-      # `docker compose config` before every bring-up
-      # (make up/demo/dev/monitor/obs-demo). Deliberately NOT
-      # JUNIPER_CASCOR_AUTH_PROXY_ATTESTED: no fronting authenticating proxy
-      # is present (D7, Phase-4; that flag is attestation-only, not verified).
-      JUNIPER_CASCOR_LOOPBACK_PUBLISH_ATTESTED: "true"
       JUNIPER_CASCOR_PORT: "${CASCOR_PORT:-8200}"
       # SEC-F19 / D2 two-flag bind-posture attestation (canonical spec — identical
       # across canopy / cascor / deploy; design juniper-ml
