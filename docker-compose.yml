@@ -200,6 +200,23 @@ services:
       JUNIPER_DATA_URL: "${JUNIPER_DATA_URL:-http://juniper-data:8100}"
       JUNIPER_CASCOR_HOST: "${CASCOR_HOST:-0.0.0.0}"
       JUNIPER_CASCOR_PORT: "${CASCOR_PORT:-8200}"
+      # SEC-F19 / D2 two-flag bind-posture attestation (canonical spec — identical
+      # across canopy / cascor / deploy; design juniper-ml
+      # notes/JUNIPER_2026-07-03_JUNIPER-CANOPY_CONTROL-SURFACE-AUTH-AND-NAT-DESIGN.md
+      # §4 Option A, §7 Phase 1, §8 D2). The container binds 0.0.0.0 INTERNALLY
+      # (JUNIPER_CASCOR_HOST above), but the host publish is loopback-only
+      # (`${BIND_HOST:-127.0.0.1}:…` on the ports mapping), so the operator attests
+      # the loopback publish here. The canopy/cascor app-layer startup bind-guard
+      # (separate PRs) refuses a non-loopback bind unless
+      # (LOOPBACK_PUBLISH_ATTESTED OR AUTH_PROXY_ATTESTED); this flag is the compose
+      # half. Unlike a bare attestation it is VERIFIABLE: `make preflight`
+      # (scripts/preflight_bind_posture.sh, run before every bring-up) and
+      # tests/test_compose_bind_posture_attestation.py assert every published host
+      # port of a LOOPBACK_PUBLISH_ATTESTED service binds 127.0.0.0/8 — so setting
+      # BIND_HOST=0.0.0.0 without AUTH_PROXY_ATTESTED fails closed. AUTH_PROXY_ATTESTED
+      # is intentionally NOT set anywhere: no fronting authenticating proxy exists yet
+      # (deferred D7).
+      JUNIPER_CASCOR_LOOPBACK_PUBLISH_ATTESTED: "true"
       JUNIPER_CASCOR_LOG_LEVEL: "${CASCOR_LOG_LEVEL:-INFO}"
       JUNIPER_CASCOR_RATE_LIMIT_ENABLED: "${JUNIPER_CASCOR_RATE_LIMIT_ENABLED:-true}"
       JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE: "${JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}"
@@ -352,6 +369,12 @@ services:
       JUNIPER_DATA_URL: "http://juniper-data:8100"
       JUNIPER_CASCOR_HOST: "0.0.0.0"
       JUNIPER_CASCOR_PORT: "8200"
+      # SEC-F19 / D2 bind-posture attestation — full two-flag rationale on the
+      # canonical juniper-cascor service above. Container binds 0.0.0.0 internally;
+      # host publish is loopback-only (`${BIND_HOST:-127.0.0.1}:…`); verified by
+      # `make preflight` + tests/test_compose_bind_posture_attestation.py.
+      # AUTH_PROXY_ATTESTED intentionally unset (no fronting proxy yet — D7).
+      JUNIPER_CASCOR_LOOPBACK_PUBLISH_ATTESTED: "true"
       JUNIPER_CASCOR_LOG_LEVEL: "INFO"
       # DEPLOY-10: rate-limiting on by default even in demo profiles. Auth
       # remains intentionally disabled here so the demo is open-by-design,
