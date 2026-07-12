@@ -368,13 +368,6 @@ services:
     environment:
       JUNIPER_DATA_URL: "http://juniper-data:8100"
       JUNIPER_CASCOR_HOST: "0.0.0.0"
-      # Two-flag bind attestation — same contract as the canonical
-      # juniper-cascor service above. The demo container binds 0.0.0.0
-      # (JUNIPER_CASCOR_HOST above) but the host publish is loopback-only
-      # (${BIND_HOST:-127.0.0.1}: in `ports:` above), so attest the loopback
-      # publish (the verifiable flag, checked by
-      # scripts/preflight_bind_posture.sh) and NOT the Phase-4 AUTH_PROXY flag.
-      JUNIPER_CASCOR_LOOPBACK_PUBLISH_ATTESTED: "true"
       JUNIPER_CASCOR_PORT: "8200"
       # SEC-F19 / D2 bind-posture attestation — full two-flag rationale on the
       # canonical juniper-cascor service above. Container binds 0.0.0.0 internally;
