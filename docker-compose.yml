@@ -155,6 +155,12 @@ services:
       # The secret file is non-empty by default (placeholder in
       # secrets.example/juniper_data_api_keys.txt) so auth is on out of the box.
       JUNIPER_DATA_API_KEYS_FILE: /run/secrets/juniper_data_api_keys
+      # SEC-F01 fail-closed posture: the composed stack provisions the key
+      # secret above, so a missing/empty/placeholder-mapped-to-empty key is a
+      # BOOT FAILURE (CRITICAL + AuthPostureError) instead of a silently-open
+      # service (the HO-2 class). Override to false only for a deliberate
+      # open profile.
+      JUNIPER_DATA_REQUIRE_AUTH: "${JUNIPER_DATA_REQUIRE_AUTH:-true}"
       JUNIPER_DATA_LOG_FORMAT: "${JUNIPER_DATA_LOG_FORMAT:-text}"
       JUNIPER_DATA_SENTRY_DSN: "${JUNIPER_DATA_SENTRY_DSN:-}"
       JUNIPER_DATA_METRICS_ENABLED: "${JUNIPER_DATA_METRICS_ENABLED:-false}"
@@ -223,6 +229,12 @@ services:
       # DEPLOY-11: API keys are read from secret files only. The plain
       # JUNIPER_CASCOR_API_KEYS / JUNIPER_DATA_API_KEY env vars were removed.
       JUNIPER_CASCOR_API_KEYS_FILE: /run/secrets/juniper_cascor_api_keys
+      # SEC-F01 fail-closed posture: the inbound key secret above is
+      # provisioned here, so a missing/empty key is a BOOT FAILURE instead of
+      # cascor serving its control surface open (the HO-2 class). Override to
+      # false only for a deliberate open profile. (juniper-cascor-demo is
+      # intentionally keyless/open and does NOT set this.)
+      JUNIPER_CASCOR_REQUIRE_AUTH: "${JUNIPER_CASCOR_REQUIRE_AUTH:-true}"
       JUNIPER_DATA_API_KEY_FILE: /run/secrets/juniper_data_api_keys
       JUNIPER_CASCOR_LOG_FORMAT: "${JUNIPER_CASCOR_LOG_FORMAT:-text}"
       JUNIPER_CASCOR_SENTRY_DSN: "${JUNIPER_CASCOR_SENTRY_DSN:-}"
@@ -544,7 +556,11 @@ services:
       # Inbound API-key auth is opt-in (the app allows open access when no keys are
       # configured; the host port binds to 127.0.0.1 via BIND_HOST by default). To
       # enable it, add a `juniper_recurrence_api_keys` secret (top-level + below) and
-      # set JUNIPER_RECURRENCE_API_KEYS_FILE=/run/secrets/juniper_recurrence_api_keys.
+      # set JUNIPER_RECURRENCE_API_KEYS_FILE=/run/secrets/juniper_recurrence_api_keys,
+      # plus JUNIPER_RECURRENCE_REQUIRE_AUTH=true so a missing/empty key becomes a
+      # boot failure (SEC-F01 fail-closed) rather than an open service. REQUIRE_AUTH
+      # is deliberately NOT set here while no key secret is provisioned — the SEC-F01
+      # boot check logs the loud running-OPEN warning instead.
     secrets:
       - juniper_data_api_keys
     depends_on:
@@ -609,6 +625,12 @@ services:
       # DEPLOY-11: API keys read from secret files only. JUNIPER_CASCOR_API_KEY
       # plain env var removed.
       CANOPY_API_KEY_FILE: /run/secrets/canopy_api_key
+      # SEC-F01 fail-closed posture: the CANOPY_API_KEY secret above is
+      # provisioned here, so a missing/empty key is a BOOT FAILURE instead of
+      # the browser control surface serving open (the HO-2 class). Override
+      # to false only for a deliberate open profile. (juniper-canopy-demo /
+      # -dev are intentionally open profiles and do NOT set this.)
+      JUNIPER_CANOPY_REQUIRE_AUTH: "${JUNIPER_CANOPY_REQUIRE_AUTH:-true}"
       JUNIPER_CASCOR_API_KEY_FILE: /run/secrets/juniper_cascor_api_keys
       # Outbound X-API-Key canopy sends on every juniper-data request.
       # juniper-canopy 0.5.1 ``Settings.juniper_data_api_key`` field
