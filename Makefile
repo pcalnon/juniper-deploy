@@ -60,6 +60,7 @@ IMAGE_PREFLIGHT := bash scripts/preflight_image_provenance.sh
 
 SECRETS_DIR := secrets
 SECRETS_FILES := $(SECRETS_DIR)/juniper_data_api_keys.txt \
+    $(SECRETS_DIR)/juniper_recurrence_api_keys.txt \
     $(SECRETS_DIR)/juniper_cascor_api_keys.txt \
     $(SECRETS_DIR)/canopy_api_key.txt \
     $(SECRETS_DIR)/cascor_auth_token.txt \
