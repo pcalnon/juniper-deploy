@@ -51,6 +51,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
+from tests.redacted_env import RedactedEnv
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MAKEFILE_PATH = REPO_ROOT / "Makefile"
@@ -63,7 +64,7 @@ _UNIQUE = itertools.count()
 
 
 def _git_env(tmp_path: Path) -> dict[str, str]:
-    env = os.environ.copy()
+    env = RedactedEnv(os.environ)
     env.update(
         {
             "GIT_CONFIG_GLOBAL": "/dev/null",

@@ -52,6 +52,7 @@ import subprocess
 from pathlib import Path
 
 import yaml
+from tests.redacted_env import RedactedEnv
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_PATH = REPO_ROOT / "docker-compose.yml"
@@ -77,7 +78,7 @@ _UNIQUE = itertools.count()
 
 def _git_env(tmp_path: Path) -> dict[str, str]:
     """Isolated git environment: no user/system config, no prompts, no color."""
-    env = os.environ.copy()
+    env = RedactedEnv(os.environ)
     env.update(
         {
             "GIT_CONFIG_GLOBAL": "/dev/null",

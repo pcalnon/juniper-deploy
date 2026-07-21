@@ -13,6 +13,7 @@ from contextlib import ExitStack, contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Iterator
+from tests.redacted_env import RedactedEnv
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -101,7 +102,7 @@ def _run_wait_script(
     cascor_port: int,
     canopy_port: int,
 ) -> subprocess.CompletedProcess[str]:
-    env = os.environ.copy()
+    env = RedactedEnv(os.environ)
     # scripts/config.sh resolves these env vars (with fallbacks). Pass all
     # three so the test never collides with a real juniper stack running on
     # the default 8100/8201/8050.
