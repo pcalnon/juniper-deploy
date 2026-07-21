@@ -50,6 +50,7 @@ mkdir -p "${SECRETS_DIR}"
 # in PR #92's squash-merge; this PR reapplies it.
 declare -a MAPPINGS=(
     "JUNIPER_DATA_API_KEYS juniper_data_api_keys.txt"
+    "JUNIPER_RECURRENCE_API_KEYS juniper_recurrence_api_keys.txt"
     "JUNIPER_CASCOR_API_KEYS juniper_cascor_api_keys.txt"
     "JUNIPER_CASCOR_API_KEY juniper_cascor_api_key.txt"
     "CASCOR_AUTH_TOKEN cascor_auth_token.txt"

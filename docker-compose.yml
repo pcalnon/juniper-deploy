@@ -553,16 +553,19 @@ services:
       JUNIPER_RECURRENCE_METRICS_ENABLED: "${JUNIPER_RECURRENCE_METRICS_ENABLED:-false}"
       # SEC-16 parity: IP allowlist for /metrics. JSON list of IP literals / CIDRs.
       JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS: "${JUNIPER_RECURRENCE_METRICS_TRUSTED_IPS:-[\"127.0.0.1\",\"::1\"]}"
-      # Inbound API-key auth is opt-in (the app allows open access when no keys are
-      # configured; the host port binds to 127.0.0.1 via BIND_HOST by default). To
-      # enable it, add a `juniper_recurrence_api_keys` secret (top-level + below) and
-      # set JUNIPER_RECURRENCE_API_KEYS_FILE=/run/secrets/juniper_recurrence_api_keys,
-      # plus JUNIPER_RECURRENCE_REQUIRE_AUTH=true so a missing/empty key becomes a
-      # boot failure (SEC-F01 fail-closed) rather than an open service. REQUIRE_AUTH
-      # is deliberately NOT set here while no key secret is provisioned — the SEC-F01
-      # boot check logs the loud running-OPEN warning instead.
+      # Inbound API-key auth (SEC-F01 stack parity): the accept-list is read from
+      # the provisioned secret below — the same symmetric-mount, single-source
+      # convention as juniper_data_api_keys / juniper_cascor_api_keys (canopy and
+      # canopy-demo send the same token outbound via
+      # JUNIPER_CANOPY_RECURRENCE_API_KEY_FILE). REQUIRE_AUTH makes a
+      # missing/empty key a BOOT FAILURE (CRITICAL + AuthPostureError) instead of
+      # a silently-open service; override to false only for a deliberate open
+      # profile (in-container escape hatch: JUNIPER_SKIP_AUTH_POSTURE_CHECK=1).
+      JUNIPER_RECURRENCE_API_KEYS_FILE: /run/secrets/juniper_recurrence_api_keys
+      JUNIPER_RECURRENCE_REQUIRE_AUTH: "${JUNIPER_RECURRENCE_REQUIRE_AUTH:-true}"
     secrets:
       - juniper_data_api_keys
+      - juniper_recurrence_api_keys
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -643,6 +646,12 @@ services:
       # true`` because data's ``/v1/health`` is auth-exempt, so the
       # failure was invisible at the dashboard layer.
       JUNIPER_CANOPY_JUNIPER_DATA_API_KEY_FILE: /run/secrets/juniper_data_api_keys
+      # A1 recurrence control-path (SEC-F01 parity): outbound X-API-Key canopy
+      # sends on every juniper-recurrence request — canopy's
+      # Settings.recurrence_api_key resolves this *_FILE indirection natively.
+      # Same secret the recurrence service validates inbound (symmetric mount,
+      # single source of truth).
+      JUNIPER_CANOPY_RECURRENCE_API_KEY_FILE: /run/secrets/juniper_recurrence_api_keys
       # E.2 PR-2-D: Origin header for canopy → cascor /ws/control
       # upgrade (juniper-canopy#328 / juniper-cascor-client>=0.5.0).
       # The canopy Settings default is already
@@ -674,6 +683,7 @@ services:
       - canopy_api_key
       - juniper_cascor_api_keys
       - juniper_data_api_keys
+      - juniper_recurrence_api_keys
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -720,6 +730,9 @@ services:
       # A1-iv: recurrence (LMU) runs as one service across profiles (no demo variant)
       # and joins the ``demo`` profile, so the demo dashboard reaches it directly.
       JUNIPER_CANOPY_RECURRENCE_SERVICE_URL: "http://juniper-recurrence:8210"
+      # SEC-F01 parity: recurrence requires auth in EVERY profile, so the demo
+      # dashboard sends the same outbound key as the canonical canopy service.
+      JUNIPER_CANOPY_RECURRENCE_API_KEY_FILE: /run/secrets/juniper_recurrence_api_keys
       JUNIPER_CANOPY_SERVER__HOST: "0.0.0.0"
       # Two-flag bind attestation — same contract as the canonical
       # juniper-canopy service above. The demo container binds 0.0.0.0
@@ -753,6 +766,8 @@ services:
       # bridge subnets so prometheus can scrape this container. Same
       # mechanism as the canonical ``juniper-canopy`` service above.
       JUNIPER_CANOPY_METRICS_TRUSTED_IPS: "${JUNIPER_CANOPY_METRICS_TRUSTED_IPS:-[\"127.0.0.1\",\"::1\"]}"
+    secrets:
+      - juniper_recurrence_api_keys
     depends_on:
       juniper-data:
         condition: service_healthy
@@ -1007,6 +1022,11 @@ services:
 secrets:
   juniper_data_api_keys:
     file: "${JUNIPER_DATA_API_KEYS_FILE:-./secrets/juniper_data_api_keys.txt}"
+  # SEC-F01 recurrence parity: inbound accept-list for juniper-recurrence AND
+  # the outbound X-API-Key canopy/canopy-demo send it — symmetric mount, single
+  # source of truth (same convention as the data/cascor pairs beside it).
+  juniper_recurrence_api_keys:
+    file: "${JUNIPER_RECURRENCE_API_KEYS_SOURCE:-./secrets/juniper_recurrence_api_keys.txt}"
   juniper_cascor_api_key:
     file: "${JUNIPER_CASCOR_API_KEY_FILE:-./secrets/juniper_cascor_api_key.txt}"
   juniper_cascor_api_keys:
