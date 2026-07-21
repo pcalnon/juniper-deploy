@@ -46,6 +46,7 @@ import tempfile
 from pathlib import Path
 
 import yaml
+from tests.redacted_env import RedactedEnv
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_PATH = REPO_ROOT / "docker-compose.yml"
@@ -175,7 +176,7 @@ def _run_preflight(config: dict) -> subprocess.CompletedProcess:
     try:
         json.dump(config, handle)
         handle.close()
-        env = dict(os.environ, NO_COLOR="1")
+        env = RedactedEnv(os.environ, NO_COLOR="1")
         return subprocess.run(
             ["bash", str(PREFLIGHT_SCRIPT), "--config-json", handle.name],
             capture_output=True,
