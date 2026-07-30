@@ -276,11 +276,24 @@ global:
 | `prometheus` | `localhost:9090` | 15s (default) | — |
 | `juniper-data` | `juniper-data:8100` | 10s | `service: juniper-data`, `environment: docker` |
 | `juniper-cascor` | `juniper-cascor:8200` | 10s | `service: juniper-cascor`, `environment: docker` |
+| `juniper-recurrence` | `juniper-recurrence:8210` | 15s | `service: juniper-recurrence`, `environment: docker` |
 | `juniper-canopy` | `juniper-canopy:8050` | 15s | `service: juniper-canopy`, `environment: docker` |
+| `juniper-host-experiments` | `file_sd`: `/etc/prometheus/targets/*.json` | 15s | per-run: `service`, `environment: host-experiment`, `run_id`, `experiment` |
 
 ### Checking targets
 
 Visit http://localhost:9090/targets to see all scrape targets and their status. All targets should show "UP" when the stack is running.
+
+### Host-experiment scrape lane
+
+CLI-launched **on-host** cascor / recurrence / data experiment runs (loopback-bound, experiment port ranges 8110-8139 / 8230-8259 / 8260-8289) stay visible in Grafana through the `juniper-host-experiments` job:
+
+- The experiment launcher (juniper-ml `util/experiment_stack.bash`, PROPOSED in the CLI experimentation plan) writes **one JSON target file per run** into `prometheus/targets/` (mounted read-only at `/etc/prometheus/targets` via the existing `./prometheus` mount) and deletes it at teardown; `file_sd` picks changes up within its 15 s `refresh_interval` — no reload needed.
+- Targets point at `host.docker.internal:<port>`, which the prometheus service's `extra_hosts` maps to the **monitoring-network gateway IP explicitly** (`172.31.0.1`, the first host of the pinned `networks.monitoring.ipam` subnet). The `host-gateway` keyword is deliberately NOT used — it resolves to the default-bridge gateway and never reaches the relay.
+- A scrape cannot land on a loopback-bound service directly (kernel refusal), so the launcher runs a per-run relay (`socat "TCP-LISTEN:<port>,bind=<gateway>,fork,reuseaddr" "TCP:127.0.0.1:<port>"`); the app-side `MetricsAuthMiddleware` then sees a loopback source and needs **no allowlist changes**.
+- Run identity (`run_id`, `experiment`) rides as **scrape-side target labels** with `honor_labels: false`, so application code never learns a run id and label cardinality stays bounded by concurrent runs.
+- Structural drift is gated by `tests/test_prometheus_host_sd.py`. Design and empirical proof (both P0.10 arms) live in juniper-ml: `notes/JUNIPER_2026-07-29_JUNIPER-ECOSYSTEM_CASCOR-RECURRENCE-CLI-TEST-VALIDATION-EXPERIMENTATION-PLAN.md` §7 and `notes/JUNIPER_2026-07-30_JUNIPER-ECOSYSTEM_CLI-EXPERIMENTATION-P0-PREFLIGHT-EVIDENCE.md`.
+- The demo config (`prometheus.demo.yml`) intentionally has no host-experiments job: experiments run against the full/observability stack, not the demo stack.
 
 ---
 

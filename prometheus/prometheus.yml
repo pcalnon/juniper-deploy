@@ -124,3 +124,26 @@ scrape_configs:
         labels:
           service: "juniper-canopy"
           environment: "docker"
+
+  # ─── Host-experiment scrape lane ─────────────────────────────────────────────
+  # CLI-launched ON-HOST cascor / recurrence / data runs (loopback-bound, on the
+  # experiment port ranges data 8110-8139 / cascor 8230-8259 / recurrence
+  # 8260-8289) are scraped through a launcher-owned relay listening on the
+  # monitoring-network gateway (see the prometheus service's extra_hosts entry in
+  # docker-compose.yml). The experiment launcher writes ONE JSON target file per
+  # run into prometheus/targets/ (visible here at /etc/prometheus/targets via the
+  # existing ./prometheus mount) and deletes it at teardown. Run identity
+  # (run_id / experiment) rides as SCRAPE-SIDE target labels, so cardinality is
+  # bounded by concurrent runs and application code never learns a run id (R1.1).
+  # Design: juniper-ml notes JUNIPER_2026-07-29 CLI-TEST-VALIDATION-EXPERIMENTATION-PLAN §7;
+  # empirical proof of both arms: JUNIPER_2026-07-30 CLI-EXPERIMENTATION-P0-PREFLIGHT-EVIDENCE (P0.10).
+  - job_name: "juniper-host-experiments"
+    metrics_path: "/metrics"
+    scheme: "http"
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    honor_labels: false
+    file_sd_configs:
+      - files:
+          - "/etc/prometheus/targets/*.json"
+        refresh_interval: 15s
