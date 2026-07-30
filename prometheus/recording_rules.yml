@@ -34,6 +34,7 @@ groups:
             sum by (service, le) (rate(juniper_data_http_request_duration_seconds_bucket[5m]))
             or sum by (service, le) (rate(juniper_cascor_http_request_duration_seconds_bucket[5m]))
             or sum by (service, le) (rate(juniper_canopy_http_request_duration_seconds_bucket[5m]))
+            or sum by (service, le) (rate(juniper_http_request_duration_seconds_bucket[5m]))
           )
 
       # P95 latency by service
@@ -43,6 +44,7 @@ groups:
             sum by (service, le) (rate(juniper_data_http_request_duration_seconds_bucket[5m]))
             or sum by (service, le) (rate(juniper_cascor_http_request_duration_seconds_bucket[5m]))
             or sum by (service, le) (rate(juniper_canopy_http_request_duration_seconds_bucket[5m]))
+            or sum by (service, le) (rate(juniper_http_request_duration_seconds_bucket[5m]))
           )
 
       # P99 latency by service
@@ -52,6 +54,7 @@ groups:
             sum by (service, le) (rate(juniper_data_http_request_duration_seconds_bucket[5m]))
             or sum by (service, le) (rate(juniper_cascor_http_request_duration_seconds_bucket[5m]))
             or sum by (service, le) (rate(juniper_canopy_http_request_duration_seconds_bucket[5m]))
+            or sum by (service, le) (rate(juniper_http_request_duration_seconds_bucket[5m]))
           )
 
   - name: juniper_training
