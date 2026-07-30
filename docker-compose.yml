@@ -843,6 +843,14 @@ services:
     image: prom/prometheus:v3.10.0
     container_name: juniper-prometheus
     profiles: ["observability"]
+    extra_hosts:
+      # Host-experiment scrape lane (juniper-ml CLI experimentation plan §7, Wave 1.1).
+      # Map host.docker.internal to the MONITORING network's gateway EXPLICITLY: the
+      # `host-gateway` keyword would resolve to the default-bridge gateway (172.17.0.1)
+      # instead, which never reaches the launcher's relay (P0.10 evidence, 2026-07-30).
+      # The IP is the first host of networks.monitoring.ipam (172.31.0.0/16, pinned
+      # below); drift between the two is caught by tests/test_prometheus_host_sd.py.
+      - "host.docker.internal:172.31.0.1"
     command:
       # ``PROMETHEUS_CONFIG_FILE`` lets ``make obs-demo`` swap in
       # ``prometheus.demo.yml`` (which scrapes ``juniper-{cascor,canopy}-demo``)

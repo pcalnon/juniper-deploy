@@ -1,0 +1,3 @@
+# Per-run scrape-target files are written and deleted at runtime by the
+# juniper-ml experiment launcher (plan §7.2); they must never be committed.
+*.json
