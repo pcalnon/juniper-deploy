@@ -5,7 +5,7 @@
 **Author**: Paul Calnon
 **License**: MIT License
 **Version**: 0.2.1
-**Last Updated**: 2026-05-22
+**Last Updated**: 2026-08-08
 
 ---
 
@@ -117,6 +117,8 @@ bash scripts/test_health_enhanced.sh    # Enhanced health check validation
 | `docs/` | 8 documentation files (see Documentation section) |
 | **CI/CD** | |
 | `.github/workflows/ci.yml` | GitHub Actions pipeline (pre-commit, compose validation, Docker integration) |
+| `.github/workflows/sequence-safety.yml` | Per-PR ADVISORY sequence-safety screens (symbol-loss + docs deletion-magnitude via `juniper-ci-tools`) |
+| `.github/workflows/main-verify.yml` | Post-merge bypass-proof sequence-safety net (screens-only; stable-title tracking issue) |
 | `.github/CODEOWNERS` | Code ownership rules |
 | `.github/dependabot.yml` | Dependabot configuration |
 
@@ -291,7 +293,9 @@ juniper-deploy/
 │
 └── .github/
     ├── workflows/
-    │   └── ci.yml                  # CI/CD pipeline (v0.2.0)
+    │   ├── ci.yml                  # CI/CD pipeline (v0.2.0)
+    │   ├── sequence-safety.yml     # Per-PR ADVISORY sequence-safety screens
+    │   └── main-verify.yml         # Post-merge bypass-proof sequence-safety net
     ├── CODEOWNERS
     └── dependabot.yml
 ```
@@ -505,6 +509,19 @@ GitHub Actions workflow (`.github/workflows/ci.yml`, v0.2.0):
 - Multi-repo checkout: CI checks out `juniper-data`, `juniper-cascor`, and `juniper-canopy` as sibling directories (required for `docker compose build`)
 - All GitHub Actions are SHA-pinned (checkout@v6.0.2, setup-python@v6.2.0, cache@v5.0.4)
 - `docker-compose-check` pre-commit hook is skipped in CI (handled by dedicated `validate-compose` job)
+
+### Sequence-Safety Advisory Net (rollout W2, 2026-08-08)
+
+Two **advisory** workflows port the ecosystem sequence-safety screens (the 2026-07-28 Cursor-PR-flood remediation) into juniper-deploy as the final consumer of the rollout (8th of 8 repos). Both consume the published `juniper-ci-tools>=0.8.0,<0.9.0` package — no inline copy lives in this repo.
+
+| Workflow | Trigger | Role |
+|----------|---------|------|
+| `.github/workflows/sequence-safety.yml` | `pull_request` | Per-PR AST symbol-loss + docs deletion-magnitude screens over the PR's `base..HEAD`; uploads a `sequence-safety-report` JSON artifact. |
+| `.github/workflows/main-verify.yml` | `push: main` | Post-merge, bypass-proof re-screen of the merged range (per-SHA, no-cancel; catch-up base); upserts a stable-title tracking issue on failure. |
+
+**Scope (owner decision, option b):** the symbol screen is scoped to `tests/**/*.py` (the security-wiring tests) and `scripts/**/*.bash` (operational bash); the docs deletion-magnitude screen uses the universal default (`AGENTS.md` + `docs/**/*.md` + `notes/**/*.md`).
+
+**Advisory only:** neither workflow is wired into the `required-checks` quality gate, and this rollout makes **no** branch-ruleset change. The escape hatches are the `Allow-Symbol-Loss:` / `Allow-Docs-Rewrite:` commit trailers (primary) and the `allow-symbol-loss` / `docs-rewrite` PR labels (WARN-only downgrade).
 
 ---
 
