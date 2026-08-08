@@ -43,7 +43,7 @@ groups:
   - name: juniper_service_health
     rules:
       - alert: ServiceDown
-        expr: up == 0
+        expr: up{environment!="host-experiment"} == 0
         for: 1m
         labels:
           severity: critical
@@ -53,7 +53,7 @@ groups:
           description: "{{ $labels.job }} ({{ $labels.instance }}) has been unreachable for more than 1 minute."
 
       - alert: ServiceRestartLoop
-        expr: changes(process_start_time_seconds[30m]) > 3
+        expr: changes(process_start_time_seconds{environment!="host-experiment"}[30m]) > 3
         for: 5m
         labels:
           severity: warning
@@ -71,8 +71,8 @@ groups:
       - alert: HighErrorRate_JuniperData
         expr: >
           (
-            sum(rate(juniper_data_http_requests_total{status=~"5.."}[5m]))
-            / sum(rate(juniper_data_http_requests_total[5m]))
+            sum(rate(juniper_data_http_requests_total{status=~"5..", environment!="host-experiment"}[5m]))
+            / sum(rate(juniper_data_http_requests_total{environment!="host-experiment"}[5m]))
           ) > 0.05
         for: 5m
         labels:
@@ -85,8 +85,8 @@ groups:
       - alert: HighErrorRate_JuniperCascor
         expr: >
           (
-            sum(rate(juniper_cascor_http_requests_total{status=~"5.."}[5m]))
-            / sum(rate(juniper_cascor_http_requests_total[5m]))
+            sum(rate(juniper_cascor_http_requests_total{status=~"5..", environment!="host-experiment"}[5m]))
+            / sum(rate(juniper_cascor_http_requests_total{environment!="host-experiment"}[5m]))
           ) > 0.05
         for: 5m
         labels:
@@ -99,8 +99,8 @@ groups:
       - alert: HighErrorRate_JuniperCanopy
         expr: >
           (
-            sum(rate(juniper_canopy_http_requests_total{status=~"5.."}[5m]))
-            / sum(rate(juniper_canopy_http_requests_total[5m]))
+            sum(rate(juniper_canopy_http_requests_total{status=~"5..", environment!="host-experiment"}[5m]))
+            / sum(rate(juniper_canopy_http_requests_total{environment!="host-experiment"}[5m]))
           ) > 0.05
         for: 5m
         labels:
@@ -120,7 +120,7 @@ groups:
       - alert: HighLatency_JuniperData
         expr: >
           histogram_quantile(0.95,
-            sum by (le) (rate(juniper_data_http_request_duration_seconds_bucket[5m]))
+            sum by (le) (rate(juniper_data_http_request_duration_seconds_bucket{environment!="host-experiment"}[5m]))
           ) > 2.0
         for: 5m
         labels:
@@ -133,7 +133,7 @@ groups:
       - alert: HighLatency_JuniperCascor
         expr: >
           histogram_quantile(0.95,
-            sum by (le) (rate(juniper_cascor_http_request_duration_seconds_bucket[5m]))
+            sum by (le) (rate(juniper_cascor_http_request_duration_seconds_bucket{environment!="host-experiment"}[5m]))
           ) > 5.0
         for: 5m
         labels:
@@ -151,8 +151,8 @@ groups:
     rules:
       - alert: TrainingStalled
         expr: >
-          juniper_cascor_training_sessions_active > 0
-          and rate(juniper_cascor_training_epochs_total[10m]) == 0
+          juniper_cascor_training_sessions_active{environment!="host-experiment"} > 0
+          and rate(juniper_cascor_training_epochs_total{environment!="host-experiment"}[10m]) == 0
         for: 10m
         labels:
           severity: warning
@@ -163,9 +163,9 @@ groups:
 
       - alert: TrainingLossNotDecreasing
         expr: >
-          juniper_cascor_training_sessions_active > 0
-          and juniper_cascor_training_loss{phase="output"} > 0
-          and delta(juniper_cascor_training_loss{phase="output"}[30m]) >= 0
+          juniper_cascor_training_sessions_active{environment!="host-experiment"} > 0
+          and juniper_cascor_training_loss{phase="output", environment!="host-experiment"} > 0
+          and delta(juniper_cascor_training_loss{phase="output", environment!="host-experiment"}[30m]) >= 0
         for: 30m
         labels:
           severity: warning
@@ -176,9 +176,9 @@ groups:
 
       - alert: LowCandidateCorrelation
         expr: >
-          juniper_cascor_training_sessions_active > 0
-          and juniper_cascor_candidate_correlation < 0.01
-          and juniper_cascor_candidate_correlation > 0
+          juniper_cascor_training_sessions_active{environment!="host-experiment"} > 0
+          and juniper_cascor_candidate_correlation{environment!="host-experiment"} < 0.01
+          and juniper_cascor_candidate_correlation{environment!="host-experiment"} > 0
         for: 15m
         labels:
           severity: info
@@ -195,7 +195,7 @@ groups:
     rules:
       - alert: DatasetGenerationFailures
         expr: >
-          rate(juniper_data_dataset_generations_total{status="error"}[10m]) > 0
+          rate(juniper_data_dataset_generations_total{status="error", environment!="host-experiment"}[10m]) > 0
         for: 5m
         labels:
           severity: warning
@@ -207,7 +207,7 @@ groups:
       - alert: SlowDatasetGeneration
         expr: >
           histogram_quantile(0.95,
-            sum by (le) (rate(juniper_data_dataset_generation_duration_seconds_bucket[10m]))
+            sum by (le) (rate(juniper_data_dataset_generation_duration_seconds_bucket{environment!="host-experiment"}[10m]))
           ) > 30.0
         for: 5m
         labels:
@@ -225,8 +225,8 @@ groups:
     rules:
       - alert: NoWebSocketConnections
         expr: >
-          juniper_canopy_demo_mode_active == 0
-          and juniper_canopy_websocket_connections_active == 0
+          juniper_canopy_demo_mode_active{environment!="host-experiment"} == 0
+          and juniper_canopy_websocket_connections_active{environment!="host-experiment"} == 0
         for: 10m
         labels:
           severity: info
@@ -272,12 +272,14 @@ groups:
               sum(rate(juniper_canopy_http_requests_total{
                 service="juniper-canopy",
                 endpoint=~"/|/dashboard|/training|/datasets",
-                status=~"5.."
+                status=~"5..",
+                environment!="host-experiment"
               }[5m]))
               /
               sum(rate(juniper_canopy_http_requests_total{
                 service="juniper-canopy",
-                endpoint=~"/|/dashboard|/training|/datasets"
+                endpoint=~"/|/dashboard|/training|/datasets",
+                environment!="host-experiment"
               }[5m]))
             ) > (0.005 * 14.4)
           )
@@ -287,12 +289,14 @@ groups:
               sum(rate(juniper_canopy_http_requests_total{
                 service="juniper-canopy",
                 endpoint=~"/|/dashboard|/training|/datasets",
-                status=~"5.."
+                status=~"5..",
+                environment!="host-experiment"
               }[1h]))
               /
               sum(rate(juniper_canopy_http_requests_total{
                 service="juniper-canopy",
-                endpoint=~"/|/dashboard|/training|/datasets"
+                endpoint=~"/|/dashboard|/training|/datasets",
+                environment!="host-experiment"
               }[1h]))
             ) > (0.005 * 14.4)
           )
@@ -327,12 +331,14 @@ groups:
               sum(rate(juniper_canopy_http_requests_total{
                 service="juniper-canopy",
                 endpoint=~"/|/dashboard|/training|/datasets",
-                status=~"5.."
+                status=~"5..",
+                environment!="host-experiment"
               }[30m]))
               /
               sum(rate(juniper_canopy_http_requests_total{
                 service="juniper-canopy",
-                endpoint=~"/|/dashboard|/training|/datasets"
+                endpoint=~"/|/dashboard|/training|/datasets",
+                environment!="host-experiment"
               }[30m]))
             ) > (0.005 * 6)
           )
@@ -342,12 +348,14 @@ groups:
               sum(rate(juniper_canopy_http_requests_total{
                 service="juniper-canopy",
                 endpoint=~"/|/dashboard|/training|/datasets",
-                status=~"5.."
+                status=~"5..",
+                environment!="host-experiment"
               }[6h]))
               /
               sum(rate(juniper_canopy_http_requests_total{
                 service="juniper-canopy",
-                endpoint=~"/|/dashboard|/training|/datasets"
+                endpoint=~"/|/dashboard|/training|/datasets",
+                environment!="host-experiment"
               }[6h]))
             ) > (0.005 * 6)
           )
@@ -391,14 +399,16 @@ groups:
                 service="juniper-canopy",
                 method="GET",
                 endpoint=~"/|/dashboard|/training|/datasets",
-                le="+Inf"
+                le="+Inf",
+                environment!="host-experiment"
               }[5m]))
               -
               sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
                 service="juniper-canopy",
                 method="GET",
                 endpoint=~"/|/dashboard|/training|/datasets",
-                le="0.5"
+                le="0.5",
+                environment!="host-experiment"
               }[5m]))
             )
             /
@@ -406,7 +416,8 @@ groups:
               service="juniper-canopy",
               method="GET",
               endpoint=~"/|/dashboard|/training|/datasets",
-              le="+Inf"
+              le="+Inf",
+              environment!="host-experiment"
             }[5m]))
             > (0.05 * 14.4)
           )
@@ -417,14 +428,16 @@ groups:
                 service="juniper-canopy",
                 method="GET",
                 endpoint=~"/|/dashboard|/training|/datasets",
-                le="+Inf"
+                le="+Inf",
+                environment!="host-experiment"
               }[1h]))
               -
               sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
                 service="juniper-canopy",
                 method="GET",
                 endpoint=~"/|/dashboard|/training|/datasets",
-                le="0.5"
+                le="0.5",
+                environment!="host-experiment"
               }[1h]))
             )
             /
@@ -432,7 +445,8 @@ groups:
               service="juniper-canopy",
               method="GET",
               endpoint=~"/|/dashboard|/training|/datasets",
-              le="+Inf"
+              le="+Inf",
+              environment!="host-experiment"
             }[1h]))
             > (0.05 * 14.4)
           )
@@ -472,14 +486,16 @@ groups:
                 service="juniper-canopy",
                 method="GET",
                 endpoint=~"/|/dashboard|/training|/datasets",
-                le="+Inf"
+                le="+Inf",
+                environment!="host-experiment"
               }[30m]))
               -
               sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
                 service="juniper-canopy",
                 method="GET",
                 endpoint=~"/|/dashboard|/training|/datasets",
-                le="0.5"
+                le="0.5",
+                environment!="host-experiment"
               }[30m]))
             )
             /
@@ -487,7 +503,8 @@ groups:
               service="juniper-canopy",
               method="GET",
               endpoint=~"/|/dashboard|/training|/datasets",
-              le="+Inf"
+              le="+Inf",
+              environment!="host-experiment"
             }[30m]))
             > (0.05 * 6)
           )
@@ -498,14 +515,16 @@ groups:
                 service="juniper-canopy",
                 method="GET",
                 endpoint=~"/|/dashboard|/training|/datasets",
-                le="+Inf"
+                le="+Inf",
+                environment!="host-experiment"
               }[6h]))
               -
               sum(rate(juniper_canopy_http_request_duration_seconds_bucket{
                 service="juniper-canopy",
                 method="GET",
                 endpoint=~"/|/dashboard|/training|/datasets",
-                le="0.5"
+                le="0.5",
+                environment!="host-experiment"
               }[6h]))
             )
             /
@@ -513,7 +532,8 @@ groups:
               service="juniper-canopy",
               method="GET",
               endpoint=~"/|/dashboard|/training|/datasets",
-              le="+Inf"
+              le="+Inf",
+              environment!="host-experiment"
             }[6h]))
             > (0.05 * 6)
           )
@@ -557,11 +577,13 @@ groups:
             (
               sum(rate(juniper_cascor_training_sessions_completed_total{
                 service="juniper-cascor",
-                status=~"failure|cancelled"
+                status=~"failure|cancelled",
+                environment!="host-experiment"
               }[5m]))
               /
               sum(rate(juniper_cascor_training_sessions_completed_total{
-                service="juniper-cascor"
+                service="juniper-cascor",
+                environment!="host-experiment"
               }[5m]))
             ) > (0.01 * 14.4)
           )
@@ -570,11 +592,13 @@ groups:
             (
               sum(rate(juniper_cascor_training_sessions_completed_total{
                 service="juniper-cascor",
-                status=~"failure|cancelled"
+                status=~"failure|cancelled",
+                environment!="host-experiment"
               }[1h]))
               /
               sum(rate(juniper_cascor_training_sessions_completed_total{
-                service="juniper-cascor"
+                service="juniper-cascor",
+                environment!="host-experiment"
               }[1h]))
             ) > (0.01 * 14.4)
           )
@@ -613,11 +637,13 @@ groups:
             (
               sum(rate(juniper_cascor_training_sessions_completed_total{
                 service="juniper-cascor",
-                status=~"failure|cancelled"
+                status=~"failure|cancelled",
+                environment!="host-experiment"
               }[30m]))
               /
               sum(rate(juniper_cascor_training_sessions_completed_total{
-                service="juniper-cascor"
+                service="juniper-cascor",
+                environment!="host-experiment"
               }[30m]))
             ) > (0.01 * 6)
           )
@@ -626,11 +652,13 @@ groups:
             (
               sum(rate(juniper_cascor_training_sessions_completed_total{
                 service="juniper-cascor",
-                status=~"failure|cancelled"
+                status=~"failure|cancelled",
+                environment!="host-experiment"
               }[6h]))
               /
               sum(rate(juniper_cascor_training_sessions_completed_total{
-                service="juniper-cascor"
+                service="juniper-cascor",
+                environment!="host-experiment"
               }[6h]))
             ) > (0.01 * 6)
           )
@@ -700,18 +728,21 @@ groups:
             (
               sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
                 service="juniper-cascor",
-                le="+Inf"
+                le="+Inf",
+                environment!="host-experiment"
               }[5m]))
               -
               sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
                 service="juniper-cascor",
-                le="5"
+                le="5",
+                environment!="host-experiment"
               }[5m]))
             )
             /
             sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
               service="juniper-cascor",
-              le="+Inf"
+              le="+Inf",
+              environment!="host-experiment"
             }[5m]))
             > (0.05 * 14.4)
           )
@@ -720,18 +751,21 @@ groups:
             (
               sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
                 service="juniper-cascor",
-                le="+Inf"
+                le="+Inf",
+                environment!="host-experiment"
               }[1h]))
               -
               sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
                 service="juniper-cascor",
-                le="5"
+                le="5",
+                environment!="host-experiment"
               }[1h]))
             )
             /
             sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
               service="juniper-cascor",
-              le="+Inf"
+              le="+Inf",
+              environment!="host-experiment"
             }[1h]))
             > (0.05 * 14.4)
           )
@@ -769,18 +803,21 @@ groups:
             (
               sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
                 service="juniper-cascor",
-                le="+Inf"
+                le="+Inf",
+                environment!="host-experiment"
               }[30m]))
               -
               sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
                 service="juniper-cascor",
-                le="5"
+                le="5",
+                environment!="host-experiment"
               }[30m]))
             )
             /
             sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
               service="juniper-cascor",
-              le="+Inf"
+              le="+Inf",
+              environment!="host-experiment"
             }[30m]))
             > (0.05 * 6)
           )
@@ -789,18 +826,21 @@ groups:
             (
               sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
                 service="juniper-cascor",
-                le="+Inf"
+                le="+Inf",
+                environment!="host-experiment"
               }[6h]))
               -
               sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
                 service="juniper-cascor",
-                le="5"
+                le="5",
+                environment!="host-experiment"
               }[6h]))
             )
             /
             sum(rate(juniper_cascor_training_step_duration_seconds_bucket{
               service="juniper-cascor",
-              le="+Inf"
+              le="+Inf",
+              environment!="host-experiment"
             }[6h]))
             > (0.05 * 6)
           )
@@ -841,11 +881,13 @@ groups:
             (
               sum(rate(juniper_data_dataset_post_total{
                 service="juniper-data",
-                status="error"
+                status="error",
+                environment!="host-experiment"
               }[5m]))
               /
               sum(rate(juniper_data_dataset_post_total{
-                service="juniper-data"
+                service="juniper-data",
+                environment!="host-experiment"
               }[5m]))
             ) > (0.005 * 14.4)
           )
@@ -854,11 +896,13 @@ groups:
             (
               sum(rate(juniper_data_dataset_post_total{
                 service="juniper-data",
-                status="error"
+                status="error",
+                environment!="host-experiment"
               }[1h]))
               /
               sum(rate(juniper_data_dataset_post_total{
-                service="juniper-data"
+                service="juniper-data",
+                environment!="host-experiment"
               }[1h]))
             ) > (0.005 * 14.4)
           )
@@ -894,11 +938,13 @@ groups:
             (
               sum(rate(juniper_data_dataset_post_total{
                 service="juniper-data",
-                status="error"
+                status="error",
+                environment!="host-experiment"
               }[30m]))
               /
               sum(rate(juniper_data_dataset_post_total{
-                service="juniper-data"
+                service="juniper-data",
+                environment!="host-experiment"
               }[30m]))
             ) > (0.005 * 6)
           )
@@ -907,11 +953,13 @@ groups:
             (
               sum(rate(juniper_data_dataset_post_total{
                 service="juniper-data",
-                status="error"
+                status="error",
+                environment!="host-experiment"
               }[6h]))
               /
               sum(rate(juniper_data_dataset_post_total{
-                service="juniper-data"
+                service="juniper-data",
+                environment!="host-experiment"
               }[6h]))
             ) > (0.005 * 6)
           )
@@ -959,7 +1007,7 @@ groups:
     rules:
       - alert: CascorWorkerHeartbeatStale
         expr: >
-          juniper_cascor_worker_heartbeat_age_seconds{service="juniper-cascor"} > 60
+          juniper_cascor_worker_heartbeat_age_seconds{service="juniper-cascor", environment!="host-experiment"} > 60
         for: 2m
         labels:
           severity: page
@@ -994,7 +1042,7 @@ groups:
     rules:
       - alert: JuniperServiceScrapeDown
         expr: >
-          up{job=~"juniper-(data|cascor|canopy)"} == 0
+          up{job=~"juniper-(data|cascor|canopy)", environment!="host-experiment"} == 0
         for: 2m
         labels:
           severity: page
@@ -1043,11 +1091,11 @@ groups:
         # short-circuit harmlessly while the metric is missing.
         expr: >
           (
-            juniper_cascor_pending_tasks{service="juniper-cascor"} > 10
+            juniper_cascor_pending_tasks{service="juniper-cascor", environment!="host-experiment"} > 10
           )
           and
           (
-            absent_over_time(juniper_cascor_pending_tasks{service="juniper-cascor"}[5m]) == 0
+            absent_over_time(juniper_cascor_pending_tasks{service="juniper-cascor", environment!="host-experiment"}[5m]) == 0
           )
         for: 10m
         labels:
@@ -1084,8 +1132,8 @@ groups:
       - alert: JuniperData5xxRateTicket
         expr: >
           (
-            sum(rate(juniper_data_http_requests_total{status=~"5.."}[5m]))
-            / sum(rate(juniper_data_http_requests_total[5m]))
+            sum(rate(juniper_data_http_requests_total{status=~"5..", environment!="host-experiment"}[5m]))
+            / sum(rate(juniper_data_http_requests_total{environment!="host-experiment"}[5m]))
           ) > 0.01
         for: 5m
         labels:
@@ -1108,8 +1156,8 @@ groups:
       - alert: JuniperCascor5xxRateTicket
         expr: >
           (
-            sum(rate(juniper_cascor_http_requests_total{status=~"5.."}[5m]))
-            / sum(rate(juniper_cascor_http_requests_total[5m]))
+            sum(rate(juniper_cascor_http_requests_total{status=~"5..", environment!="host-experiment"}[5m]))
+            / sum(rate(juniper_cascor_http_requests_total{environment!="host-experiment"}[5m]))
           ) > 0.01
         for: 5m
         labels:
@@ -1128,8 +1176,8 @@ groups:
       - alert: JuniperCanopy5xxRateTicket
         expr: >
           (
-            sum(rate(juniper_canopy_http_requests_total{status=~"5.."}[5m]))
-            / sum(rate(juniper_canopy_http_requests_total[5m]))
+            sum(rate(juniper_canopy_http_requests_total{status=~"5..", environment!="host-experiment"}[5m]))
+            / sum(rate(juniper_canopy_http_requests_total{environment!="host-experiment"}[5m]))
           ) > 0.01
         for: 5m
         labels:

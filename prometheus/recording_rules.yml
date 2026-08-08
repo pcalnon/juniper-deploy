@@ -10,14 +10,14 @@ groups:
     rules:
       # Per-service request rate (5-minute window)
       - record: juniper:http_requests:rate5m
-        expr: sum by (service) (rate(juniper_data_http_requests_total[5m])) or sum by (service) (rate(juniper_cascor_http_requests_total[5m])) or sum by (service) (rate(juniper_canopy_http_requests_total[5m]))
+        expr: sum by (service) (rate(juniper_data_http_requests_total{environment!="host-experiment"}[5m])) or sum by (service) (rate(juniper_cascor_http_requests_total{environment!="host-experiment"}[5m])) or sum by (service) (rate(juniper_canopy_http_requests_total{environment!="host-experiment"}[5m]))
 
       # Per-service error rate (5xx responses, 5-minute window)
       - record: juniper:http_errors_5xx:rate5m
         expr: >
-          sum by (service) (rate(juniper_data_http_requests_total{status=~"5.."}[5m]))
-          or sum by (service) (rate(juniper_cascor_http_requests_total{status=~"5.."}[5m]))
-          or sum by (service) (rate(juniper_canopy_http_requests_total{status=~"5.."}[5m]))
+          sum by (service) (rate(juniper_data_http_requests_total{status=~"5..", environment!="host-experiment"}[5m]))
+          or sum by (service) (rate(juniper_cascor_http_requests_total{status=~"5..", environment!="host-experiment"}[5m]))
+          or sum by (service) (rate(juniper_canopy_http_requests_total{status=~"5..", environment!="host-experiment"}[5m]))
 
       # Per-service error ratio (5xx / total)
       - record: juniper:http_error_ratio_5xx:rate5m
@@ -31,30 +31,30 @@ groups:
       - record: juniper:http_request_duration_seconds:p50
         expr: >
           histogram_quantile(0.50,
-            sum by (service, le) (rate(juniper_data_http_request_duration_seconds_bucket[5m]))
-            or sum by (service, le) (rate(juniper_cascor_http_request_duration_seconds_bucket[5m]))
-            or sum by (service, le) (rate(juniper_canopy_http_request_duration_seconds_bucket[5m]))
-            or sum by (service, le) (rate(juniper_http_request_duration_seconds_bucket[5m]))
+            sum by (service, le) (rate(juniper_data_http_request_duration_seconds_bucket{environment!="host-experiment"}[5m]))
+            or sum by (service, le) (rate(juniper_cascor_http_request_duration_seconds_bucket{environment!="host-experiment"}[5m]))
+            or sum by (service, le) (rate(juniper_canopy_http_request_duration_seconds_bucket{environment!="host-experiment"}[5m]))
+            or sum by (service, le) (rate(juniper_http_request_duration_seconds_bucket{environment!="host-experiment"}[5m]))
           )
 
       # P95 latency by service
       - record: juniper:http_request_duration_seconds:p95
         expr: >
           histogram_quantile(0.95,
-            sum by (service, le) (rate(juniper_data_http_request_duration_seconds_bucket[5m]))
-            or sum by (service, le) (rate(juniper_cascor_http_request_duration_seconds_bucket[5m]))
-            or sum by (service, le) (rate(juniper_canopy_http_request_duration_seconds_bucket[5m]))
-            or sum by (service, le) (rate(juniper_http_request_duration_seconds_bucket[5m]))
+            sum by (service, le) (rate(juniper_data_http_request_duration_seconds_bucket{environment!="host-experiment"}[5m]))
+            or sum by (service, le) (rate(juniper_cascor_http_request_duration_seconds_bucket{environment!="host-experiment"}[5m]))
+            or sum by (service, le) (rate(juniper_canopy_http_request_duration_seconds_bucket{environment!="host-experiment"}[5m]))
+            or sum by (service, le) (rate(juniper_http_request_duration_seconds_bucket{environment!="host-experiment"}[5m]))
           )
 
       # P99 latency by service
       - record: juniper:http_request_duration_seconds:p99
         expr: >
           histogram_quantile(0.99,
-            sum by (service, le) (rate(juniper_data_http_request_duration_seconds_bucket[5m]))
-            or sum by (service, le) (rate(juniper_cascor_http_request_duration_seconds_bucket[5m]))
-            or sum by (service, le) (rate(juniper_canopy_http_request_duration_seconds_bucket[5m]))
-            or sum by (service, le) (rate(juniper_http_request_duration_seconds_bucket[5m]))
+            sum by (service, le) (rate(juniper_data_http_request_duration_seconds_bucket{environment!="host-experiment"}[5m]))
+            or sum by (service, le) (rate(juniper_cascor_http_request_duration_seconds_bucket{environment!="host-experiment"}[5m]))
+            or sum by (service, le) (rate(juniper_canopy_http_request_duration_seconds_bucket{environment!="host-experiment"}[5m]))
+            or sum by (service, le) (rate(juniper_http_request_duration_seconds_bucket{environment!="host-experiment"}[5m]))
           )
 
   - name: juniper_training
@@ -62,4 +62,4 @@ groups:
     rules:
       # Training epoch rate (epochs per minute)
       - record: juniper:training_epochs:rate5m
-        expr: rate(juniper_cascor_training_epochs_total[5m]) * 60
+        expr: rate(juniper_cascor_training_epochs_total{environment!="host-experiment"}[5m]) * 60
