@@ -2,8 +2,12 @@
   "id": null,
   "uid": "juniper-experiments",
   "title": "Juniper Experiments",
-  "description": "Run-scoped view of CLI-launched on-host experiment runs scraped by the juniper-host-experiments file_sd job. Every panel is filtered to environment=\"host-experiment\" and the $run_id / $service template variables. When no experiment is running there are no host-experiment targets, so every panel correctly reads \"No data\" — that is the normal idle state, not a fault.",
-  "tags": ["juniper", "experiments", "host-experiment"],
+  "description": "Run-scoped view of CLI-launched on-host experiment runs scraped by the juniper-host-experiments file_sd job. Every panel is filtered to environment=\"host-experiment\" and the $run_id / $service template variables. When no experiment is running there are no host-experiment targets, so every panel correctly reads \"No data\" \u2014 that is the normal idle state, not a fault.",
+  "tags": [
+    "juniper",
+    "experiments",
+    "host-experiment"
+  ],
   "timezone": "browser",
   "editable": true,
   "graphTooltip": 1,
@@ -18,14 +22,22 @@
         "name": "datasource",
         "type": "datasource",
         "query": "prometheus",
-        "current": { "selected": true, "text": "Prometheus", "value": "prometheus" },
+        "current": {
+          "selected": true,
+          "text": "Prometheus",
+          "value": "prometheus"
+        },
         "hide": 0
       },
       {
         "name": "interval",
         "type": "interval",
         "query": "1m,5m,10m,30m,1h",
-        "current": { "selected": true, "text": "5m", "value": "5m" },
+        "current": {
+          "selected": true,
+          "text": "5m",
+          "value": "5m"
+        },
         "hide": 0
       },
       {
@@ -33,7 +45,10 @@
         "label": "Run ID",
         "description": "Per-run scrape target label written by the launcher into prometheus/targets/*.json. Empty until an experiment run is live.",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
         "definition": "label_values(up{environment=\"host-experiment\"}, run_id)",
         "query": "label_values(up{environment=\"host-experiment\"}, run_id)",
         "refresh": 2,
@@ -41,7 +56,15 @@
         "multi": true,
         "includeAll": true,
         "allValue": ".*",
-        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
         "options": [],
         "hide": 0
       },
@@ -50,7 +73,10 @@
         "label": "Service",
         "description": "Per-target service label (juniper-cascor / juniper-recurrence / juniper-data). Chained off $run_id.",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
         "definition": "label_values(up{environment=\"host-experiment\", run_id=~\"$run_id\"}, service)",
         "query": "label_values(up{environment=\"host-experiment\", run_id=~\"$run_id\"}, service)",
         "refresh": 2,
@@ -58,7 +84,15 @@
         "multi": true,
         "includeAll": true,
         "allValue": ".*",
-        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
         "options": [],
         "hide": 0
       }
@@ -69,17 +103,31 @@
       "id": 1,
       "type": "row",
       "title": "Run Inventory",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "collapsed": false
     },
     {
       "id": 2,
       "type": "text",
       "title": "About This Dashboard",
-      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
       "options": {
         "mode": "markdown",
-        "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false },
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
         "content": "**Run-scoped view of CLI-launched on-host experiment runs.**\n\nSeries arrive through the `juniper-host-experiments` file_sd scrape job. The launcher writes one `prometheus/targets/<run>.json` per run, stamping the scrape-side target labels `service`, `environment=\"host-experiment\"`, `run_id` and `experiment` (`honor_labels: false`, so Prometheus-side labels win and the apps never learn a run id).\n\n**\"No data\" is the normal idle state.** With no experiment running there are no host-experiment targets, the `$run_id` variable is empty, and every panel below reads *No data*. That is correct, not a fault.\n\nIf a run *is* live and panels stay empty, check in order:\n\n1. the per-run target file exists under `prometheus/targets/`;\n2. the per-service relay is up (the bridge gateway cannot reach a loopback-bound socket on its own);\n3. the app's metrics toggle is on (`JUNIPER_CASCOR_METRICS_ENABLED`, `JUNIPER_DATA_METRICS_ENABLED`, `JUNIPER_RECURRENCE_METRICS_ENABLED`)."
       }
     },
@@ -88,8 +136,16 @@
       "type": "table",
       "title": "Host-Experiment Scrape Targets",
       "description": "Every target Prometheus currently discovers for the selected run(s), with its scrape health. Empty when no experiment is running.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 6, "w": 11, "x": 8, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 11,
+        "x": 8,
+        "y": 1
+      },
       "targets": [
         {
           "refId": "A",
@@ -103,8 +159,15 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "__name__": true, "job": true, "environment": true },
-            "renameByName": { "Value": "up" },
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "environment": true
+            },
+            "renameByName": {
+              "Value": "up"
+            },
             "indexByName": {}
           }
         }
@@ -113,16 +176,41 @@
         "defaults": {},
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "up" },
+            "matcher": {
+              "id": "byName",
+              "options": "up"
+            },
             "properties": [
               {
                 "id": "mappings",
                 "value": [
-                  { "type": "value", "options": { "0": { "text": "DOWN", "color": "red", "index": 0 }, "1": { "text": "UP", "color": "green", "index": 1 } } }
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "DOWN",
+                        "color": "red",
+                        "index": 0
+                      },
+                      "1": {
+                        "text": "UP",
+                        "color": "green",
+                        "index": 1
+                      }
+                    }
+                  }
                 ]
               },
-              { "id": "custom.cellOptions", "value": { "type": "color-background" } },
-              { "id": "custom.width", "value": 80 }
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 80
+              }
             ]
           }
         ]
@@ -130,7 +218,14 @@
       "options": {
         "showHeader": true,
         "cellHeight": "sm",
-        "footer": { "show": false, "reducer": ["sum"], "countRows": false, "fields": "" }
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
       }
     },
     {
@@ -138,8 +233,16 @@
       "type": "stat",
       "title": "Targets Up",
       "description": "Count of host-experiment scrape targets currently up for the selected run(s). \"No data\" when no experiment is running.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 6, "w": 5, "x": 19, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 5,
+        "x": 19,
+        "y": 1
+      },
       "targets": [
         {
           "refId": "A",
@@ -154,8 +257,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "text", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           }
         }
@@ -164,23 +273,40 @@
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "value",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "id": 5,
       "type": "row",
       "title": "Run Provenance",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
       "collapsed": false
     },
     {
       "id": 6,
       "type": "table",
-      "title": "Build Info — cascor / recurrence / data",
+      "title": "Build Info \u2014 cascor / recurrence / data",
       "description": "Version + git_sha + build_date of every service participating in the selected run(s), from the shared set_build_info() Info metric. A service only appears once it has been scraped at least once with metrics enabled.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 8 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
       "targets": [
         {
           "refId": "A",
@@ -205,28 +331,53 @@
         }
       ],
       "transformations": [
-        { "id": "merge", "options": {} },
+        {
+          "id": "merge",
+          "options": {}
+        },
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "Value": true, "job": true, "environment": true },
-            "renameByName": { "__name__": "metric" },
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "job": true,
+              "environment": true
+            },
+            "renameByName": {
+              "__name__": "metric"
+            },
             "indexByName": {}
           }
         }
       ],
-      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "options": {
         "showHeader": true,
         "cellHeight": "sm",
-        "footer": { "show": false, "reducer": ["sum"], "countRows": false, "fields": "" }
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
       }
     },
     {
       "id": 7,
       "type": "row",
       "title": "Cascor Training",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
       "collapsed": false
     },
     {
@@ -234,39 +385,68 @@
       "type": "timeseries",
       "title": "Training Loss",
       "description": "juniper_cascor_training_loss{phase, loss_type} for the selected run(s). \"No data\" until a cascor training session emits its first loss sample.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 15
+      },
       "targets": [
         {
           "refId": "A",
           "expr": "juniper_cascor_training_loss{environment=\"host-experiment\", run_id=~\"$run_id\", service=~\"$service\"}",
-          "legendFormat": "{{run_id}} {{experiment}} — {{phase}}/{{loss_type}}"
+          "legendFormat": "{{run_id}} {{experiment}} \u2014 {{phase}}/{{loss_type}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
           "min": 0,
-          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 }
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "min"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "min"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "id": 9,
       "type": "timeseries",
       "title": "Training Accuracy",
-      "description": "juniper_cascor_training_accuracy_ratio{phase} — a 0-1 ratio, rendered as a percentage.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "description": "juniper_cascor_training_accuracy_ratio{phase} \u2014 a 0-1 ratio, rendered as a percentage.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 15
+      },
       "targets": [
         {
           "refId": "A",
           "expr": "juniper_cascor_training_accuracy_ratio{environment=\"host-experiment\", run_id=~\"$run_id\", service=~\"$service\"}",
-          "legendFormat": "{{run_id}} {{experiment}} — {{phase}}"
+          "legendFormat": "{{run_id}} {{experiment}} \u2014 {{phase}}"
         }
       ],
       "fieldConfig": {
@@ -274,21 +454,42 @@
           "unit": "percentunit",
           "min": 0,
           "max": 1,
-          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 }
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "id": 10,
       "type": "timeseries",
       "title": "Hidden Units",
-      "description": "juniper_cascor_hidden_units_total — cascade depth over the run. Stepped, since units are added discretely.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 23 },
+      "description": "juniper_cascor_hidden_units_total \u2014 cascade depth over the run. Stepped, since units are added discretely.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 23
+      },
       "targets": [
         {
           "refId": "A",
@@ -301,21 +502,38 @@
           "unit": "short",
           "min": 0,
           "decimals": 0,
-          "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "fillOpacity": 10 }
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 10
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "id": 11,
       "type": "timeseries",
       "title": "Candidate Correlation",
-      "description": "juniper_cascor_candidate_correlation — best candidate-unit correlation with the residual error.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 23 },
+      "description": "juniper_cascor_candidate_correlation \u2014 best candidate-unit correlation with the residual error.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 23
+      },
       "targets": [
         {
           "refId": "A",
@@ -326,47 +544,81 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 }
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "id": 12,
       "type": "timeseries",
       "title": "Epoch Rate",
-      "description": "Per-second rate of juniper_cascor_training_epochs_total{phase} over $interval (default 5m) — training throughput for the selected run(s).",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 23 },
+      "description": "Per-second rate of juniper_cascor_training_epochs_total{phase} over $interval (default 5m) \u2014 training throughput for the selected run(s).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 23
+      },
       "targets": [
         {
           "refId": "A",
           "expr": "sum by (run_id, phase) (rate(juniper_cascor_training_epochs_total{environment=\"host-experiment\", run_id=~\"$run_id\", service=~\"$service\"}[$interval]))",
-          "legendFormat": "{{run_id}} — {{phase}}"
+          "legendFormat": "{{run_id}} \u2014 {{phase}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
           "min": 0,
-          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 }
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "id": 13,
       "type": "timeseries",
-      "title": "Training Step Duration — p50 / p95",
+      "title": "Training Step Duration \u2014 p50 / p95",
       "description": "Quantiles of juniper_cascor_training_step_duration_seconds, grouped by run_id so concurrent runs never blend. The family carries no phase label (dropped in OBS-WIRE-01 A.6). SLO 3.4 targets p95 < 5s.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 31 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
       "targets": [
         {
           "refId": "A",
@@ -383,60 +635,112 @@
         "defaults": {
           "unit": "s",
           "min": 0,
-          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 5 },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 5
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 5 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
             ]
           }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "id": 14,
       "type": "row",
       "title": "Recurrence",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
       "collapsed": false
     },
     {
       "id": 15,
       "type": "timeseries",
-      "title": "Train — Last Final Metric",
-      "description": "juniper_recurrence_train_last_metric{metric} — the most recent training final metric per metric name (r2, mse, ...). A gauge set once per completed run, so it is flat between runs and \"No data\" before the first one.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "title": "Train \u2014 Last Final Metric",
+      "description": "juniper_recurrence_train_last_metric{metric} \u2014 the most recent training final metric per metric name (r2, mse, ...). A gauge set once per completed run, so it is flat between runs and \"No data\" before the first one.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
       "targets": [
         {
           "refId": "A",
           "expr": "juniper_recurrence_train_last_metric{environment=\"host-experiment\", run_id=~\"$run_id\", service=~\"$service\"}",
-          "legendFormat": "{{run_id}} {{experiment}} — {{metric}}"
+          "legendFormat": "{{run_id}} {{experiment}} \u2014 {{metric}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "fillOpacity": 0 }
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 0
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "id": 16,
       "type": "timeseries",
-      "title": "Train — Last Duration",
-      "description": "juniper_recurrence_train_last_duration_seconds — wall-clock duration of the most recent training run.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "title": "Train \u2014 Last Duration",
+      "description": "juniper_recurrence_train_last_duration_seconds \u2014 wall-clock duration of the most recent training run.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
       "targets": [
         {
           "refId": "A",
@@ -448,46 +752,87 @@
         "defaults": {
           "unit": "s",
           "min": 0,
-          "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "fillOpacity": 0 }
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 0
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "id": 17,
       "type": "timeseries",
-      "title": "Cross-Validation — Last Eval-Aggregate Metric",
-      "description": "juniper_recurrence_crossval_last_metric{metric} — the most recent cross-validation eval-aggregate metric per metric name.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 48 },
+      "title": "Cross-Validation \u2014 Last Eval-Aggregate Metric",
+      "description": "juniper_recurrence_crossval_last_metric{metric} \u2014 the most recent cross-validation eval-aggregate metric per metric name.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 48
+      },
       "targets": [
         {
           "refId": "A",
           "expr": "juniper_recurrence_crossval_last_metric{environment=\"host-experiment\", run_id=~\"$run_id\", service=~\"$service\"}",
-          "legendFormat": "{{run_id}} {{experiment}} — {{metric}}"
+          "legendFormat": "{{run_id}} {{experiment}} \u2014 {{metric}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "fillOpacity": 0 }
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 0
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "id": 18,
       "type": "timeseries",
-      "title": "Cross-Validation — Last Duration",
-      "description": "juniper_recurrence_crossval_last_duration_seconds — wall-clock duration of the most recent cross-validation run.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 48 },
+      "title": "Cross-Validation \u2014 Last Duration",
+      "description": "juniper_recurrence_crossval_last_duration_seconds \u2014 wall-clock duration of the most recent cross-validation run.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 48
+      },
       "targets": [
         {
           "refId": "A",
@@ -499,19 +844,37 @@
         "defaults": {
           "unit": "s",
           "min": 0,
-          "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "fillOpacity": 0 }
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 0
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "id": 19,
       "type": "row",
       "title": "HTTP (host-experiment targets)",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 56 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 56
+      },
       "collapsed": false
     },
     {
@@ -519,51 +882,199 @@
       "type": "timeseries",
       "title": "Request Rate",
       "description": "Per-second HTTP request rate across every host-experiment target. Matched by __name__ regex rather than a fixed per-service prefix: cascor and data namespace their families (juniper_cascor_http_*, juniper_data_http_*) but recurrence adds PrometheusMiddleware without a namespace kwarg, so its families are the un-prefixed juniper_http_*. The regex covers all three; the environment matcher keeps it scoped to experiment runs.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 57 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 57
+      },
       "targets": [
         {
           "refId": "A",
           "expr": "sum by (run_id, service) (rate({__name__=~\"juniper.*_http_requests_total\", environment=\"host-experiment\", run_id=~\"$run_id\", service=~\"$service\"}[$interval]))",
-          "legendFormat": "{{run_id}} — {{service}}"
+          "legendFormat": "{{run_id}} \u2014 {{service}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",
           "min": 0,
-          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 }
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "id": 21,
       "type": "timeseries",
-      "title": "Request Latency — p95",
+      "title": "Request Latency \u2014 p95",
       "description": "p95 HTTP request latency per run and service, from the same __name__-regex family set as the request-rate panel (see its description for why the regex is used instead of a fixed prefix).",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 57 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 57
+      },
       "targets": [
         {
           "refId": "A",
           "expr": "histogram_quantile(0.95, sum by (le, run_id, service) (rate({__name__=~\"juniper.*_http_request_duration_seconds_bucket\", environment=\"host-experiment\", run_id=~\"$run_id\", service=~\"$service\"}[$interval])))",
-          "legendFormat": "{{run_id}} — {{service}} p95"
+          "legendFormat": "{{run_id}} \u2014 {{service}} p95"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "s",
           "min": 0,
-          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 5 }
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 5
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "type": "row",
+      "title": "Performance (PF instruments)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 65
+      }
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "Process RSS",
+      "description": "process_resident_memory_bytes per host-experiment target, grouped by run_id \u2014 the PF-2 dataset-size-scaling memory instrument (plan \u00a712.3).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 66
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_resident_memory_bytes{environment=\"host-experiment\", run_id=~\"$run_id\", service=~\"$service\"}",
+          "legendFormat": "{{run_id}} {{service}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 5
+          },
+          "unit": "bytes"
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 24,
+      "type": "timeseries",
+      "title": "Process CPU Rate",
+      "description": "rate(process_cpu_seconds_total) per host-experiment target \u2014 cores in use; the PF-3 candidate-pool-scaling / oversubscription-onset instrument (plan \u00a712.3). Compare against the run's recorded thread budget (H-11).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 66
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(process_cpu_seconds_total{environment=\"host-experiment\", run_id=~\"$run_id\", service=~\"$service\"}[$interval])",
+          "legendFormat": "{{run_id}} {{service}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 5
+          },
+          "unit": "none"
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     }
   ],
