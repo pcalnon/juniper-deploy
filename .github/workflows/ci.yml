@@ -300,13 +300,79 @@ jobs:
           exit $exit_code
 
   # ═══════════════════════════════════════════════════════════════════════════
+  # Documentation Links: validate every relative markdown link resolves
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Tier 2 CI hardening (juniper-ml 2026-08-13): juniper-deploy ships ~45 markdown
+  # files, including the operator-facing docs/ set, with no link validation at all —
+  # while all 8 sibling repos gate on this. Uses the published juniper-doc-tools
+  # validator, same as every sibling.
+  docs:
+    name: Documentation Links
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install juniper-doc-tools
+        run: |
+          python -m pip install --upgrade "pip>=26.1.1"
+          pip install "juniper-doc-tools>=0.1.0,<0.2.0"
+
+      - name: Validate Documentation Links
+        run: |
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║       juniper-deploy - Documentation Link Validation       ║"
+          echo "╚════════════════════════════════════════════════════════════╝"
+          # --cross-repo skip: the weekly docs-full-check.yml in juniper-ml owns the
+          # cross-repo pass; per-PR we only validate links that resolve in-repo.
+          juniper-check-doc-links \
+            --exclude history \
+            --exclude legacy \
+            --exclude CHANGELOG.md \
+            --cross-repo skip
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Security: pip-audit for dependency vulnerabilities
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Tier 2 CI hardening (juniper-ml 2026-08-13): juniper-deploy had no dependency
+  # CVE screen. Audits requirements-test.txt — the only dependency manifest in the
+  # repo. --strict is intentionally omitted to match the per-PR contract used by the
+  # siblings (a skipped dependency must not fail every PR); the hard weekly screen
+  # lives in juniper-ml's security-scan.yml.
+  security:
+    name: Security Scans
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run pip-audit
+        run: |
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║       juniper-deploy - pip-audit Security Scan             ║"
+          echo "╚════════════════════════════════════════════════════════════╝"
+          python -m pip install --upgrade "pip>=26.1.1"
+          pip install pip-audit
+          pip-audit --desc on --requirement requirements-test.txt
+
+  # ═══════════════════════════════════════════════════════════════════════════
   # Quality Gate: All required checks must pass
   # ═══════════════════════════════════════════════════════════════════════════
   required-checks:
     name: Quality Gate
     runs-on: ubuntu-latest
     if: always()
-    needs: [pre-commit, gitleaks, sops-validation, tests, validate-compose]
+    needs: [pre-commit, gitleaks, sops-validation, tests, validate-compose, docs, security]
     steps:
       - name: Check Quality Gate Status
         run: |
@@ -319,6 +385,8 @@ jobs:
           echo "SOPS Validation:    ${{ needs.sops-validation.result }}"
           echo "Tests:              ${{ needs.tests.result }}"
           echo "Compose Validation: ${{ needs.validate-compose.result }}"
+          echo "Documentation:      ${{ needs.docs.result }}"
+          echo "Security Scans:     ${{ needs.security.result }}"
           echo ""
 
           if [[ "${{ needs.pre-commit.result }}" != "success" ]]; then
@@ -343,6 +411,16 @@ jobs:
 
           if [[ "${{ needs.validate-compose.result }}" != "success" ]]; then
             echo "::error::Compose config validation failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.docs.result }}" != "success" ]]; then
+            echo "::error::Documentation link validation failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.security.result }}" != "success" ]]; then
+            echo "::error::Dependency security scan failed"
             exit 1
           fi
 

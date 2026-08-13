@@ -1,0 +1,76 @@
+---
+#####################################################################################################################################################################################################
+# Project:       Juniper
+# Application:   juniper-deploy
+# File Name:     codeql.yml
+# Author:        Paul Calnon
+#
+# Date Created:  2026-08-13
+#
+# License:       MIT License
+# Copyright:     Copyright (c) 2026 Paul Calnon
+#
+# Description:
+#    GitHub CodeQL semantic security analysis for juniper-deploy.
+#
+#    Added by the Tier 2 CI-hardening pass (juniper-ml
+#    notes/JUNIPER_2026-08-10_JUNIPER-ECOSYSTEM_REQUIRED-STATUS-CHECK-CONTEXT-LISTS.md).
+#    juniper-deploy carried the thinnest CI in the fleet — six jobs, and no static
+#    analysis at all — despite shipping ~30 Python files. Every other publishing repo
+#    already runs CodeQL and gates on the resulting `Analyze (python)` context.
+#
+#    Mirrors juniper-data's codeql.yml so the emitted context name matches the fleet.
+#
+# References:
+#    - https://codeql.github.com/docs/codeql-language-guides/codeql-for-python/
+#####################################################################################################################################################################################################
+
+name: CodeQL Analysis
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly on Monday at 6 AM UTC
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['python']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3  # v4.37.6
+        with:
+          languages: ${{ matrix.language }}
+          queries: +security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@5595ccaf912efad79be6eef63a5619ff05969be3  # v4.37.6
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3  # v4.37.6
+        with:
+          category: "/language:${{ matrix.language }}"
