@@ -861,7 +861,11 @@ services:
       - "--storage.tsdb.retention.time=30d"
       - "--web.enable-lifecycle"
     ports:
-      - "127.0.0.1:9090:9090"
+      # Host port is overridable like every other published service port; the
+      # container port stays 9090 (the upstream prom/prometheus default).
+      # Bind stays literal 127.0.0.1 rather than ${BIND_HOST}: the monitoring
+      # tier is deliberately loopback-only, and widening it is a separate call.
+      - "127.0.0.1:${PROMETHEUS_HOST_PORT:-9090}:9090"
     volumes:
       - ./prometheus:/etc/prometheus:ro
     networks:
