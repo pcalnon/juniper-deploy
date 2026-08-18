@@ -1,17 +1,345 @@
+####################################################################################################################################################################################
+# Directories and files to exclude from inclusion in the Dynamic_NN Bit Bucket Repo
+# ---------------------------------------------------------------------------------------
+# This is a Juniper Project customized list of files not to be added to the git repo.
+# Learn more about .gitignore: https://www.atlassian.com/git/tutorials/saving-changes/gitignore
+#
+# Notes:
+#     add exception for file(s) in subdir of ignored dir
+#     ignored_folder/**
+#     \!ignored_folder/**/
+#     \!ignored_folder/foo/exception_file.txt
+#
+####################################################################################################################################################################################
+
+####################################################################################################################################################################################
+# Local Development directories for git to ignore
+####################################################################################################################################################################################
+# bin/*
+bin/**
+# **/bin/*
+**/bin/**
+
+# cuda/*
+cuda/**
+# **/cuda/*
+**/cuda/**
+
+# data/*
+data/**
+# **/data/*
+**/data/**
+
+# images/*
+images/**
+# **/images/*
+**/images/**
+!images/Juniper_Logo_150px.png
+
+# logs/*
+logs/**
+# **/logs/*
+**/logs/**
+
+# resources/*
+resources/**
+# **/resources/*
+**/resources/**
+
+# secrets/*
+secrets/**
+# **/secrets/*
+**/secrets/**
+
+# temp/*
+temp/**
+# **/temp/*
+**/temp/**
+
+# Backup directories containing obsolete files saved locally for reference
+# backup/
+# backup/*
+backup/**
+# **/backup/
+# **/backup/*
+**/backup/**
+
+# backups/
+# backups/*
+backups/**
+# **/backups
+# **/backups/*
+**/backups/**
+
+# reports directories and files -- NOTE: exception for security reports
+# reports/
+# reports/*
+reports/**
+!reports/**/
+!reports/security/**
+
+# **/reports/
+# **/reports/*
+**/reports/**
+!**/reports/**/
+!**/reports/security/**
+
+# SERENA Memory Dirs
+.serena
+.serena/
+.serena/*
+.serena/**
+
+**/.serena
+**/.serena/
+**/.serena/*
+**/.serena/**
+
+# Cache files
+__pycache__
+__pycache__/
+__pycache__/*
+__pycache__/**
+*/__pycache__
+*/__pycache__/
+*/__pycache__/*
+*/__pycache__/**
+**/__pycache__
+**/__pycache__/
+**/__pycache__/*
+**/__pycache__/**
+
+# Python Testing cache files
+.pytest_cache
+.pytest_cache/
+.pytest_cache/*
+.pytest_cache/**
+*/.pytest_cache
+*/.pytest_cache/
+*/.pytest_cache/*
+*/.pytest_cache/**
+**/.pytest_cache
+**/.pytest_cache/
+**/.pytest_cache/*
+**/.pytest_cache/**
+
+# Local Python temp files
+__init__.cpython*
+**/__init__.cpython*
+
+# *.egg-info/
+# *.egg-info/*
+*.egg-info/**
+# **.egg-info/
+# **.egg-info/*
+**.egg-info/**
+
+# juniper_data.egg-info
+# juniper_data.egg-info/
+# juniper_data.egg-info/*
+juniper_data.egg-info/**
+# **/juniper_data.egg-info
+# **/juniper_data.egg-info/
+# **/juniper_data.egg-info/*
+**/juniper_data.egg-info/**
+# juniper_data.egg-info/PKG-INFO
+
+# juniper_data_client vendored copy (removed in polyrepo migration Phase 1.4c — use PyPI package instead)
+juniper_data_client/
+
+# CascadeCorrelationNetwork class snapshots
+# **/cascor/cascor_snapshots/*
+**/cascor/cascor_snapshots/**
+
+# Sensitive files and dirs
+# REAMDE.notes
+# REAMDE.notes/
+# REAMDE.notes/*
+REAMDE.notes/**
+
+# **/REAMDE.notes
+# **/REAMDE.notes/
+# **/REAMDE.notes/*
+**/REAMDE.notes/**
+
+# Node artifact files
+node_modules/
+dist/
+
+# Jupyter dirs
+.ipynb_checkpoints/
+
+# Data dirs
+# data/
+# data/*
+# data/MNIST/
+# data/MNIST/raw/
+
+# Maven
+# target
+# target/
+# target/*
+target/**
+# **/target
+# **/target/
+# **/target/*
+**/target/**
+
+# dist
+# dist/
+# dist/*
+dist/**
+# **/dist
+# **/dist/
+# **/dist/*
+**/dist/**
+
+
+####################################################################################################################################################################################
+# Specific files and file types for git to ignore
+####################################################################################################################################################################################
+
+# Docker compose files
+docker-compose.override.yml
+**/docker-compose.override.yml
+
+# Ignore environment Variable files
 .env
+.env.secrets
 .env.local
 .env.development
 .env.production
 .env.staging
 .env.test
-.env.secrets
+
+# Don't ignore these, the're encrpyted.
 !.env.example
 !.env.secrets.example
 !.env.enc
 !.env.secrets.enc
-docker-compose.override.yml
-__pycache__/
+
+# CascadeCorrelationNetwork class snapshots
+cascor_snapshot_*.h5
+
+# Sensitive files and dirs
+*/encryption.bash
+*/external_drive.readme
+
+# Data files
+*ubyte
+
+# Compiled Java class files
+*.class
+
+# Python cProfile profiling files
+*.prof
+
+# Compiled Python bytecode
 *.pyc
-secrets/
-.pytest_cache/
+*.py[cod]
+**/*.pyc
+**/*pyc
+
+# Log files
+*.log
+**/*.log
+*.out
+
+# Package files
+*.jar
+
+# VSCode IDE
+.vscode/
+.trunk/
+.trunk_new/
+
+# JetBrains IDE
+.idea/
+
+# Unit test reports
+TEST*.xml
+TEST*.html
+TEST*.json
+
+# Generated by MacOS
+.DS_Store
+
+# Generated by Windows
+Thumbs.db
+
+# Large Output Files
+*.out
+*.log
+**/conf/tests_output.txt
+
+# Generated by Linux
+*.swq
+*.swp
+*.swo
+*.swn
+*.swm
+*.swx
+*.swy
+*.swz
+
+# Temp files
+*.tmp
+*.temp
+.~lock.*
+
+# Applications
+*.app
+*.exe
+*.war
+
+# Image Files
+# *.png
+*.jpg
+*.jpeg
+*.gif
+*.pt
+*.xcf
+
+# Large media files
+*.mp4
+*.tiff
+*.avi
+*.flv
+*.mov
+*.wmv
+
+# Archive files
+*.gz
+*.tgz
+*.tar
+*.bz
+*.zip
+
+# Package Files
+*.deb
+*.rpm
+*.whl
+*.tar.gz
+
+# Coverage artifacts
 .coverage
+**/.coverage
+coverage.xml
+**/coverage.xml
+coverage.json
+**/coverage.json
+
+# Test result artifacts
+results.xml
+**/results.xml
+
+# Claude Code session files
+__RESUME_CLAUDE_SESSION__
+
+# Backup snapshots from scripts/generate_dep_docs.sh (timestamped variants).
+# The canonical conf/conda_environment_ci.yaml / conf/requirements_ci.txt
+# stay tracked; only the colon-timestamped backups are noise.
+conf/conda_environment_ci_*.yaml
+!conf/conda_environment_ci.yaml
+conf/requirements_ci_*.txt
+!conf/requirements_ci.txt
