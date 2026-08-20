@@ -339,7 +339,7 @@ The Kubernetes Helm chart is located at `k8s/helm/juniper/`.
 | Ingress | `<release>-juniper` | `canopy.ingress.enabled` |
 | Secret | `<release>-juniper` | `secrets.create` |
 | PVC | `<release>-juniper-data-datasets` | `data.persistence.datasets.enabled` |
-| PVC | `<release>-juniper-cascor-snapshots` | `cascor.persistence.snapshots.enabled` |
+| PVC | `<release>-juniper-cascor-snapshots` | `cascor.persistence.snapshots.enabled` — mounts `/app/cascor-snapshots`; **not** captured by the whole-tree offline backup, unlike the host/compose bind mount (accepted exception, see `values.yaml`) |
 | PVC | `<release>-juniper-cascor-logs` | `cascor.persistence.logs.enabled` |
 | HPA | `<release>-juniper-worker` | `worker.autoscaling.enabled` |
 | NetworkPolicy | `<release>-juniper-deny-all` | `networkPolicies.enabled` |

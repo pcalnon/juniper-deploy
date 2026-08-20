@@ -261,8 +261,27 @@ services:
       # validator. See juniper-ml
       # notes/STACK_REGRESSION_CORRECTIONS_2026-05-27.md §E.2.
       JUNIPER_CASCOR_WS_CONTROL_ALLOWED_ORIGINS: "${JUNIPER_CASCOR_WS_CONTROL_ALLOWED_ORIGINS:-http://juniper-canopy:8050,http://localhost:8050,http://127.0.0.1:8050}"
+      # Declared, never derived -- see the volumes comment below. Matches the bind-mount target.
+      JUNIPER_CASCOR_SNAPSHOTS_DIR: /app/cascor-snapshots
     volumes:
-      - juniper-cascor-snapshots:/app/data
+      # SHARED SNAPSHOT ROOT -- a BIND MOUNT of the host's canonical snapshot store, not a
+      # named volume. Three properties the named volume it replaces did not have:
+      #
+      #   1. It survives `docker compose down -v`. A named volume does not, and `-v` is a
+      #      routine dev reflex. Snapshots are protected project assets.
+      #   2. It is the SAME directory the host's direct-CLI and systemd-service tiers use, so a
+      #      model saved by a container run is restored and resumed by a host run and vice
+      #      versa. Stack-origin agnosticism is designed behaviour, not a side effect.
+      #   3. It sits inside the Juniper tree, so the whole-tree offline backup captures it and
+      #      restore stays copy-and-extract.
+      #
+      # The env var below DECLARES the container path. It used to be derived
+      # (`Path(__file__).parents[3]/"snapshots"` -> /app/snapshots) while this mount landed on
+      # /app/data -- one directory apart, so every containerized snapshot was written to the
+      # container's writable layer and lost on recreate, silently, since the save path only
+      # warns. Declaring the path is what stops the mount and the writer drifting again.
+      # `../juniper-cascor` matches the sibling-repo convention every build.context already uses.
+      - ${JUNIPER_CASCOR_SNAPSHOTS_HOST_DIR:-../juniper-cascor/cascor-snapshots}:/app/cascor-snapshots
       - juniper-cascor-logs:/app/logs
     secrets:
       # `juniper_cascor_api_keys` (plural) is cascor's accept-list of API keys —
@@ -430,8 +449,13 @@ services:
       # uses to validate incoming X-API-Key headers (single source of
       # truth), matching the canonical ``juniper-cascor`` service wiring.
       JUNIPER_DATA_API_KEY_FILE: /run/secrets/juniper_data_api_keys
+      JUNIPER_CASCOR_SNAPSHOTS_DIR: /app/cascor-snapshots
     volumes:
-      - juniper-cascor-snapshots:/app/data
+      # Same shared root as the canonical service by default, because the ruling is one root
+      # across origins and a demo snapshot is a real cascor snapshot. Set
+      # JUNIPER_CASCOR_DEMO_SNAPSHOTS_HOST_DIR alone to keep demo artifacts out of the research
+      # archive without moving the canonical service.
+      - ${JUNIPER_CASCOR_DEMO_SNAPSHOTS_HOST_DIR:-${JUNIPER_CASCOR_SNAPSHOTS_HOST_DIR:-../juniper-cascor/cascor-snapshots}}:/app/cascor-snapshots
       - juniper-cascor-logs:/app/logs
     secrets:
       # Outbound juniper-data key for the cascor-demo auto-start flow.
@@ -679,6 +703,18 @@ services:
       # notes/poc/POC_REMEDIATION_PLAN_2026-05-27.md §6.
       JUNIPER_CANOPY_METRICS_TRUSTED_IPS: "${JUNIPER_CANOPY_METRICS_TRUSTED_IPS:-[\"127.0.0.1\",\"::1\"]}"
       REDIS_URL: "redis://redis:6379/0"
+      # F-CANOPY-007 in the containerized topology. canopy CREATES snapshots by proxying to
+      # cascor, but LISTS and resolves them by reading a LOCAL directory -- defaulting to
+      # "./snapshots" relative to its own CWD (src/main.py:1713-1725). Nothing was ever mounted
+      # there, and compose set no snapshot variable at all, so the dashboard's snapshot list has
+      # always returned a silent {"snapshots": [], "message": "No snapshots available"} while
+      # cascor held the .h5 -- no error, no warning. Point canopy at the same shared root cascor
+      # writes. Read-write because canopy appends snapshot_history.jsonl and mkdirs the root; it
+      # has no delete path (no unlink/rmtree/os.remove in src/main.py), so this cannot become a
+      # UI delete button over the archive.
+      JUNIPER_CANOPY_SNAPSHOT_DIR: /app/cascor-snapshots
+    volumes:
+      - ${JUNIPER_CASCOR_SNAPSHOTS_HOST_DIR:-../juniper-cascor/cascor-snapshots}:/app/cascor-snapshots
     secrets:
       - canopy_api_key
       - juniper_cascor_api_keys
@@ -1116,6 +1152,11 @@ networks:
 # ═══════════════════════════════════════════════════════════════════════════
 volumes:
   juniper-data-datasets:
-  juniper-cascor-snapshots:
+  # juniper-cascor-snapshots: RETIRED. It mounted at /app/data, which neither cascor tier ever
+  # wrote, so it held nothing while real snapshots died with the container. Snapshots are now a
+  # bind mount of the host's shared root -- see the volumes comment on juniper-cascor. Any
+  # existing volume of that name is stale and can be removed with
+  # `docker volume rm juniper-deploy_juniper-cascor-snapshots` once you have confirmed it is
+  # empty (`docker run --rm -v juniper-deploy_juniper-cascor-snapshots:/v alpine ls -la /v`).
   juniper-cascor-logs:
   grafana-data:
