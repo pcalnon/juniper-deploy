@@ -86,8 +86,13 @@ spec:
               mountPath: /etc/juniper/secrets
               readOnly: true
             {{- if .Values.cascor.persistence.snapshots.enabled }}
+            # /app/cascor-snapshots, NOT /app/data. cascor writes snapshots to the path in
+            # JUNIPER_CASCOR_SNAPSHOTS_DIR (image default /app/cascor-snapshots); this PVC
+            # was mounted one directory away at /app/data, so it held nothing while every
+            # snapshot went to the pod's ephemeral layer -- silently, since the save path
+            # only warns. Same defect the compose tier carried; fixed in the same change.
             - name: snapshots
-              mountPath: /app/data
+              mountPath: /app/cascor-snapshots
             {{- end }}
             {{- if .Values.cascor.persistence.logs.enabled }}
             - name: logs

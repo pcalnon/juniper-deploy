@@ -124,6 +124,14 @@ cascor:
     JUNIPER_CASCOR_METRICS_ENABLED: "false"
 
   persistence:
+    # NOTE ON SNAPSHOTS AND BACKUP COVERAGE. On host and compose deployments the snapshot
+    # root is a bind mount of <Juniper>/juniper-cascor/cascor-snapshots, so the project's
+    # whole-tree offline backup captures it and every stack origin shares one archive.
+    # A PVC can do neither: it is invisible to a tree-walking backup, ReadWriteOnce cannot
+    # be shared across nodes, and `helm uninstall` destroys it. The cluster path is therefore
+    # an ACCEPTED EXCEPTION to "snapshots are backup-captured project assets" -- transfer to
+    # or from a cluster is out-of-band and user-driven, which is the stated policy for moving
+    # snapshots between hosts anyway. Size it for the retention you actually want in-cluster.
     snapshots:
       enabled: true
       size: 10Gi

@@ -58,6 +58,14 @@ BUILD_PREFLIGHT := bash scripts/preflight_build_freshness.sh
 # Fix: make build. Escape hatch: JUNIPER_IMAGE_STALE_OK=1 (or --allow-stale).
 IMAGE_PREFLIGHT := bash scripts/preflight_image_provenance.sh
 
+# Snapshot-root preflight (storage-convention ruling 2026-08-20): the containers
+# BIND-MOUNT the host's shared snapshot root at /app/cascor-snapshots. A missing
+# source is the silent failure -- the daemon creates it root-owned and the stack
+# comes up healthy over an empty archive. Verifies existence, type, writability,
+# and that the root sits inside the Juniper tree the offline backup walks.
+# Bypass: JUNIPER_SNAPSHOT_ROOT_OK=1
+SNAPSHOT_PREFLIGHT := bash scripts/preflight_snapshot_root.sh
+
 SECRETS_DIR := secrets
 SECRETS_FILES := $(SECRETS_DIR)/juniper_data_api_keys.txt \
     $(SECRETS_DIR)/juniper_recurrence_api_keys.txt \
@@ -86,7 +94,8 @@ endif
 .PHONY: help up down restart logs logs-data logs-cascor logs-canopy \
         status build build-no-cache build-preflight clean \
         shell-data shell-cascor shell-canopy \
-        health doctor wait ps demo dev test monitor obs obs-demo preflight image-preflight
+        health doctor wait ps demo dev test monitor obs obs-demo preflight image-preflight \
+        snapshot-preflight
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Help
@@ -114,9 +123,13 @@ preflight:  ## Verify loopback-publish bind attestation for every profile (no da
 image-preflight:  ## Verify built images match their source checkouts (provenance labels; JUNIPER_IMAGE_STALE_OK=1 to bypass)
 	@$(IMAGE_PREFLIGHT) --profile full --profile demo --profile dev --profile test --profile observability
 
+snapshot-preflight:  ## Verify the shared snapshot root exists and is writable (JUNIPER_SNAPSHOT_ROOT_OK=1 to bypass)
+	@$(SNAPSHOT_PREFLIGHT) --profile full --profile demo --profile dev --profile test --profile observability
+
 up: prepare-secrets ## Start all services (--profile full, detached)
 	@$(PREFLIGHT) --profile full
 	@$(IMAGE_PREFLIGHT) --profile full
+	@$(SNAPSHOT_PREFLIGHT) --profile full
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full up -d
 	@echo -e "$(GREEN)Services starting. Run 'make logs' to follow output.$(RESET)"
 
@@ -129,12 +142,14 @@ restart:  ## Restart all services
 demo: prepare-secrets ## Start demo stack (auto-configured CasCor training)
 	@$(PREFLIGHT) --profile demo
 	@$(IMAGE_PREFLIGHT) --profile demo
+	@$(SNAPSHOT_PREFLIGHT) --profile demo
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile demo up -d
 	@echo -e "$(GREEN)Demo stack starting. Run 'make logs' to follow output.$(RESET)"
 
 dev: prepare-secrets ## Start dev stack (real data + cascor, canopy in demo mode)
 	@$(PREFLIGHT) --profile dev
 	@$(IMAGE_PREFLIGHT) --profile dev
+	@$(SNAPSHOT_PREFLIGHT) --profile dev
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile dev up -d
 	@echo -e "$(GREEN)Dev stack starting. Run 'make logs' to follow output.$(RESET)"
 
@@ -144,6 +159,7 @@ test:  ## Run integration tests (starts services + test-runner)
 monitor: prepare-secrets ## Start full stack with observability (Prometheus + Grafana)
 	@$(PREFLIGHT) --env-file .env.observability --profile full --profile observability
 	@$(IMAGE_PREFLIGHT) --env-file .env.observability --profile full --profile observability
+	@$(SNAPSHOT_PREFLIGHT) --env-file .env.observability --profile full --profile observability
 	@$(COMPOSE) -f $(COMPOSE_FILE) \
 		--env-file .env.observability \
 		--profile full --profile observability up -d

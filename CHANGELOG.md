@@ -6,6 +6,55 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Containerized snapshots were never persisted, and canopy's snapshot list was always empty.**
+  `juniper-cascor-snapshots` mounted at `/app/data`, while the cascor service writes
+  `/app/cascor-snapshots` and the CLI tier writes `/app/src/cascor_snapshots` — one directory away in
+  both cases — and compose set no snapshot variable at all. So every containerized snapshot went to
+  the container's writable layer and died on recreate, silently, because the save path only warns.
+  The same gap left `juniper-canopy` (which LISTS snapshots by reading a local directory, defaulting
+  to `./snapshots` relative to its own CWD) with nothing mounted anywhere, so the dashboard returned
+  `{"snapshots": [], "message": "No snapshots available"}` while cascor held the `.h5`. Predates the
+  storage-convention work; not a regression.
+- **The Helm chart carried the identical defect** — `cascor-deployment.yaml` mounted the snapshots
+  PVC at `/app/data`, so a 10Gi volume sat idle while the pod wrote to its ephemeral layer. Now
+  `/app/cascor-snapshots`. `values.yaml` records that the cluster path is an **accepted exception**
+  to backup-captured snapshots: a PVC is invisible to a tree-walking backup, `ReadWriteOnce` cannot
+  be shared across nodes, and `helm uninstall` destroys it.
+
+### Changed
+
+- **Snapshots are now a BIND MOUNT of the host's shared root, not a named volume**
+  (`${JUNIPER_CASCOR_SNAPSHOTS_HOST_DIR:-../juniper-cascor/cascor-snapshots}:/app/cascor-snapshots`),
+  on both cascor services and on the canonical `juniper-canopy`, with
+  `JUNIPER_CASCOR_SNAPSHOTS_DIR` / `JUNIPER_CANOPY_SNAPSHOT_DIR` **declared** rather than derived.
+  Three properties the named volume did not have: it survives `docker compose down -v` and
+  `make clean` (snapshots are protected project assets); it is the same directory the host's CLI and
+  systemd tiers use, so a model saved by a container is restored by a host run and vice versa; and it
+  sits inside the Juniper tree the whole-tree offline backup walks. The `juniper-cascor-snapshots`
+  volume is retired — it held nothing.
+  - This is a deliberate **departure from the file's own convention**, which is otherwise
+    "config in via a read-only in-project bind, data out via a named volume". No named volume can
+    satisfy backup capture or survive `-v`. Recorded here so a later reviewer does not correct it back.
+  - Canopy's mount is read-write because it appends `snapshot_history.jsonl` and mkdirs the root; it
+    has no delete path (no `unlink`/`rmtree`/`os.remove` in `src/main.py`), so this cannot become a
+    UI delete button over the archive. `juniper-canopy-demo` / `-dev` run `JUNIPER_CANOPY_DEMO_MODE`
+    and are deliberately left unmounted.
+
+### Added
+
+- **`scripts/preflight_snapshot_root.sh`** + `make snapshot-preflight`, wired into `up` / `demo` /
+  `dev` / `monitor` ahead of `docker compose up`. Compose resolves a relative bind source against the
+  **compose file's** directory, and where a wrong `build.context` fails loudly, a wrong bind source
+  fails *quietly* — the daemon creates it **root-owned** and the stack comes up healthy over an empty
+  archive, EPERMing the uid-1000 container on every save. The preflight verifies existence, type,
+  writability, `.h5` presence, and that the root sits inside the Juniper tree; bypass with
+  `JUNIPER_SNAPSHOT_ROOT_OK=1`. It caught the failure on its first run against a worktree checkout.
+- `.env.example` gains `JUNIPER_CASCOR_SNAPSHOTS_HOST_DIR` (and a demo-only override) — the first
+  path-valued variable in this repo's configuration surface, documented with the
+  resolved-against-the-project-directory semantics and the must-be-absolute-for-a-remote-context caveat.
+
 ### Added
 
 - **Image-provenance preflight for the bring-up path** (`make up` / `demo` / `dev` / `monitor` / `obs-demo`) — the **inverse** of the build-freshness preflight below: that one stops `make build` from baking images out of stale checkouts; this one stops `docker compose up` from **running** images that no longer match the code on disk ("checkout updated but image not rebuilt"). Builds on the existing build-provenance stamps (`scripts/provenance_sha.sh` → `GIT_SHA` build arg → OCI `org.opencontainers.image.revision` label) and shares `scripts/doctor.sh`'s comparison conventions (prefix-compare for 7/8-char short SHAs, `-dirty` semantics) — doctor stays the interactive running-stack auditor; this is the enforcing bring-up gate:
