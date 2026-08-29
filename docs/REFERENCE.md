@@ -22,6 +22,11 @@
 - [Scripts Reference](#scripts-reference)
 - [Prometheus Configuration](#prometheus-configuration)
 - [Grafana Configuration](#grafana-configuration)
+- [Environment Variable Reference](#environment-variable-reference)
+- [Directory Layout Reference](#directory-layout-reference)
+- [Security Architecture Reference](#security-architecture-reference)
+- [Testing Reference](#testing-reference)
+- [Documentation Reference](#documentation-reference)
 - [Test Configuration](#test-configuration)
 
 ---
@@ -437,6 +442,355 @@ All file-based secrets are mounted at `/etc/juniper/secrets/` (read-only).
 | Access | proxy |
 | URL | `http://prometheus:9090` |
 | Default | Yes |
+
+---
+
+## Environment Variable Reference
+
+Relocated verbatim from `AGENTS.md` (P3 of the shared-session-memory plan) so it is read on demand rather than loaded into every session.
+
+All values use `${VAR:-default}` substitution in `docker-compose.yml`. Copy `.env.example` to `.env` to override.
+
+### Core Service Configuration
+
+| Variable | Service | Default | Notes |
+|----------|---------|---------|-------|
+| `JUNIPER_DATA_HOST` | juniper-data | `0.0.0.0` | |
+| `JUNIPER_DATA_PORT` | juniper-data | `8100` | |
+| `JUNIPER_DATA_LOG_LEVEL` | juniper-data | `INFO` | |
+| `CASCOR_HOST` | juniper-cascor | `0.0.0.0` | Maps to `JUNIPER_CASCOR_HOST` in container |
+| `CASCOR_PORT` | juniper-cascor | `8200` | Internal container port; maps to `JUNIPER_CASCOR_PORT` |
+| `CASCOR_HOST_PORT` | juniper-cascor | `8201` | Host-exposed port (avoids port 8200 conflicts) |
+| `CASCOR_LOG_LEVEL` | juniper-cascor | `INFO` | Maps to `JUNIPER_CASCOR_LOG_LEVEL` in container |
+| `CANOPY_HOST` | juniper-canopy | `0.0.0.0` | |
+| `CANOPY_PORT` | juniper-canopy | `8050` | |
+
+### Inter-Service URLs
+
+| Variable | Service | Default |
+|----------|---------|---------|
+| `JUNIPER_DATA_URL` | juniper-cascor, juniper-canopy | `http://juniper-data:8100` |
+| `CASCOR_SERVICE_URL` | juniper-canopy | `http://juniper-cascor:8200` |
+
+### API Security
+
+| Variable | Service | Default | Notes |
+|----------|---------|---------|-------|
+| `JUNIPER_DATA_API_KEYS` | juniper-data | *(unset — auth disabled)* | |
+| `JUNIPER_CASCOR_API_KEYS` | juniper-cascor | *(unset — auth disabled)* | |
+| `CANOPY_API_KEY` | juniper-canopy | *(unset — auth disabled)* | Via Docker secret |
+| `JUNIPER_CASCOR_RATE_LIMIT_ENABLED` | juniper-cascor | `true` | |
+| `JUNIPER_CASCOR_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-cascor | `60` | |
+| `CANOPY_RATE_LIMIT_ENABLED` | juniper-canopy | `true` | Maps to `JUNIPER_CANOPY_RATE_LIMIT_ENABLED` |
+| `CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` | juniper-canopy | `60` | Maps to `JUNIPER_CANOPY_RATE_LIMIT_REQUESTS_PER_MINUTE` |
+| `JUNIPER_DATA_API_KEY` | juniper-cascor | *(from `JUNIPER_DATA_API_KEYS`)* | CasCor's credential for JuniperData |
+| `JUNIPER_CASCOR_API_KEY` | juniper-canopy | *(from `JUNIPER_CASCOR_API_KEYS`)* | Canopy's credential for CasCor |
+
+### Observability
+
+| Variable | Service | Default |
+|----------|---------|---------|
+| `JUNIPER_DATA_LOG_FORMAT` | juniper-data | `text` |
+| `JUNIPER_DATA_SENTRY_DSN` | juniper-data | *(unset)* |
+| `JUNIPER_DATA_METRICS_ENABLED` | juniper-data | `false` |
+| `JUNIPER_CASCOR_LOG_FORMAT` | juniper-cascor | `text` |
+| `JUNIPER_CASCOR_SENTRY_DSN` | juniper-cascor | *(unset)* |
+| `JUNIPER_CASCOR_METRICS_ENABLED` | juniper-cascor | `false` |
+| `CANOPY_LOG_FORMAT` | juniper-canopy | `text` |
+| `CANOPY_SENTRY_DSN` | juniper-canopy | *(unset)* |
+| `CANOPY_METRICS_ENABLED` | juniper-canopy | `false` |
+
+> **Tip**: Use `.env.observability` to auto-enable metrics when running with the observability profile. See `make monitor`.
+
+### Grafana
+
+| Variable | Service | Default | Notes |
+|----------|---------|---------|-------|
+| `GRAFANA_ADMIN_USER` | grafana | `admin` | |
+| `GF_SECURITY_ADMIN_PASSWORD__FILE` | grafana | `/run/secrets/grafana_admin_password` | **Docker secret only** — no env var fallback. Set password in `secrets/grafana_admin_password.txt` |
+
+### Demo Profile
+
+| Variable | Service | Default |
+|----------|---------|---------|
+| `JUNIPER_CANOPY_DEMO_MODE` | juniper-canopy-dev | `true` |
+| `JUNIPER_CASCOR_AUTO_START` | juniper-cascor-demo | `true` |
+| `JUNIPER_CASCOR_AUTO_DATASET` | juniper-cascor-demo | `spiral` |
+| `JUNIPER_CASCOR_AUTO_DATASET_PARAMS` | juniper-cascor-demo | JSON params |
+| `JUNIPER_CASCOR_AUTO_NETWORK` | juniper-cascor-demo | JSON config |
+| `JUNIPER_CASCOR_AUTO_TRAIN_EPOCHS` | juniper-cascor-demo | `500` |
+
+### Infrastructure Services
+
+| Variable | Service | Default | Notes |
+|----------|---------|---------|-------|
+| `REDIS_PORT` | redis | `6379` | |
+| `REDIS_MAX_MEMORY` | redis | `100mb` | |
+| `WORKER_REPLICAS` | juniper-cascor-worker | `2` | Number of worker replicas in the deployment |
+
+### Healthcheck Tuning
+
+All container healthchecks reference shared YAML anchors (`x-healthcheck-defaults`, `x-healthcheck-cascor`, `x-healthcheck-canopy`, `x-healthcheck-worker`, `x-healthcheck-redis`) merged into each service via `<<: *anchor`. The interval/timeout/retries/start_period values can be overridden via environment variables:
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `HEALTHCHECK_INTERVAL` | `30s` | Default interval used by `x-healthcheck-defaults` and most services |
+| `HEALTHCHECK_TIMEOUT` | `10s` | Default timeout |
+| `HEALTHCHECK_RETRIES` | `3` | Default retry count |
+| `HEALTHCHECK_START_PERIOD` | `30s` | Default startup grace period |
+| `CASCOR_HEALTHCHECK_*` | (per-service) | Cascor-specific overrides via `x-healthcheck-cascor` |
+| `CANOPY_HEALTHCHECK_*` | (per-service) | Canopy-specific overrides via `x-healthcheck-canopy` |
+| `WORKER_HEALTHCHECK_*` | (per-service) | Worker-specific overrides via `x-healthcheck-worker` |
+| `REDIS_HEALTHCHECK_*` | (per-service) | Redis-specific overrides via `x-healthcheck-redis` |
+
+### Docker Secret File Variables
+
+These environment variables point containers to their mounted Docker secret files. They are set automatically in `docker-compose.yml` and should not need manual configuration.
+
+| Variable | Service | Value |
+|----------|---------|-------|
+| `JUNIPER_DATA_API_KEYS_FILE` | juniper-data | `/run/secrets/juniper_data_api_keys` |
+| `JUNIPER_CASCOR_API_KEYS_FILE` | juniper-cascor | `/run/secrets/juniper_cascor_api_keys` |
+| `JUNIPER_DATA_API_KEY_FILE` | juniper-cascor | `/run/secrets/juniper_data_api_keys` |
+| `CANOPY_API_KEY_FILE` | juniper-canopy | `/run/secrets/canopy_api_key` |
+| `JUNIPER_CASCOR_API_KEY_FILE` | juniper-canopy | `/run/secrets/juniper_cascor_api_keys` |
+| `CASCOR_AUTH_TOKEN_FILE` | juniper-cascor-worker | `/run/secrets/cascor_auth_token` |
+
+---
+
+---
+
+## Directory Layout Reference
+
+Relocated verbatim from `AGENTS.md` (P3 of the shared-session-memory plan) so it is read on demand rather than loaded into every session.
+
+```text
+juniper-deploy/
+├── docker-compose.yml              # Service orchestration (12 services, 4 profiles)
+├── Makefile                        # Developer CLI (23 targets)
+├── .env.example                    # Environment variable template
+├── .env.demo                       # Demo profile overrides
+├── .env.observability              # Observability profile overrides
+├── AGENTS.md                       # Agent instructions (this file)
+├── CLAUDE.md                       # Symlink → AGENTS.md
+├── CHANGELOG.md                    # Release history
+├── README.md                       # Quickstart guide
+├── pyproject.toml                  # Pytest configuration
+├── requirements-test.txt           # Test dependencies
+├── .pre-commit-config.yaml         # Pre-commit hooks
+├── .gitignore                      # Git ignore rules
+│
+├── scripts/
+│   ├── health_check.sh             # Health report formatter
+│   ├── wait_for_services.sh        # Service readiness poller
+│   ├── test_demo_profile.sh        # Demo profile integration test
+│   └── test_health_enhanced.sh     # Enhanced health check validation
+│
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py                 # Shared fixtures (JUNIPER_TEST_* env vars)
+│   ├── constants.py                # Shared constants (DEFAULT_TIMEOUT)
+│   ├── test_health.py              # Health endpoint tests (3 services)
+│   ├── test_data_service.py        # Dataset lifecycle tests
+│   ├── test_full_stack.py          # Cross-service integration tests
+│   ├── test_availability.py        # Availability checking fixtures
+│   └── test_compose_security_config.py  # Docker security regression tests
+│
+├── docs/
+│   ├── DOCUMENTATION_OVERVIEW.md   # Navigation index
+│   ├── QUICK_START.md              # 5-minute quickstart
+│   ├── ENVIRONMENT_SETUP.md        # Complete env var setup guide
+│   ├── USER_MANUAL.md              # Profiles, monitoring, security
+│   ├── DEVELOPER_CHEATSHEET.md     # Common commands reference
+│   ├── OBSERVABILITY_GUIDE.md      # Prometheus/Grafana documentation
+│   ├── REFERENCE.md                # Technical reference
+│   └── testing/
+│       └── TESTING_QUICK_START.md  # Integration test guide
+│
+├── notes/                          # Development notes and procedures
+│   ├── WORKTREE_SETUP_PROCEDURE.md
+│   ├── WORKTREE_CLEANUP_PROCEDURE_V2.md
+│   ├── THREAD_HANDOFF_PROCEDURE.md
+│   ├── FIX_FAILING_TESTS_PLAN.md
+│   ├── CONTAINER_VALIDATION_CI_PLAN.md
+│   ├── JUNIPER-DEPLOY_POST-RELEASE_DEVELOPMENT-ROADMAP.md
+│   ├── history/                    # Archived/completed plans
+│   └── pull_requests/              # PR description archives
+│
+├── prometheus/
+│   ├── prometheus.yml              # Scrape configuration
+│   ├── alert_rules.yml             # Alert rules
+│   └── recording_rules.yml         # Recording rules
+│
+├── grafana/
+│   └── provisioning/
+│       ├── dashboards/
+│       │   ├── dashboard-providers.yml
+│       │   ├── juniper-overview.json
+│       │   ├── juniper-data.json
+│       │   ├── juniper-cascor.json
+│       │   └── juniper-canopy.json
+│       └── datasources/
+│           └── prometheus.yml
+│
+├── alertmanager/
+│   └── alertmanager.yml            # Alert routing configuration
+│
+├── secrets/                        # Docker secret files (git-ignored)
+│   ├── juniper_data_api_keys.txt
+│   ├── juniper_cascor_api_keys.txt
+│   ├── cascor_auth_token.txt
+│   ├── canopy_api_key.txt
+│   └── grafana_admin_password.txt
+│
+├── secrets.example/                # Secret file templates
+│   ├── juniper_data_api_keys.txt
+│   ├── juniper_cascor_api_keys.txt
+│   ├── cascor_auth_token.txt
+│   ├── canopy_api_key.txt
+│   └── grafana_admin_password.txt
+│
+└── .github/
+    ├── workflows/
+    │   ├── ci.yml                  # CI/CD pipeline (v0.2.0)
+    │   ├── sequence-safety.yml     # Per-PR ADVISORY sequence-safety screens
+    │   └── main-verify.yml         # Post-merge bypass-proof sequence-safety net
+    ├── CODEOWNERS
+    └── dependabot.yml
+```
+
+---
+
+---
+
+## Security Architecture Reference
+
+Relocated verbatim from `AGENTS.md` (P3 of the shared-session-memory plan) so it is read on demand rather than loaded into every session.
+
+### Network Isolation
+
+Four Docker networks enforce service-to-service communication boundaries:
+
+| Network | Type | Purpose | Services |
+|---------|------|---------|----------|
+| `frontend` | bridge | Public-facing dashboard | juniper-canopy, juniper-canopy-demo, juniper-canopy-dev |
+| `backend` | **internal** | CasCor + infrastructure (no external access) | juniper-cascor, redis, prometheus |
+| `data` | **internal** | JuniperData access (no external access) | juniper-data, juniper-cascor, juniper-canopy, prometheus |
+| `monitoring` | bridge | Observability stack | prometheus, grafana |
+
+Networks marked **internal** have no external connectivity — containers on these networks can only communicate with other containers on the same network.
+
+### Container Hardening
+
+All Juniper application containers (juniper-data, juniper-cascor, juniper-canopy variants) have:
+
+- `security_opt: no-new-privileges:true` — prevents privilege escalation
+- `cap_drop: ALL` — drops all Linux capabilities
+
+### Port Binding Restrictions
+
+Internal and infrastructure services bind to `127.0.0.1` (localhost only):
+
+- `juniper-data` → `127.0.0.1:8100`
+- `prometheus` → `127.0.0.1:9090`
+- `alertmanager` → `127.0.0.1:9093`
+- `grafana` → `127.0.0.1:3000`
+
+Note: Redis has no host port binding and is only accessible from within the Docker network.
+
+External-facing services (cascor host port, canopy) bind to `0.0.0.0` by default.
+
+### Docker Secrets
+
+API keys and the Grafana admin password are managed via Docker secrets (mounted as files at `/run/secrets/`):
+
+| Secret | File | Used By |
+|--------|------|---------|
+| `juniper_data_api_keys` | `secrets/juniper_data_api_keys.txt` | juniper-data, juniper-cascor |
+| `juniper_cascor_api_keys` | `secrets/juniper_cascor_api_keys.txt` | juniper-cascor, juniper-canopy |
+| `cascor_auth_token` | `secrets/cascor_auth_token.txt` | juniper-cascor-worker |
+| `canopy_api_key` | `secrets/canopy_api_key.txt` | juniper-canopy |
+| `grafana_admin_password` | `secrets/grafana_admin_password.txt` | grafana |
+
+Run `make prepare-secrets` to create placeholder secret files. See `secrets.example/` for templates.
+
+### Pinned Third-Party Images
+
+| Image | Version | Service |
+|-------|---------|---------|
+| `prom/prometheus` | v3.10.0 | prometheus |
+| `prom/alertmanager` | v0.28.1 | alertmanager |
+| `grafana/grafana` | 12.4.0 | grafana |
+| `redis` | 7.4-alpine | redis |
+
+---
+
+---
+
+## Testing Reference
+
+Relocated verbatim from `AGENTS.md` (P3 of the shared-session-memory plan) so it is read on demand rather than loaded into every session.
+
+### Python Integration Tests
+
+```bash
+pip install -r requirements-test.txt
+make up                              # or make demo / make dev
+bash scripts/wait_for_services.sh    # Wait for services to be healthy
+pytest tests/ -v                     # Run all tests
+pytest tests/ -v -m health           # Health endpoint tests only
+pytest tests/ -v -m data             # Dataset tests only
+pytest tests/ -v -m full_stack       # Cross-service tests only
+```
+
+**Test files**:
+
+| File | Markers | Tests |
+|------|---------|-------|
+| `test_health.py` | `health` | Liveness, readiness, schema, content-type for all 3 services |
+| `test_data_service.py` | `data` | Generators, dataset lifecycle (create, read, download, delete), stats |
+| `test_full_stack.py` | `full_stack` | CasCor-Data integration, Canopy dashboard, 3-service pipeline |
+| `test_availability.py` | — | Skip mechanism validation, fixture scope checks |
+| `test_compose_security_config.py` | — | Docker secret wiring, network isolation, Grafana secret-only password |
+
+**Configurable service URLs** (via environment variables):
+
+| Variable | Default |
+|----------|---------|
+| `JUNIPER_TEST_DATA_URL` | `http://localhost:8100` |
+| `JUNIPER_TEST_CASCOR_URL` | `http://localhost:8201` |
+| `JUNIPER_TEST_CANOPY_URL` | `http://localhost:8050` |
+| `JUNIPER_TEST_DATA_API_KEY` | *(unset)* |
+| `JUNIPER_TEST_CASCOR_API_KEY` | *(unset)* |
+| `JUNIPER_TEST_CANOPY_API_KEY` | *(unset)* |
+
+### Shell Script Tests
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/test_demo_profile.sh` | 7-step demo profile validation (config, start, wait, seed check, training, canopy, shutdown) |
+| `scripts/test_health_enhanced.sh` | 8-step health check validation (config, start, liveness, readiness, schema, dependencies, Docker healthcheck) |
+
+---
+
+---
+
+## Documentation Reference
+
+Relocated verbatim from `AGENTS.md` (P3 of the shared-session-memory plan) so it is read on demand rather than loaded into every session.
+
+| Document | Purpose |
+|----------|---------|
+| `docs/DOCUMENTATION_OVERVIEW.md` | Navigation index — start here |
+| `docs/QUICK_START.md` | Start the Juniper stack in 5 minutes |
+| `docs/ENVIRONMENT_SETUP.md` | Complete environment configuration guide |
+| `docs/USER_MANUAL.md` | Profiles, monitoring, security, logging, scripts |
+| `docs/DEVELOPER_CHEATSHEET.md` | Common commands quick-reference |
+| `docs/OBSERVABILITY_GUIDE.md` | Prometheus, Grafana, AlertManager, Sentry documentation |
+| `docs/REFERENCE.md` | Technical reference (services, env vars, networks, healthchecks) |
+| `docs/testing/TESTING_QUICK_START.md` | Integration test guide |
+
+---
 
 ---
 
