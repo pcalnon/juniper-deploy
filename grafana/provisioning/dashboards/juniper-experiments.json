@@ -866,6 +866,153 @@
       }
     },
     {
+      "id": 25,
+      "type": "row",
+      "title": "Cross-App Comparison \u2014 cascor vs recurrence",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 56
+      },
+      "collapsed": false
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "Run Wall-Clock by Service",
+      "description": "time() - process_start_time_seconds \u2014 LIKE-FOR-LIKE across apps: every service exposes this with identical semantics, so cascor and recurrence are directly comparable here. Caveat: it measures the run's SERVICE lifetime, not training time alone. The experiment stack is brought up and torn down per run, so the two are close, but a slow import or a long teardown lands in this number.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 57
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - process_start_time_seconds{environment=\"host-experiment\", run_id=~\"$run_id\", service=~\"$service\"}",
+          "legendFormat": "{{service}} \u2014 {{run_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 0
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "Run CPU Seconds by Service",
+      "description": "process_cpu_seconds_total \u2014 LIKE-FOR-LIKE across apps, identical semantics. Cumulative CPU seconds consumed by each run's service. Use this rather than wall-clock when comparing runs that shared the host with other work: wall-clock absorbs contention (a concurrent clamscan measured +6.8% on one cell), CPU seconds largely does not.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 57
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_cpu_seconds_total{environment=\"host-experiment\", run_id=~\"$run_id\", service=~\"$service\"}",
+          "legendFormat": "{{service}} \u2014 {{run_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "fillOpacity": 0
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 28,
+      "type": "table",
+      "title": "Native Training Time \u2014 cascor vs recurrence",
+      "description": "Each app's OWN training-time metric, side by side. These are NOT like-for-like and must not be subtracted or ratioed: cascor's is the histogram _sum, i.e. cumulative seconds spent inside training steps (monotonic, excludes non-step overhead); recurrence's is a gauge holding the wall duration of the MOST RECENT training run (it resets each run). Both are seconds over different denominators. For a strict cross-app comparison use the wall-clock or CPU-seconds panels above. cascor has no run-duration metric \u2014 plan \u00a712.2 item 1 option (b) proposed one and it was not built.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 65
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (run_id, service, experiment) (juniper_cascor_training_step_duration_seconds_sum{environment=\"host-experiment\", run_id=~\"$run_id\", service=~\"$service\"})",
+          "legendFormat": "cascor cumulative step seconds",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (run_id, service, experiment) (juniper_recurrence_train_last_duration_seconds{environment=\"host-experiment\", run_id=~\"$run_id\", service=~\"$service\"})",
+          "legendFormat": "recurrence last train wall seconds",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        }
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
       "id": 19,
       "type": "row",
       "title": "HTTP (host-experiment targets)",
@@ -873,7 +1020,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 56
+        "y": 73
       },
       "collapsed": false
     },
@@ -890,7 +1037,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 57
+        "y": 74
       },
       "targets": [
         {
@@ -937,7 +1084,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 57
+        "y": 74
       },
       "targets": [
         {
@@ -980,7 +1127,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 65
+        "y": 82
       }
     },
     {
@@ -996,7 +1143,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 66
+        "y": 83
       },
       "targets": [
         {
@@ -1043,7 +1190,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 66
+        "y": 83
       },
       "targets": [
         {
