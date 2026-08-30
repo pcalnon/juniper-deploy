@@ -5,9 +5,21 @@
 **Author**: Paul Calnon
 **License**: MIT License
 **Version**: 0.2.1
-**Last Updated**: 2026-08-29
+**Last Updated**: 2026-08-30
 
 ---
+
+## Hazards (resident — do not relocate)
+
+Directives whose **non-application destroys work**. Everything else in this file may be demoted to
+`docs/REFERENCE.md` under the memory budget; these may not, because a pointer only helps an agent
+that already knows to look. Adding a new hazard here is legitimate — ratchet space out of a
+reference section in the same PR rather than waiving the budget gate.
+
+- **`/tmp/` is prohibited** as the home for any script that produces, modifies or analyzes
+  repository content — it is reaped when sessions, sandboxes or containers end, and the scripts are
+  irrecoverable. Scratch *data* there is fine; source files are not. Permanent utilities live in
+  `util/`, single-use ones in `util/ad-hoc/`. Full rule: § Script Placement.
 
 ## Quick Reference
 
