@@ -31,6 +31,101 @@
 
 ---
 
+## Project Overview Reference
+
+Relocated verbatim from `AGENTS.md` (P3 of the shared-session-memory plan) so it is read on demand rather than loaded into every session.
+
+`juniper-deploy` orchestrates the full Juniper stack via Docker Compose. It manages service dependencies, health checks, environment variable wiring, security hardening, and observability infrastructure for the Juniper platform.
+
+### Docker Compose Profiles
+
+| Service | full | demo | dev | observability |
+|---------|:----:|:----:|:---:|:-------------:|
+| juniper-data | x | x | x | |
+| juniper-cascor | x | | x | |
+| juniper-cascor-demo | | x | | |
+| demo-seed (init container) | | x | | |
+| juniper-canopy | x | | | |
+| juniper-canopy-demo | | x | | |
+| juniper-canopy-dev | | | x | |
+| redis | x | | | |
+| prometheus | | | | x |
+| alertmanager | | | | x |
+| grafana | | | | x |
+
+**Profile descriptions:**
+
+- **full** — All real services with Redis (production-like)
+- **demo** — Auto-configured CasCor training with seeded dataset
+- **dev** — Real data + cascor services, canopy in demo mode (frontend development)
+- **observability** — Add-on profile: Prometheus, AlertManager, Grafana (combine with `full` or `demo`)
+
+> **Note**: Demo variants (`juniper-canopy-demo`, `juniper-cascor-demo`) are designed for local demonstration only. They do not include Docker secrets for API keys, rate limiting configuration, or observability environment variables. Do not use demo variants for production or security-sensitive deployments.
+
+> **Correction (2026-09-02): the three reasons above are mostly out of date — the advice is not.**
+> Checked against `docker-compose.yml` rather than inherited: both `juniper-cascor-demo` and
+> `juniper-canopy-demo` **do** carry a `secrets:` block and an `*_API_KEY_FILE` var, and **do** set
+> `*_RATE_LIMIT_ENABLED` / `*_RATE_LIMIT_REQUESTS_PER_MINUTE`. Only the observability claim still
+> partly holds: the demo services set `*_METRICS_ENABLED` / `*_METRICS_TRUSTED_IPS` but, unlike
+> their non-demo counterparts, set neither `*_LOG_FORMAT` nor `*_SENTRY_DSN`.
+>
+> Keep the directive — demo profiles seed a dataset and auto-start training, which is reason enough
+> — but do not rely on the secrets/rate-limit justification, and re-derive from the compose file
+> before quoting it. This note was nearly promoted into `AGENTS.md` § Hazards on the strength of its
+> stated reasons; a resident directive built on a stale premise is worse than no directive.
+
+### Service Dependency Graph
+
+```text
+# Full profile
+juniper-canopy (8050)
+  ├── depends_on: juniper-cascor (healthy)
+  ├── depends_on: juniper-data (healthy)
+  └── depends_on: redis (healthy)
+
+juniper-cascor (8200)
+  └── depends_on: juniper-data (healthy)
+
+juniper-data (8100)
+  └── no dependencies
+
+redis (6379)
+  └── no dependencies
+
+# Demo profile
+juniper-canopy-demo (8050)
+  ├── depends_on: juniper-cascor-demo (healthy)
+  └── depends_on: juniper-data (healthy)
+
+juniper-cascor-demo (8200)
+  ├── depends_on: juniper-data (healthy)
+  └── depends_on: demo-seed (completed_successfully)
+
+demo-seed (init container)
+  └── depends_on: juniper-data (healthy)
+
+# Dev profile
+juniper-canopy-dev (8050)
+  └── depends_on: juniper-data (healthy)
+
+juniper-cascor (8200)
+  └── depends_on: juniper-data (healthy)
+
+# Observability (add-on)
+grafana (3000)
+  └── depends_on: prometheus (healthy)
+
+prometheus (9090)
+  └── depends_on: alertmanager (healthy)
+
+alertmanager (9093)
+  └── no dependencies
+```
+
+---
+
+---
+
 ## Service Reference
 
 ### Core Services
