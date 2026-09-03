@@ -39,9 +39,9 @@
   ],
   "files": {
     "AGENTS.md": {
-      "ceiling_chars": 23074,
+      "ceiling_chars": 21744,
       "_note": "Seeded 2026-08-25 at 34,569 chars, the size of AGENTS.md IN THIS REPO on the day the port landed (zero slack; the job shipped ADVISORY for the soak). RAISED 2026-08-26 to 36,569 (+2,000) under an Allow-Ceiling-Raise: AGENTS.md trailer when --advisory was removed (plan P5 step d): the slack is the largest single AGENTS.md-growing commit re-measured here over the 30 days to 2026-08-26 (max 1,982, median 1,982, ~66 chars/day), floored at 2,000 for the fleet-wide fan-out class that added 1,982 chars to six repos' AGENTS.md at once on 2026-08-21. Growth past the ceiling now FAILS the check; Allow-Budget-Overrun: AGENTS.md is the loan. After a cut, lower it by hand to a value with RE-MEASURED slack -- never bare --ratchet, which leaves zero headroom."
     }
   },
-  "_note": "P5 step e (the cut): AGENTS.md relocated to docs/REFERENCE.md verbatim, 21,074 chars remaining. Ceiling lowered 36,569 -> 23,074 = size + 2,000 slack, where slack is max(largest single 30-day growing commit, 2,000 fleet fan-out floor). Set by hand, NOT by --ratchet: run straight after a cut --ratchet leaves zero headroom and fails the next author on one character. Re-measured 2026-08-29."
+  "_note": "P5 step e (the cut): AGENTS.md relocated to docs/REFERENCE.md verbatim. Ceiling lowered 36,569 -> 23,074 (2026-08-29), then TIGHTENED to 21,744 on 2026-09-03 = size 19,744 + 2,000 slack, where slack is max(largest single 30-day growing commit, 2,000 fleet fan-out floor). RE-MEASURED, not carried: this repo's largest single AGENTS.md-growing commit over the 30 days to 2026-09-03 is 1,982 -- the fleet-wide fan-out sweep and nothing bigger -- so the 2,000 FLOOR is what binds here, not this repo's own burn. The 2026-09-02 ratchet (JUNIPER-DEPLOY#203) cut the file to 19,744 but deliberately left the ceiling where it was, which produced 3,330 of headroom against a 1,982 worst case; the 1,330 surplus is accretion room the ratchet exists to deny. Set by hand, NOT by --ratchet, which leaves zero headroom and fails the next author on one character."
 }
