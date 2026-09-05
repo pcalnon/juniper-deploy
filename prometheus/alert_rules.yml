@@ -235,6 +235,59 @@ groups:
           summary: "No active WebSocket connections to juniper-canopy"
           description: "juniper-canopy is in service mode but has no WebSocket connections for 10 minutes."
 
+      # X7 PR 3. The rule above uses `demo_mode_active == 0` as a SUPPRESSOR: it stays
+      # silent while canopy is in demo mode. That is right for a WebSocket-count alert,
+      # and it means the only place demo mode appears in this file is as a reason NOT to
+      # page. So the one condition that makes every other canopy signal meaningless --
+      # the dashboard is serving a simulator -- was itself unalertable.
+      #
+      # Canopy enters demo mode when a COLD START cannot reach cascor. Outside the
+      # deliberate demo profile that is never intended: the stack always ships a cascor,
+      # so demo mode means the dependency was missing at start and the operator is looking
+      # at simulated training data.
+      #
+      # Scoped by EXCLUSION rather than by `environment="docker"`. The positive form was
+      # the first draft and it is subtly wrong: it silently drops any future deployment
+      # label (k8s, staging) and would leave those environments unalerted while looking
+      # perfectly deliberate. `docker-demo` is the demo profile's own label
+      # (`prometheus.demo.yml`), where simulated data is the point.
+      - alert: CanopyServingSimulatedData
+        expr: >
+          juniper_canopy_demo_mode_active{environment!="host-experiment",environment!="docker-demo"} == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: juniper-canopy
+        annotations:
+          summary: "juniper-canopy is serving SIMULATED data"
+          description: >
+            juniper-canopy fell back to demo mode, which happens when a cold start cannot
+            reach juniper-cascor. Every training number on the dashboard is simulated.
+            Restarting canopy once cascor is reachable returns it to service mode.
+
+      # X7 slice 1c published a per-class gauge for what the status cache concluded about
+      # cascor. One series per class rather than an integer enum, so this query needs no
+      # knowledge of which number means what and a renamed class breaks it loudly rather
+      # than silently shifting an ordinal.
+      #
+      # `unreachable` is a positive observation (canopy asked and got an answer that was
+      # not a cascor status). `indeterminate` deliberately does NOT page: it means the
+      # breaker was open so the call was SKIPPED, and paging on it would claim evidence
+      # that was never gathered.
+      - alert: CanopyBackendUnreachable
+        expr: >
+          juniper_canopy_backend_status_class{status_class="unreachable",environment!="host-experiment"} == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: juniper-canopy
+        annotations:
+          summary: "juniper-canopy cannot reach juniper-cascor"
+          description: >
+            The canopy status cache has classified the cascor backend as unreachable for 5
+            minutes. The dashboard stays up and serves its last-known state marked stale;
+            training control will not work until cascor is reachable.
+
   # ═════════════════════════════════════════════════════════════════════════
   # METRICS-MON R5.4 — SLO BURN-RATE ALERTS (User-facing primary, §3)
   # ═════════════════════════════════════════════════════════════════════════

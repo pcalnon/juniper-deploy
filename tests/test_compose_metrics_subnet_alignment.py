@@ -230,3 +230,47 @@ def test_monitoring_subnet_is_absent_from_every_allowlist() -> None:
             f"`{var}` includes the monitoring subnet {monitoring}, but no scrape target lives on "
             f"monitoring — the allowlist must stay scoped to shared-with-Prometheus networks."
         )
+
+
+def _service_environment(compose: dict, service: str) -> dict[str, str]:
+    """A service's `environment:` block as a dict, accepting either compose form."""
+    env = compose["services"][service].get("environment") or {}
+    if isinstance(env, list):  # ["KEY=value", ...]
+        out: dict[str, str] = {}
+        for item in env:
+            key, _, value = str(item).partition("=")
+            out[key.strip()] = value.strip()
+        return out
+    return {str(k): str(v) for k, v in env.items()}
+
+
+def test_compose_forwards_every_metrics_var_to_its_service() -> None:
+    """Setting a metrics var in `.env.observability` must actually reach the container.
+
+    **This pins an invariant that currently holds; it is not fixing a live defect.**
+    Every scraped target already declares both vars. It is here because the invariant is
+    load-bearing and nothing else in this file checks it: `docker-compose.yml` declares no
+    `env_file`, so a service receives only the variables its own `environment:` block
+    names. A target that stopped naming them would keep passing every other check here —
+    they all read the env file and the CIDRs, and none asks whether the service can see
+    them — while its `/metrics` silently 404ed under a Prometheus job that goes on
+    scraping it.
+
+    That gap is not hypothetical in this repo: `juniper-canopy-dev` was missing both vars
+    (added in the same change), and it survived precisely because it is not in `TARGETS`
+    and so nothing looked.
+    """
+    compose = _load_compose()
+    for service, allow_var in TARGETS.items():
+        env = _service_environment(compose, service)
+
+        assert allow_var in env, f"`{service}` never receives `{allow_var}`: compose uses no `env_file`, so a variable absent from its `environment:` block cannot reach the container."
+
+        enabled_keys = [k for k in env if k.endswith("_METRICS_ENABLED")]
+        assert enabled_keys, f"`{service}` declares no *_METRICS_ENABLED variable, so `/metrics` can never be switched on for it."
+
+        # The value must interpolate from the name `.env.observability` actually ships,
+        # or the operator-facing switch is wired to nothing.
+        env_file_var = METRICS_ENABLED_VARS[service]
+        wiring = " ".join(env[k] for k in enabled_keys)
+        assert env_file_var in wiring, f"`{service}` declares {enabled_keys} but none reads `${{{env_file_var}}}`, the name `.env.observability` sets — the switch is wired to a variable nobody sets."
