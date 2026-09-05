@@ -728,8 +728,17 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
+      # X7 PR 3: probe /v1/health/live, not /v1/health. Liveness asks "is this process
+      # answering"; /v1/health also reports on the BACKEND (training_active), so a
+      # container restart could be triggered by an upstream condition a restart cannot
+      # fix. Design §2.1 measured the older shape as an amplifier -- each probe launched
+      # a call that could block 123 s, so the probe that exists to detect the outage
+      # perpetuated it. Slices 1a/1c removed the blocking; this removes the coupling.
+      # Sequenced after PR 2 deliberately: tightening liveness while demo mode still
+      # presented simulated data as real converts a loud hang into a fast, silent restart
+      # INTO the simulator.
       test: ["CMD", "python", "-c",
-             "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health', timeout=5)"]
+             "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health/live', timeout=5)"]
       <<: *healthcheck-canopy
     networks:
       - backend
@@ -810,8 +819,17 @@ services:
       juniper-cascor-demo:
         condition: service_healthy
     healthcheck:
+      # X7 PR 3: probe /v1/health/live, not /v1/health. Liveness asks "is this process
+      # answering"; /v1/health also reports on the BACKEND (training_active), so a
+      # container restart could be triggered by an upstream condition a restart cannot
+      # fix. Design §2.1 measured the older shape as an amplifier -- each probe launched
+      # a call that could block 123 s, so the probe that exists to detect the outage
+      # perpetuated it. Slices 1a/1c removed the blocking; this removes the coupling.
+      # Sequenced after PR 2 deliberately: tightening liveness while demo mode still
+      # presented simulated data as real converts a loud hang into a fast, silent restart
+      # INTO the simulator.
       test: ["CMD", "python", "-c",
-             "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health', timeout=5)"]
+             "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health/live', timeout=5)"]
       <<: *healthcheck-canopy
     networks:
       - backend
@@ -850,6 +868,14 @@ services:
       JUNIPER_CANOPY_DEMO_MODE: "true"
       JUNIPER_CANOPY_JUNIPER_DATA_URL: "http://juniper-data:8100"
       JUNIPER_CANOPY_SERVER__HOST: "0.0.0.0"
+      # X7 PR 3 -- juniper-canopy and juniper-canopy-demo already declare these; the dev
+      # service did not, so `.env.observability` could not switch metrics on for it and
+      # its /metrics stayed 404 while the other two worked. Not currently a Prometheus
+      # scrape target, so this is a consistency gap rather than a live defect -- but the
+      # asymmetry is exactly the sort that gets discovered by someone debugging a blank
+      # dashboard against the dev profile.
+      JUNIPER_CANOPY_METRICS_ENABLED: "${CANOPY_METRICS_ENABLED:-false}"
+      JUNIPER_CANOPY_METRICS_TRUSTED_IPS: "${JUNIPER_CANOPY_METRICS_TRUSTED_IPS:-[\"127.0.0.1\",\"::1\"]}"
       # Two-flag bind attestation — same contract as the canonical
       # juniper-canopy service above (dev / demo-mode variant). Container
       # binds 0.0.0.0 (JUNIPER_CANOPY_SERVER__HOST above); host publish is
@@ -865,8 +891,17 @@ services:
       juniper-data:
         condition: service_healthy
     healthcheck:
+      # X7 PR 3: probe /v1/health/live, not /v1/health. Liveness asks "is this process
+      # answering"; /v1/health also reports on the BACKEND (training_active), so a
+      # container restart could be triggered by an upstream condition a restart cannot
+      # fix. Design §2.1 measured the older shape as an amplifier -- each probe launched
+      # a call that could block 123 s, so the probe that exists to detect the outage
+      # perpetuated it. Slices 1a/1c removed the blocking; this removes the coupling.
+      # Sequenced after PR 2 deliberately: tightening liveness while demo mode still
+      # presented simulated data as real converts a loud hang into a fast, silent restart
+      # INTO the simulator.
       test: ["CMD", "python", "-c",
-             "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health', timeout=5)"]
+             "import urllib.request; urllib.request.urlopen('http://localhost:8050/v1/health/live', timeout=5)"]
       <<: *healthcheck-canopy
     deploy:
       <<: *resources-light
