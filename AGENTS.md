@@ -5,7 +5,7 @@
 **Author**: Paul Calnon
 **License**: MIT License
 **Version**: 0.2.1
-**Last Updated**: 2026-09-02
+**Last Updated**: 2026-09-10
 
 ---
 
@@ -191,7 +191,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`, v0.2.0):
 
 ### Sequence-Safety Advisory Net (rollout W2, 2026-08-08)
 
-Two **advisory** workflows port the ecosystem sequence-safety screens (the 2026-07-28 Cursor-PR-flood remediation) into juniper-deploy as the final consumer of the rollout (8th of 8 repos). Both consume the published `juniper-ci-tools>=0.8.0,<0.9.0` package — no inline copy lives in this repo.
+Two **advisory** workflows port the ecosystem sequence-safety screens (the 2026-07-28 Cursor-PR-flood remediation) into juniper-deploy as the final consumer of the rollout (8th of 8 repos). Both consume the published `juniper-ci-tools>=0.8.0,<0.10.0` package — no inline copy lives in this repo.
 
 | Workflow | Trigger | Role |
 |----------|---------|------|
