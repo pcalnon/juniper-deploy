@@ -22,11 +22,22 @@ data:
   replicaCount: 1
 
   image:
-    registry: ""
+    # Fully-qualified GHCR ref. This was "" until 2026-09-15, which rendered
+    # `{repo}:{tag}` with NO registry -- a ref Kubernetes resolves against
+    # docker.io/library, where it does not exist -- so the chart only deployed
+    # against a cluster with the image side-loaded by hand (kind load / minikube
+    # cache). That is the same "runs nowhere but this workstation" defect that
+    # container-registry Wave 3 fixed in docker-compose.yml.
+    #
+    # Set HERE and not as `global.imageRegistry`: the global key is a Bitnami
+    # convention the bundled redis subchart also honours, and setting it rewrites
+    # redis to ghcr.io/pcalnon/bitnami/redis:... , which does not exist and makes
+    # `helm template` fail. `juniper.image` prefers this per-block value.
+    registry: "ghcr.io/pcalnon"
     repository: juniper-data
     # DEPLOY-15: Pin to a concrete version for reproducible deployments. Bump
     # this in lockstep with the juniper-data app version when releasing.
-    tag: "0.6.0"
+    tag: "0.14.0"
     pullPolicy: IfNotPresent
 
   service:
@@ -92,10 +103,21 @@ cascor:
   replicaCount: 1
 
   image:
-    registry: ""
+    # Fully-qualified GHCR ref. This was "" until 2026-09-15, which rendered
+    # `{repo}:{tag}` with NO registry -- a ref Kubernetes resolves against
+    # docker.io/library, where it does not exist -- so the chart only deployed
+    # against a cluster with the image side-loaded by hand (kind load / minikube
+    # cache). That is the same "runs nowhere but this workstation" defect that
+    # container-registry Wave 3 fixed in docker-compose.yml.
+    #
+    # Set HERE and not as `global.imageRegistry`: the global key is a Bitnami
+    # convention the bundled redis subchart also honours, and setting it rewrites
+    # redis to ghcr.io/pcalnon/bitnami/redis:... , which does not exist and makes
+    # `helm template` fail. `juniper.image` prefers this per-block value.
+    registry: "ghcr.io/pcalnon"
     repository: juniper-cascor
     # DEPLOY-15: pinned; bump with juniper-cascor releases.
-    tag: "0.4.0"
+    tag: "0.11.0"
     pullPolicy: IfNotPresent
 
   service:
@@ -181,10 +203,21 @@ canopy:
   replicaCount: 1
 
   image:
-    registry: ""
+    # Fully-qualified GHCR ref. This was "" until 2026-09-15, which rendered
+    # `{repo}:{tag}` with NO registry -- a ref Kubernetes resolves against
+    # docker.io/library, where it does not exist -- so the chart only deployed
+    # against a cluster with the image side-loaded by hand (kind load / minikube
+    # cache). That is the same "runs nowhere but this workstation" defect that
+    # container-registry Wave 3 fixed in docker-compose.yml.
+    #
+    # Set HERE and not as `global.imageRegistry`: the global key is a Bitnami
+    # convention the bundled redis subchart also honours, and setting it rewrites
+    # redis to ghcr.io/pcalnon/bitnami/redis:... , which does not exist and makes
+    # `helm template` fail. `juniper.image` prefers this per-block value.
+    registry: "ghcr.io/pcalnon"
     repository: juniper-canopy
     # DEPLOY-15: pinned; bump with juniper-canopy releases.
-    tag: "0.4.0"
+    tag: "0.8.0"
     pullPolicy: IfNotPresent
 
   service:
@@ -251,10 +284,21 @@ worker:
   replicaCount: 2
 
   image:
-    registry: ""
+    # Fully-qualified GHCR ref. This was "" until 2026-09-15, which rendered
+    # `{repo}:{tag}` with NO registry -- a ref Kubernetes resolves against
+    # docker.io/library, where it does not exist -- so the chart only deployed
+    # against a cluster with the image side-loaded by hand (kind load / minikube
+    # cache). That is the same "runs nowhere but this workstation" defect that
+    # container-registry Wave 3 fixed in docker-compose.yml.
+    #
+    # Set HERE and not as `global.imageRegistry`: the global key is a Bitnami
+    # convention the bundled redis subchart also honours, and setting it rewrites
+    # redis to ghcr.io/pcalnon/bitnami/redis:... , which does not exist and makes
+    # `helm template` fail. `juniper.image` prefers this per-block value.
+    registry: "ghcr.io/pcalnon"
     repository: juniper-cascor-worker
     # DEPLOY-15: pinned; bump with juniper-cascor-worker releases.
-    tag: "0.3.0"
+    tag: "0.6.0"
     pullPolicy: IfNotPresent
 
   env:
