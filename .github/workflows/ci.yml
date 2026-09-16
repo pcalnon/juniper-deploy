@@ -445,6 +445,64 @@ jobs:
             --trailers-file memory-budget-trailers.txt
 
   # ═══════════════════════════════════════════════════════════════════════════
+  # Published Image Refs: every pinned Juniper image resolves, multi-arch
+  # ═══════════════════════════════════════════════════════════════════════════
+  #
+  # Container-registry plan D-1 gives juniper-deploy this role explicitly: it is
+  # "the natural home for an integration test that pulls the published images --
+  # a stronger check than building from ../sibling paths".
+  #
+  # WHAT IT CATCHES. docker-compose.yml names a release ref that was never
+  # published, or was published single-arch. Compose reports that as a pull
+  # failure at `up` time, on the host that needed it. The single-arch half is a
+  # real mechanism, not a hypothetical: publish-image.yml has both arch jobs push
+  # BY DIGEST and only the merge job apply tags, precisely because two jobs
+  # pushing one tag would race and leave a single-arch image wearing a multi-arch
+  # tag -- which then fails only on the host that needs the other arch (a Pi).
+  #
+  # WHY A MANIFEST QUERY AND NOT `docker pull`. The five images are ~270-312 MB
+  # compressed each; pulling all of them on every PR buys nothing the manifest
+  # does not already answer, and the arch list IS the thing under test. The
+  # packages are public, so no credential is needed.
+  #
+  # NOT FLAKE-PRONE BY CONSTRUCTION. An anonymous ghcr.io token request was
+  # observed timing out once in five on 2026-09-15, so the script retries
+  # transients (timeouts, resets, 5xx) with backoff and never retries a 404 --
+  # a 404 is the answer this gate exists to report.
+  #
+  # STANDALONE, and deliberately ABSENT from the Quality Gate `needs:` list, per
+  # the same plan correction C9 the Memory Budget job records above: a `needs:`
+  # entry makes a skip on a non-PR event fail the gate. Whether this context is
+  # REQUIRED is decided in the branch ruleset, never here.
+  published-image-refs:
+    name: Published Image Refs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install PyYAML
+        run: python3 -m pip install --disable-pip-version-check "PyYAML>=6.0"
+
+      - name: Verify every pinned Juniper image is published multi-arch
+        run: |
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║  juniper-deploy - Published Image Refs                     ║"
+          echo "╚════════════════════════════════════════════════════════════╝"
+          # No --expect-count here on purpose: the exact per-service census lives
+          # in tests/test_published_image_refs.py (EXPECTED_SITES), so there is
+          # one place to update when a service is added. The script's own
+          # zero-match guard still refuses a wholesale revert to :latest.
+          python3 scripts/verify_published_images.py
+
+  # ═══════════════════════════════════════════════════════════════════════════
   # Quality Gate: All required checks must pass
   # ═══════════════════════════════════════════════════════════════════════════
   required-checks:
