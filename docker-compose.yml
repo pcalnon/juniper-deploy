@@ -33,6 +33,36 @@
 #####################################################################################################################################################################################################
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Juniper image references — pinned release refs (container-registry Wave 3)
+#
+# Every Juniper `image:` below names a PUBLISHED, multi-arch (linux/amd64 +
+# linux/arm64) GHCR release ref rather than the old bare `<name>:latest`, which
+# was a LOCAL BUILD-OUTPUT TAG: it named whatever this workstation last built,
+# so the stack could not be brought up on any other host and two machines
+# running "the same stack" had no way to discover that they were not.
+#
+# Design of record: juniper-ml/notes/JUNIPER_2026-09-05_JUNIPER-ECOSYSTEM_
+# CONTAINER-REGISTRY-PUBLISHING-PLAN.md (D-3 tags X.Y.Z / X.Y / latest,
+# D-4 amd64 + arm64 for all five images).
+#
+# `build:` IS DELIBERATELY KEPT on every service that had it, so local
+# development still works without a registry round-trip. That carries a trap
+# worth stating, because it is silent:
+#
+#   `docker compose build` now stamps YOUR DEV TREE with the RELEASE TAG, and
+#   `docker compose up` then prefers that local image over the published one.
+#
+# Nothing in Docker warns about this. `make doctor` / `make image-preflight`
+# are the detectors: both read each image's org.opencontainers.image.revision
+# label and compare it against the source checkout's HEAD, reporting STALE or
+# DIRTY. Run `make doctor` after any local build, and `docker compose pull`
+# (or `docker image rm <ref>`) to get back to the published artifact.
+#
+# To bump: cut the upstream Release (which publishes the image via that repo's
+# publish-image.yml), then update the tag here. Do not point these at `latest`.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Health check defaults (Compose extension fields)
 # These x-* keys are ignored by Docker Compose itself but are referenced via
 # YAML anchors so a single source of truth drives every service's healthcheck
@@ -131,7 +161,7 @@ services:
         GIT_SHA: "${GIT_SHA_DATA:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_DATA:-}"
-    image: juniper-data:latest
+    image: ghcr.io/pcalnon/juniper-data:0.14.0
     container_name: juniper-data
     # No host port is published: juniper-data is attached only to the `backend`
     # and `data` networks, both `internal: true`. Docker cannot publish a host
@@ -194,7 +224,7 @@ services:
         GIT_SHA: "${GIT_SHA_CASCOR:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_CASCOR:-}"
-    image: juniper-cascor:latest
+    image: ghcr.io/pcalnon/juniper-cascor:0.11.0
     container_name: juniper-cascor
     ports:
       - "${BIND_HOST:-127.0.0.1}:${CASCOR_HOST_PORT:-8201}:${CASCOR_PORT:-8200}"
@@ -331,7 +361,7 @@ services:
         GIT_SHA: "${GIT_SHA_WORKER:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_WORKER:-}"
-    image: juniper-cascor-worker:latest
+    image: ghcr.io/pcalnon/juniper-cascor-worker:0.6.0
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -388,7 +418,7 @@ services:
         GIT_SHA: "${GIT_SHA_CASCOR:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_CASCOR:-}"
-    image: juniper-cascor:latest
+    image: ghcr.io/pcalnon/juniper-cascor:0.11.0
     container_name: juniper-cascor-demo
     ports:
       - "${BIND_HOST:-127.0.0.1}:${CASCOR_HOST_PORT:-8201}:${CASCOR_PORT:-8200}"
@@ -484,7 +514,13 @@ services:
   # ═══════════════════════════════════════════════════════════════════════════
   demo-seed:
     profiles: ["demo"]
-    image: juniper-data:latest
+    image: ghcr.io/pcalnon/juniper-data:0.14.0
+    # Pinned to the SAME ref as the `juniper-data` service above: demo-seed has
+    # no `build:` of its own — it reuses the data image with an `entrypoint:`
+    # override — so the "keep `build:` for local dev" rule is inapplicable here
+    # and the two refs must be bumped together. `make doctor` skips this service
+    # by design (it pairs `image:` with `build:`, and there is no build context
+    # to compare against); the juniper-data service covers the same artifact.
     container_name: juniper-demo-seed
     entrypoint:
       - python
@@ -553,7 +589,7 @@ services:
         GIT_SHA: "${GIT_SHA_RECURRENCE:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_RECURRENCE:-}"
-    image: juniper-recurrence:latest
+    image: ghcr.io/pcalnon/juniper-recurrence:0.5.0
     container_name: juniper-recurrence
     ports:
       - "${BIND_HOST:-127.0.0.1}:${RECURRENCE_HOST_PORT:-8211}:${RECURRENCE_PORT:-8210}"
@@ -617,7 +653,7 @@ services:
         GIT_SHA: "${GIT_SHA_CANOPY:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_CANOPY:-}"
-    image: juniper-canopy:latest
+    image: ghcr.io/pcalnon/juniper-canopy:0.8.0
     container_name: juniper-canopy
     ports:
       - "${BIND_HOST:-127.0.0.1}:${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
@@ -761,7 +797,7 @@ services:
         GIT_SHA: "${GIT_SHA_CANOPY:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_CANOPY:-}"
-    image: juniper-canopy:latest
+    image: ghcr.io/pcalnon/juniper-canopy:0.8.0
     container_name: juniper-canopy-demo
     ports:
       - "${BIND_HOST:-127.0.0.1}:${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
@@ -852,7 +888,7 @@ services:
         GIT_SHA: "${GIT_SHA_CANOPY:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_CANOPY:-}"
-    image: juniper-canopy:latest
+    image: ghcr.io/pcalnon/juniper-canopy:0.8.0
     container_name: juniper-canopy-dev
     ports:
       - "${BIND_HOST:-127.0.0.1}:${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
