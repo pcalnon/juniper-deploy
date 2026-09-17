@@ -67,6 +67,9 @@ EXPECTED_BUILT_SERVICES = {
     "juniper-cascor-worker",
     "juniper-data",
     "juniper-recurrence",
+    # Gained an `image:` when the test-runner image was first published
+    # (container-registry Wave 3). It has `build:` too, so doctor now covers it.
+    "test-runner",
 }
 
 _UNIQUE = itertools.count()

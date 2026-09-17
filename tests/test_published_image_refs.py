@@ -60,6 +60,7 @@ EXPECTED_SITES = {
     "juniper-canopy": "ghcr.io/pcalnon/juniper-canopy",
     "juniper-canopy-demo": "ghcr.io/pcalnon/juniper-canopy",
     "juniper-canopy-dev": "ghcr.io/pcalnon/juniper-canopy",
+    "test-runner": "ghcr.io/pcalnon/juniper-deploy-test",
 }
 
 

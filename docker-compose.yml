@@ -1096,6 +1096,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.test
+      args:
+        GIT_SHA: "${GIT_SHA_DEPLOY:-}"
+        BUILD_DATE: "${BUILD_DATE:-}"
+        APP_VERSION: "${APP_VERSION_DEPLOY:-}"
+    # Published by .github/workflows/publish-image.yml on `release: published`.
+    # `build:` is kept so local development needs no registry round-trip -- and
+    # carries the same trap as every other service here: `docker compose build`
+    # stamps the dev tree with this release tag and `up` then prefers it.
+    # `make doctor` is the detector; this service is now inside its coverage
+    # domain, because it has both `image:` and `build:`.
+    image: ghcr.io/pcalnon/juniper-deploy-test:0.3.0
     container_name: juniper-test-runner
     environment:
       JUNIPER_TEST_DATA_URL: http://juniper-data:8100
