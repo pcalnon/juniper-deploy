@@ -1,0 +1,49 @@
+# Project:     Juniper / juniper-deploy
+# Author:      Paul Calnon
+# Created:     2026-09-16
+# License:     MIT License
+#
+# Docker's build context does NOT honour .gitignore. This file is the only
+# thing that keeps the context clean, and `Dockerfile.test` is published to a
+# PUBLIC GHCR package, so anything reachable here is one `COPY` away from
+# being world-readable.
+#
+# Dockerfile.test copies an explicit ALLOWLIST of paths rather than `COPY . .`,
+# so the two mechanisms are independent: the allowlist cannot leak a file
+# nobody named, and this denylist protects any future COPY that is broader
+# than its author intended. Keep both.
+
+# ── Credentials. secrets/ holds eight live files (API keys, the Grafana admin
+#    password, an SMTP password). They are gitignored, which Docker ignores. ──
+secrets/
+*.key
+*.pem
+.env
+.env.*
+!.env.example
+!.env.observability
+
+# ── Local / untracked state that has no business in an image ──
+.git/
+.git*
+!.gitignore
+logs/
+data/
+backups/
+backup/
+reports/
+temp/
+resources/
+images/
+
+# ── Build and test detritus ──
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+*.egg-info/
+.venv/
+venv/
