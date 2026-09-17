@@ -6,6 +6,70 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-16
+
+### Added
+
+- **Container-registry Wave 3 — every Juniper `image:` is a published GHCR release ref.**
+  All nine sites in `docker-compose.yml` moved from `<name>:latest` — a *local build-output
+  tag*, not a version, so the stack could not be brought up on any host that had not just
+  built it — to `ghcr.io/pcalnon/<name>:X.Y.Z` (data 0.14.0, cascor 0.11.0, worker 0.6.0,
+  recurrence 0.5.0, canopy 0.8.0). Nine sites, five unique images, each re-probed against
+  GHCR for tag presence and an `amd64,arm64` manifest. `build:` is kept for local dev;
+  `demo-seed` (no `build:` of its own) is pinned to the same ref as the `juniper-data`
+  service it reuses. Design of record: `juniper-ml/notes/JUNIPER_2026-09-05_JUNIPER-ECOSYSTEM_CONTAINER-REGISTRY-PUBLISHING-PLAN.md`
+  §5 Wave 3.
+- **`Published Image Refs` CI gate** (`scripts/verify_published_images.py`, plan D-1) — every
+  pinned ref is checked against GHCR's manifest API for existence *and* both architectures.
+  Catches a compose ref that was never published, or published single-arch, which compose
+  would otherwise report as a pull failure at `up` time on the host that needed it. Six
+  negative controls; exits 2 rather than 0 when it matches zero refs, so a wholesale revert
+  to `:latest` cannot read as a pass. Offline companion `tests/test_published_image_refs.py`
+  pins the ref shape and the per-service census.
+- **The test-runner image is published** to `ghcr.io/pcalnon/juniper-deploy-test`
+  (`.github/workflows/publish-image.yml`, multi-arch, release-driven), so the live-stack
+  suite can be run against a deployed stack from a host with no juniper-deploy checkout.
+  `util/check_image_test_suite.py` asserts on the publish path that the packaged suite
+  actually collects, with the expected count derived from the checkout rather than hardcoded.
+- **`.dockerignore`** — the build context holds `secrets/` with eight live credential files,
+  and Docker does not honour `.gitignore`. `Dockerfile.test` copies an explicit allowlist and
+  this file covers the same ground independently.
+
+### Fixed
+
+- **The containerized test runner had been broken for six months and ran zero tests.**
+  Commit `65def44` (2026-03-13, *"fix: resolve conftest import errors in test suite"*) added
+  `tests/conftest.py`'s `from constants import ...` **and** `pyproject.toml`'s
+  `pythonpath = ["tests"]` together — repairing the host path while silently breaking the
+  container path, because `Dockerfile.test` never copied `pyproject.toml`. Every run died at
+  `ImportError while loading conftest ... ModuleNotFoundError: No module named 'constants'`
+  before executing a single test. `Dockerfile.test` now copies it.
+- **The Helm chart's four Juniper images were unreachable and their tags were stale.**
+  `registry: ""` made `juniper.image` render a bare `juniper-data:0.6.0`, which Kubernetes
+  resolves against `docker.io/library` — so the chart only deployed where the images had been
+  side-loaded by hand. Each block now sets `registry: "ghcr.io/pcalnon"` and its published
+  tag (data 0.6.0 → 0.14.0, cascor 0.4.0 → 0.11.0, canopy 0.4.0 → 0.8.0, worker
+  0.3.0 → 0.6.0). Set per-block and **not** as `global.imageRegistry`: that key is a Bitnami
+  convention the bundled redis subchart also honours, and setting it rewrites redis to
+  `ghcr.io/pcalnon/bitnami/redis:...`, which does not exist and makes `helm template` fail
+  outright.
+
+### Changed
+
+- **`Dockerfile.test` packages the live-stack suite only** — `test_health`,
+  `test_availability`, `test_data_service`, `test_full_stack` (51 tests) — and its `CMD`
+  targets them. The other ~269 tests are repo-hygiene checks that assert things about
+  `docker-compose.yml`, the `Makefile`, `.github/workflows/`, the Helm chart and the
+  prometheus rules; they read 15+ repo paths, are meaningless pointed at a deployed stack,
+  and packaging them would mean copying essentially the whole repo into a public image. They
+  continue to run in CI on a checkout. `docker compose --profile test up` previously ran
+  nothing at all (see the six-month breakage above), so there is no behaviour regressed.
+- `Dockerfile.test` now carries the standard build args and OCI labels
+  (`org.opencontainers.image.source` and friends), matching the five service Dockerfiles —
+  without them a GHCR package has no link back to this repo and `make doctor` has no
+  revision to compare.
+
+
 ### Fixed
 
 - **Containerized snapshots were never persisted, and canopy's snapshot list was always empty.**
