@@ -1,0 +1,438 @@
+---
+#####################################################################################################################################################################################################
+# Project:       Juniper
+# Application:   juniper-deploy
+# File Name:     publish-image.yml
+# Author:        Paul Calnon
+#
+# Date Created:  2026-09-16
+#
+# License:       MIT License
+# Copyright:     Copyright (c) 2024-2026 Paul Calnon
+#
+# Description:
+#    Publishes juniper-deploy's OWN test-runner image to GHCR. This is the
+#    second half of the container-registry plan's D-1: "juniper-deploy keeps a
+#    real role: it publishes its own Dockerfile.test runner, pins the consumed
+#    tags, and becomes the natural home for an integration test that pulls the
+#    published images."
+#
+#    Adapted from juniper-cascor-worker/.github/workflows/publish-image.yml,
+#    which is the reference implementation. The load-bearing structure is
+#    carried over unchanged -- push BY DIGEST per arch, tag exactly once in the
+#    merge job, verify the manifest lists both arches, verify the tag references
+#    exactly the digests that were checked. What differs is the CONTRACT being
+#    asserted: this image carries no torch, so there is no CPU-only census.
+#
+#    THE CONTRACT HERE IS THAT THE SUITE COLLECTS. An image that builds, starts,
+#    and then dies at conftest import is worthless and looks fine from outside.
+#    That is exactly what shipped: from 2026-03-13 to 2026-09-16 Dockerfile.test
+#    did not copy pyproject.toml, whose `pythonpath = ["tests"]` is what makes
+#    tests/conftest.py resolve, so the default CMD died before running a single
+#    test. Nothing asserted otherwise, so nobody noticed for six months.
+#
+#    THE EXPECTED COUNT IS DERIVED, NOT HARDCODED. The runner collects the same
+#    four modules from the CHECKOUT, then requires the IMAGE to collect the same
+#    number. That makes this a differential check between the source tree and
+#    the packaged artifact -- the exact thing that diverged -- with no constant
+#    that can silently drift. A bare "collection succeeded" would not do: an
+#    empty collection also succeeds, so the count is the discriminating half.
+#
+#    Related: juniper-ml notes/JUNIPER_2026-09-05_JUNIPER-ECOSYSTEM_CONTAINER-REGISTRY-PUBLISHING-PLAN.md
+#
+#####################################################################################################################################################################################################
+
+name: Publish Container Image
+
+on:
+  release:
+    types: [published]
+  # Build-only validation. Anything that can change what the image contains, plus
+  # this file itself -- a workflow that only runs on release must be exercised on
+  # the PR that edits it, or its first real run is also its first run.
+  pull_request:
+    paths:
+      - "Dockerfile.test"
+      - ".dockerignore"
+      - "requirements-test.txt"
+      - "pyproject.toml"
+      - "tests/**"
+      - "util/check_image_test_suite.py"
+      - ".github/workflows/publish-image.yml"
+  workflow_dispatch:
+    inputs:
+      push:
+        description: "Push to GHCR (false = build-only dry run)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  # `github.repository` is `pcalnon/juniper-deploy`, which would name the image
+  # after the whole stack. This image is the TEST RUNNER, not the stack -- it
+  # carries no service -- so the `-test` suffix is deliberate and load-bearing:
+  # `ghcr.io/pcalnon/juniper-deploy` must stay free for anything that really is
+  # the deployment. GHCR packages are account-scoped; the link back to this repo
+  # comes from Dockerfile.test's org.opencontainers.image.source label.
+  IMAGE_NAME: ${{ github.repository }}-test
+  # The four modules that talk to LIVE SERVICES. The rest of tests/ is
+  # repo-hygiene (compose, Makefile, workflows, Helm, prometheus) and is
+  # deliberately NOT packaged -- see Dockerfile.test's CMD comment.
+  LIVE_MODULES: >-
+    tests/test_health.py
+    tests/test_availability.py
+    tests/test_data_service.py
+    tests/test_full_stack.py
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════════════════════════
+  # Build one arch per NATIVE runner. No QEMU.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════════
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    # Release-tag guard. juniper-deploy publishes one package under `v*`, but the
+    # guard is kept because `latest` below is gated on the EVENT, not the tag --
+    # so an unguarded workflow would republish `:latest` from any release.
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')
+    strategy:
+      fail-fast: false # one arch failing must not hide the other arch's result
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Resolve build provenance and the expected test count
+        id: prov
+        run: |
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║       juniper-deploy - Test Runner Build Provenance        ║"
+          echo "╚════════════════════════════════════════════════════════════╝"
+          # juniper-deploy's pyproject.toml carries no [project] table, so the
+          # version of record is AGENTS.md's header bullet -- the same field the
+          # agents-md header-schema lint pins.
+          version="$(sed -nE 's/^\*\*Version\*\*: *([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' AGENTS.md | head -n1)"
+          if [ -z "${version}" ]; then
+            echo "::error::AGENTS.md carries no '**Version**: X.Y.Z' bullet -- APP_VERSION would be empty"
+            exit 1
+          fi
+          echo "app_version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT}"
+          echo "  APP_VERSION = ${version}"
+          echo "  GIT_SHA     = ${GITHUB_SHA}"
+
+          # Collect the live-stack modules from the CHECKOUT. The image must then
+          # collect the same number: a differential check with no hardcoded
+          # constant to drift. Zero is refused -- an empty collection "succeeds".
+          python3 -m pip install --quiet --disable-pip-version-check -r requirements-test.txt
+          # shellcheck disable=SC2086  # LIVE_MODULES is a deliberate word-split list
+          expected="$(python3 -m pytest ${LIVE_MODULES} --collect-only -q 2>/dev/null \
+            | sed -nE 's/^([0-9]+) tests? collected.*/\1/p' | head -n1)"
+          if [ -z "${expected}" ] || [ "${expected}" -eq 0 ]; then
+            echo "::error::collected ${expected:-no} tests from the checkout -- nothing to assert against"
+            exit 1
+          fi
+          echo "expect_tests=${expected}" >> "${GITHUB_OUTPUT}"
+          echo "  EXPECT_TESTS = ${expected} (from the checkout)"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      # Only a real publish needs credentials. A PR build must not authenticate.
+      - name: Log in to GHCR
+        if: github.event_name == 'release' || inputs.push
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Publish: push BY DIGEST with NO tag. Two jobs pushing the same tag would
+      # race and the second would silently win, leaving a single-arch image
+      # wearing a multi-arch tag. Tags are applied once, by the merge job.
+      #
+      # Two build steps rather than one with conditional inputs, deliberately:
+      # `${{ cond && '' || 'x' }}` is NOT a ternary when the true-branch is falsy
+      # -- `''` falls through to the `||` and the publish path gets a tag anyway.
+      - name: Build and push ${{ matrix.platform }}
+        id: build
+        if: github.event_name == 'release' || inputs.push
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: Dockerfile.test
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            BUILD_DATE=${{ steps.prov.outputs.build_date }}
+            APP_VERSION=${{ steps.prov.outputs.app_version }}
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+
+      # Validation: `type=docker` LOADS the image into this runner's daemon,
+      # which requires a tag to address it, so the smoke test runs the artifact
+      # just built rather than rebuilding it. Nothing is pushed.
+      - name: Build ${{ matrix.platform }} (validation only)
+        if: github.event_name != 'release' && !inputs.push
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: Dockerfile.test
+          platforms: ${{ matrix.platform }}
+          tags: deploy-test-smoke:${{ matrix.arch }}
+          outputs: type=docker
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            BUILD_DATE=${{ steps.prov.outputs.build_date }}
+            APP_VERSION=${{ steps.prov.outputs.app_version }}
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+
+      - name: Smoke test (build-only runs)
+        if: github.event_name != 'release' && !inputs.push
+        run: |
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║       juniper-deploy test runner - ${{ matrix.platform }} smoke test"
+          echo "╚════════════════════════════════════════════════════════════╝"
+          img='deploy-test-smoke:${{ matrix.arch }}'
+
+          echo "--- interpreter + test deps"
+          docker run --rm --entrypoint python "${img}" -c \
+            'import platform, pytest, requests, numpy, yaml; print("machine:", platform.machine(), "| pytest:", pytest.__version__, "| numpy:", numpy.__version__)'
+
+          echo "--- the suite collects (the contract)"
+          docker run --rm -i -e EXPECT_TESTS='${{ steps.prov.outputs.expect_tests }}' \
+            --entrypoint python "${img}" - < util/check_image_test_suite.py
+
+          # No secret may reach a PUBLIC image. Dockerfile.test copies an explicit
+          # allowlist and .dockerignore covers the same ground, but neither is
+          # worth anything unasserted -- the build context holds secrets/ with
+          # eight live credential files.
+          echo "--- no credentials packaged"
+          docker run --rm --entrypoint python "${img}" -c \
+            'import pathlib,sys; app=pathlib.Path("/app"); bad=[p.name for p in app.iterdir() if p.name in {"secrets",".git",".env",".env.secrets"}]; print("top level:", sorted(q.name for q in app.iterdir())); sys.exit(1) if bad else print("    no secrets/ or .git in the image")'
+
+      # The smoke test never runs on a publish, so the contract must ALSO be
+      # asserted on the path that ships. Pull the image just pushed -- by digest,
+      # on this same native arch -- and check it. A failure fails this arch's
+      # job, the merge job is skipped, and no tag is ever written: an untagged
+      # digest in the registry is inert.
+      - name: Verify pushed image (publish runs)
+        if: github.event_name == 'release' || inputs.push
+        run: |
+          digest='${{ steps.build.outputs.digest }}'
+          if [ -z "${digest}" ]; then
+            echo "::error::build produced no digest -- nothing to verify"
+            exit 1
+          fi
+          ref="${REGISTRY}/${IMAGE_NAME}@${digest}"
+          echo "verifying ${ref} on ${{ matrix.platform }}"
+          docker run --rm -i -e EXPECT_TESTS='${{ steps.prov.outputs.expect_tests }}' \
+            --entrypoint python "${ref}" - < util/check_image_test_suite.py
+          docker run --rm --entrypoint python "${ref}" -c \
+            'import pathlib,sys; app=pathlib.Path("/app"); bad=[p.name for p in app.iterdir() if p.name in {"secrets",".git",".env",".env.secrets"}]; sys.exit(1) if bad else print("no secrets/ or .git in the published image")'
+
+      - name: Export digest
+        if: github.event_name == 'release' || inputs.push
+        run: |
+          mkdir -p /tmp/digests
+          digest='${{ steps.build.outputs.digest }}'
+          if [ -z "${digest}" ]; then
+            echo "::error::build produced no digest -- the push-by-digest output is missing"
+            exit 1
+          fi
+          echo "${digest}" > "/tmp/digests/${{ matrix.arch }}"
+          echo "  ${{ matrix.arch }} -> ${digest}"
+
+      - name: Upload digest
+        if: github.event_name == 'release' || inputs.push
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: digest-${{ matrix.arch }}
+          path: /tmp/digests/${{ matrix.arch }}
+          retention-days: 1
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════════
+  # Merge the per-arch digests into ONE manifest list and apply the tags. The only
+  # job that writes a tag, so a tag can never point at a half-published set.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════════
+  merge:
+    name: Publish manifest
+    runs-on: ubuntu-24.04
+    needs: [build]
+    if: (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v')) || inputs.push
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Download digests
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tag scheme, plan D-3: semver + major.minor + latest, release-only.
+      # `latest` is applied only for a real release, never for a workflow_dispatch
+      # push, so a manual test cannot move the tag a consumer follows.
+      #
+      # The `dispatch-<sha>` line is not cosmetic: the semver patterns derive from
+      # a TAG ref, so on a dispatch from a branch they produce nothing, and
+      # `latest` is release-gated -- leaving metadata-action with ZERO tags and
+      # `imagetools create` invoked with no `-t`, which is an error.
+      - name: Compute tags
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
+            type=raw,value=dispatch-{{sha}},enable=${{ github.event_name == 'workflow_dispatch' }}
+
+      - name: Create manifest list
+        run: |
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║  juniper-deploy test runner - Publish Multi-Arch Manifest  ║"
+          echo "╚════════════════════════════════════════════════════════════╝"
+          cd /tmp/digests
+          echo "digests found:"
+          for f in *; do echo "  ${f}: $(cat "${f}")"; done
+
+          # An empty tag set means the metadata rules did not match this event --
+          # fail with that reason rather than docker's, which does not say why.
+          tag_count="$(jq -r '.tags | length' <<< "${DOCKER_METADATA_OUTPUT_JSON}")"
+          if [ "${tag_count}" -eq 0 ]; then
+            echo "::error::metadata-action produced no tags for event '${{ github.event_name }}' -- nothing to publish"
+            exit 1
+          fi
+          echo "tags to apply: ${tag_count}"
+          # shellcheck disable=SC2046  # intentional word-splitting: one -t per tag, one ref per digest
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "${DOCKER_METADATA_OUTPUT_JSON}") \
+            $(for f in *; do printf '%s@%s ' "${REGISTRY}/${IMAGE_NAME}" "$(cat "${f}")"; done)
+
+      - name: Verify both architectures are present
+        run: |
+          # Inspect a tag we KNOW was applied -- the first entry of the metadata
+          # action's own tag list -- rather than steps.meta.outputs.version, which
+          # is derived by separate rules and is empty for some combinations.
+          ref="$(jq -r '.tags[0]' <<< "${DOCKER_METADATA_OUTPUT_JSON}")"
+          if [ -z "${ref}" ] || [ "${ref}" = "null" ]; then
+            echo "::error::no tag to verify -- metadata-action produced an empty tag list"
+            exit 1
+          fi
+          echo "inspecting ${ref}"
+          docker buildx imagetools inspect "${ref}" --format '{{ json .Manifest }}' > /tmp/manifest.json
+          arches="$(jq -r '[.manifests[]?.platform | select(.os=="linux") | .architecture] | sort | join(",")' /tmp/manifest.json)"
+          echo "  architectures: ${arches}"
+          if [ "${arches}" != "amd64,arm64" ]; then
+            echo "::error::expected 'amd64,arm64' in the manifest list, got '${arches}'"
+            exit 1
+          fi
+          echo "::notice::published ${ref} for linux/amd64 + linux/arm64"
+
+      # metadata-action only WARNS when a tag does not parse, and `latest` still
+      # fires on the release event -- so without this check a release whose tag
+      # the rules did not match would publish `:latest` with no version tag, pass
+      # the zero-tag guard above with exactly one tag, and read SUCCESS.
+      - name: Verify the release produced a version tag
+        if: github.event_name == 'release'
+        run: |
+          versioned="$(jq -r '[.tags[] | select(test(":[0-9]+\\.[0-9]+\\.[0-9]+$"))] | length' <<< "${DOCKER_METADATA_OUTPUT_JSON}")"
+          if [ "${versioned}" -eq 0 ]; then
+            echo "::error::release '${{ github.event.release.tag_name }}' produced no X.Y.Z image tag -- the semver rules did not match it; tags: $(jq -c '.tags' <<< "${DOCKER_METADATA_OUTPUT_JSON}")"
+            exit 1
+          fi
+          echo "  version tag present ($(jq -c '.tags' <<< "${DOCKER_METADATA_OUTPUT_JSON}"))"
+
+      # Each build job checked the DIGEST it pushed. This closes the loop on the
+      # TAG a consumer pulls: the manifest list must reference exactly the digests
+      # that were verified, so nothing unverified can hide under the tag.
+      - name: Verify the published tag references exactly the verified images
+        run: |
+          ref="$(jq -r '.tags[0]' <<< "${DOCKER_METADATA_OUTPUT_JSON}")"
+
+          echo "--- digest identity"
+          # With provenance attestations on (the build-push-action default) a
+          # pushed digest names a per-arch OCI INDEX -- image manifest plus
+          # attestation -- which `imagetools create` FLATTENS into the published
+          # list. So the list's entries are the IMAGE manifests, not the pushed
+          # index digests; comparing the two directly fails on every publish.
+          # Resolve each verified digest to the image manifest(s) it carries.
+          listed="$(jq -r '[.manifests[]? | select(.platform.os=="linux") | .digest] | sort | join(" ")' /tmp/manifest.json)"
+          verified=""
+          for f in /tmp/digests/*; do
+            pushed="$(cat "${f}")"
+            arch_file="$(basename "${f}")"
+            manifest_json="$(docker buildx imagetools inspect "${REGISTRY}/${IMAGE_NAME}@${pushed}" --format '{{ json .Manifest }}')"
+            images="$(jq -r '[.manifests[]? | select(.platform.os=="linux") | .digest] | join(" ")' <<< "${manifest_json}")"
+            if [ -n "${images}" ]; then
+              # A pushed index must carry exactly ONE linux image, and it must be
+              # the arch the build job (and its check) ran on -- the digest file is
+              # named after that arch.
+              image_arch="$(jq -r '[.manifests[]? | select(.platform.os=="linux") | .platform.architecture] | join(" ")' <<< "${manifest_json}")"
+              if [ "$(wc -w <<< "${images}")" -ne 1 ] || [ "${image_arch}" != "${arch_file}" ]; then
+                echo "::error::pushed digest ${pushed} (digest file '${arch_file}') carries linux image(s) for [${image_arch}] -- expected exactly one, for ${arch_file}"
+                exit 1
+              fi
+            fi
+            verified="${verified} ${images:-${pushed}}"
+          done
+          verified="$(tr ' ' '\n' <<< "${verified}" | sed '/^$/d' | LC_ALL=C sort | tr '\n' ' ' | sed 's/ $//')"
+          if [ "${listed}" != "${verified}" ]; then
+            echo "::error::manifest list references [${listed}] but the verified build digests resolve to [${verified}]"
+            exit 1
+          fi
+          echo "  ${ref} references exactly the verified images"
+
+          # Re-assert the contract against the TAG, natively on amd64. arm64 is
+          # covered by the digest identity above -- no QEMU here, by design.
+          echo "--- suite collects (linux/amd64, native pull of ${ref})"
+          python3 -m pip install --quiet --disable-pip-version-check -r requirements-test.txt
+          # shellcheck disable=SC2086  # LIVE_MODULES is a deliberate word-split list
+          expected="$(python3 -m pytest ${LIVE_MODULES} --collect-only -q 2>/dev/null \
+            | sed -nE 's/^([0-9]+) tests? collected.*/\1/p' | head -n1)"
+          if [ -z "${expected}" ] || [ "${expected}" -eq 0 ]; then
+            echo "::error::collected ${expected:-no} tests from the checkout -- nothing to assert against"
+            exit 1
+          fi
+          docker run --rm -i -e EXPECT_TESTS="${expected}" \
+            --entrypoint python "${ref}" - < util/check_image_test_suite.py
+          echo "::notice::${ref} packages a runnable live-stack suite (${expected} tests)"

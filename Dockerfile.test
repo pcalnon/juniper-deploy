@@ -5,17 +5,22 @@
 # Author:        Paul Calnon
 #
 # Date Created:  2026-03-02
-# Last Modified: 2026-03-02
+# Last Modified: 2026-09-16
 #
 # License:       MIT License
 # Copyright:     Copyright (c) 2024-2026 Paul Calnon
 #
 # Description:
-#    Lightweight image that packages the integration test suite for use
-#    as a test-runner compose service. Runs pytest against live services.
+#    Packages the LIVE-STACK integration suite -- the tests that talk to running
+#    services -- so it can be run against a deployed stack from a host with no
+#    juniper-deploy checkout. Published to GHCR on `release: published` by
+#    .github/workflows/publish-image.yml.
 #
 # Usage:
 #    docker compose --profile test up
+#    docker run --rm --network juniper-backend \
+#      -e JUNIPER_TEST_DATA_URL=http://juniper-data:8100 \
+#      ghcr.io/pcalnon/juniper-deploy-test:<X.Y.Z>
 #
 ######################################################################################################################################################################################################
 
@@ -26,6 +31,62 @@ WORKDIR /app
 COPY requirements-test.txt .
 RUN pip install --no-cache-dir -r requirements-test.txt
 
+# pyproject.toml is NOT optional, and leaving it out broke this image for six
+# months without anyone noticing.
+#
+# It carries `[tool.pytest.ini_options]`, and `pythonpath = ["tests"]` is what
+# makes tests/conftest.py's `from constants import ...` resolve. Commit 65def44
+# (2026-03-13, "fix: resolve conftest import errors in test suite") added that
+# conftest import and that pythonpath entry TOGETHER -- repairing the host path
+# while silently breaking this one, because the container never received the
+# config file the fix depended on. From then until 2026-09-16 the default CMD
+# died at conftest import, before running a single test:
+#
+#   ImportError while loading conftest '/app/tests/conftest.py'
+#   ModuleNotFoundError: No module named 'constants'
+#
+# `markers` matters too: without it `--strict-markers` rejects every marked test.
+# Copied BEFORE tests/ so a test-only edit does not bust this layer.
+COPY pyproject.toml .
+
 COPY tests/ tests/
 
-CMD ["pytest", "tests/", "-v", "--tb=short"]
+# Build provenance, matching the five service Dockerfiles. Without these labels a
+# GHCR package has no link back to this repo -- the link comes from
+# org.opencontainers.image.source, not from the workflow that pushed it -- and
+# `make doctor` / `make image-preflight` have no revision to compare against.
+ARG GIT_SHA=""
+ARG BUILD_DATE=""
+ARG APP_VERSION=""
+
+LABEL org.opencontainers.image.title="JuniperDeployTest"
+LABEL org.opencontainers.image.description="Live-stack integration test runner for the Juniper deployment stack"
+LABEL org.opencontainers.image.version="${APP_VERSION}"
+LABEL org.opencontainers.image.authors="Paul Calnon"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.source="https://github.com/pcalnon/juniper-deploy"
+LABEL org.opencontainers.image.revision="${GIT_SHA}"
+LABEL org.opencontainers.image.created="${BUILD_DATE}"
+
+# THE LIVE-STACK MODULES ONLY -- 51 tests -- not `tests/`.
+#
+# The suite splits cleanly in two, and the split is measured rather than judged:
+# a host run reports `264 passed, 51 deselected` when these four modules are
+# deselected, and this image collects exactly 51 with only the two COPYs above.
+# The other ~269 are REPO-HYGIENE tests -- they assert things about
+# docker-compose.yml, the Makefile, .github/workflows/, the Helm chart, the
+# prometheus rules, the pre-commit config. Those are meaningless pointed at a
+# deployed stack, and making them collect here would mean copying essentially
+# the whole repo into a PUBLIC image -- whose build context holds `secrets/`
+# with eight live credential files. They already run in CI, on a checkout,
+# which is where they belong.
+#
+# So the allowlist above is small and stable BY DESIGN: it is the security
+# boundary as much as the scope. Never widen this to `COPY . .`; .dockerignore
+# is the second line of defence, not the first.
+CMD ["pytest", \
+     "tests/test_health.py", \
+     "tests/test_availability.py", \
+     "tests/test_data_service.py", \
+     "tests/test_full_stack.py", \
+     "-v", "--tb=short"]
