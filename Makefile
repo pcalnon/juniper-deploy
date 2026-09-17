@@ -237,7 +237,10 @@ PROVENANCE_ENV = BUILD_DATE="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 	APP_VERSION_CASCOR="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-cascor/pyproject.toml 2>/dev/null | head -1)" \
 	APP_VERSION_CANOPY="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-canopy/pyproject.toml 2>/dev/null | head -1)" \
 	APP_VERSION_WORKER="$$(sed -nE 's/^version = \"(.+)\"/\1/p' ../juniper-cascor-worker/pyproject.toml 2>/dev/null | head -1)" \
-	APP_VERSION_RECURRENCE="$$(sed -nE 's/^__version__ = \"(.+)\"/\1/p' ../juniper-recurrence/juniper-recurrence/juniper_recurrence/_version.py 2>/dev/null | head -1)"
+	APP_VERSION_RECURRENCE="$$(sed -nE 's/^__version__ = \"(.+)\"/\1/p' ../juniper-recurrence/juniper-recurrence/juniper_recurrence/_version.py 2>/dev/null | head -1)" \
+	\
+	GIT_SHA_DEPLOY="$$(bash scripts/provenance_sha.sh .)" \
+	APP_VERSION_DEPLOY="$$(sed -nE 's/^\*\*Version\*\*: *([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' AGENTS.md | head -1)"
 
 build-preflight:  ## Verify every compose build-context checkout is current with its origin (JUNIPER_BUILD_STALE_OK=1 to bypass)
 	@$(BUILD_PREFLIGHT) --profile full --profile demo --profile dev --profile test --profile observability
