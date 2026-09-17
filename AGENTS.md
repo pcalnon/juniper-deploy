@@ -4,8 +4,8 @@
 **Repository**: pcalnon/juniper-deploy
 **Author**: Paul Calnon
 **License**: MIT License
-**Version**: 0.2.1
-**Last Updated**: 2026-09-11
+**Version**: 0.3.0
+**Last Updated**: 2026-09-17
 
 ---
 
