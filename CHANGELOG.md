@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **`juniper-canopy` pinned to `0.8.1`** — `docker-compose.yml` (three sites: the `juniper-canopy`
+  service, the demo variant and the dev variant) and `k8s/helm/juniper/values.yaml`. Release
+  `v0.8.1` was cut 2026-09-18 and is the fix for `juniper-canopy#631`, where every published wheel
+  back to 0.5.0 omitted ten top-level `src/*.py` modules that thirteen of its own shipped files
+  import. Its GHCR image is published and multi-arch (`linux/amd64` + `linux/arm64` + two
+  attestation manifests), re-probed before the bump.
+
+  The three compose sites move together because `tests/test_published_image_refs.py`'s
+  `test_shared_images_are_pinned_to_one_version` requires it.
+
+  **Why this needed a human to notice.** The `Published Image Refs` gate added in #217 asserts
+  that a pinned ref *resolves* — it does not assert that the ref is the *newest release*. So the
+  stack pinned a superseded canopy for three days with every check green and nothing naming it.
+  A resolution gate cannot detect staleness; comparing `gh release list` against the pins is a
+  separate check that does not currently exist.
+
 ## [0.3.0] - 2026-09-17
 
 ### Added
