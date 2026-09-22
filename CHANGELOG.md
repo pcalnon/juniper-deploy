@@ -24,11 +24,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`juniper-data` pinned to `0.15.0`** — `docker-compose.yml` (two sites: the `juniper-data`
   service and `demo-seed`, which reuses its image) and `k8s/helm/juniper/values.yaml`. Release
   `v0.15.0` was cut 2026-09-22 and PyPI serves it. The GHCR image was checked before the bump:
-  it is multi-arch (`linux/amd64` + `linux/arm64` + two attestation manifests); pulled and run,
-  it reports `__version__` `0.15.0`, matching its installed metadata and its
-  `org.opencontainers.image.version` label; it answers `GET /v1/health` with 200
-  (`"version":"0.15.0"`); and it carries **no** `juniper_data/tests/`, so the image half of
-  juniper-data#405 is in effect. (The 0.15.0 *wheel* on PyPI does still carry the suite —
+  it is multi-arch (`linux/amd64` + `linux/arm64` + two attestation manifests); its
+  `org.opencontainers.image.revision` label is `46894ba1`, the `v0.15.0` tag's commit; pulled
+  and run, it answers `GET /v1/health` with 200 (`"version":"0.15.0"`); and it carries **no**
+  `juniper_data/tests/`, so the image half of juniper-data#405 is in effect. (The 0.15.0 *wheel* on PyPI does still carry the suite —
   juniper-data#420 fixed that after the tag was cut — but this stack runs the image, not the
   wheel.)
 
@@ -37,11 +36,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Neither `JUNIPER_DATA_CSV_IMPORT_ALLOW_TRUNCATION` nor `JUNIPER_DATA_EQUITIES_ALLOW_TRUNCATION`
   is set anywhere in this repo, so the one changed combination is unreachable on the shipped
   stack. The `equities` / `equities_seq` generators move from `generator_version` `3.0.0` to
-  `5.0.0` (measured in both images: juniper-data#395's causal share history, then its scale-typo
-  fix), and that version is hashed into the `dataset_id`, so an equities artifact cached by the
-  0.14.0 image is not served for a new request. `arc_agi` gains a third `task_type`,
-  `structured`, which the data CHANGELOG records as additive. `demo-seed` requests `spiral` only,
-  so neither change reaches it.
+  `5.0.0` (measured in both images: juniper-data#395's causal share history, then #404's
+  scale-typo fix), but that cannot reach this stack either. The image does not install the
+  equities dependencies — there is no `yfinance` in its lock, and `EQUITIES_DEPS_AVAILABLE` is
+  `False` — so neither generator can run here, at 0.14.0 or now. That is a pre-existing gap for
+  `juniper-recurrence`, which reads `equities_seq` from this service. `arc_agi` now declares
+  `task_type` `structured` instead of `classification`, but its generator version stays
+  `3.0.0`, so a seeded `arc_agi` request resolves to the same `dataset_id` as before and an
+  artifact cached by the 0.14.0 image keeps its old class metadata. `demo-seed` requests
+  `spiral` only, so none of this reaches it.
 
   The two compose sites move together because `tests/test_published_image_refs.py`'s
   `test_shared_images_are_pinned_to_one_version` requires it. `scripts/verify_published_images.py`
