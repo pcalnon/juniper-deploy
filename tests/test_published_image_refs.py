@@ -174,3 +174,64 @@ def test_verify_script_refuses_a_compose_with_no_juniper_images(tmp_path: Path) 
         f"got exit {proc.returncode}: {proc.stdout + proc.stderr}"
     )
     assert "ZERO images" in proc.stderr
+
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# Pin CURRENCY (added 2026-09-22)
+#
+# The gap these pin: verify_published_images.py asserted EXISTENCE and ARCHITECTURE and never
+# CURRENCY, so it ran green for the three days docker-compose.yml pinned juniper-canopy:0.8.0
+# after 0.8.1 had shipped. Nothing in this repo detected that drift.
+#
+# These are network-free by construction: they exercise the version comparison and the policy,
+# not the registry. The registry half runs in the CI job itself.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+
+
+def _load_verify_module():
+    """Import the script by path; it is not an installed module."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("verify_published_images", VERIFY_SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["verify_published_images"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize(
+    ("newer", "older"),
+    [
+        ("0.10.0", "0.9.0"),   # the trap: "0.10.0" < "0.9.0" lexicographically
+        ("0.9.0", "0.8.99"),
+        ("1.0.0", "0.99.99"),
+        ("0.8.1", "0.8.0"),    # the drift this check was built for
+    ],
+)
+def test_semver_orders_numerically_not_lexically(newer: str, older: str) -> None:
+    mod = _load_verify_module()
+    assert mod._semver(newer) > mod._semver(older), (
+        f"{newer} must sort above {older}; a string comparison gets 0.10.0 vs 0.9.0 wrong"
+    )
+
+
+@pytest.mark.parametrize("tag", ["latest", "0.8", "dispatch-9890a23", "", "1.2.3.4", "a.b.c"])
+def test_semver_rejects_non_release_tags(tag: str) -> None:
+    """Only X.Y.Z names one artifact forever; nothing else may be compared as a version."""
+    mod = _load_verify_module()
+    assert mod._semver(tag) is None
+
+
+def test_shipped_ci_gate_keeps_staleness_advisory() -> None:
+    """A stale pin must NOT turn the shipped gate red.
+
+    Existence and currency have different blast radii: a missing ref breaks `up` for everyone;
+    a stale one ships an older but working stack. Failing by default would block every
+    unrelated PR in this repo the moment any upstream release landed -- turning a visibility
+    problem into an availability one. `--fail-on-stale` exists for a scheduled job instead.
+    """
+    ci = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert "verify_published_images.py" in ci, "the gate is not wired into ci.yml at all"
+    assert "--fail-on-stale" not in ci, (
+        "the shipped CI gate opted into --fail-on-stale; keep staleness advisory there"
+    )
