@@ -6,7 +6,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`scripts/verify_published_images.py` reports a STALE pin, not only a missing one** (#226).
+  The D-1 gate (#217) proved every ref *resolves* on both arches; it could not say whether a ref
+  is the newest release, which is how `juniper-canopy:0.8.0` stayed pinned for three days after
+  `0.8.1` shipped with every check green. The currency check reads the registry's tag list
+  rather than the Releases API (a Release can exist whose image publish failed), compares
+  versions as tuples of ints (`"0.10.0" < "0.9.0"` lexicographically), and is **advisory by
+  default**: a `::warning::` and exit 0, with `--fail-on-stale` to make it an error and
+  `--no-currency` to skip it. A missing ref breaks `up` for everyone; a stale one ships an older
+  but working stack, so failing by default would block every unrelated PR the moment an upstream
+  release landed. *Entry added after the fact — #226 landed without one.*
+
 ### Changed
+
+- **`juniper-data` pinned to `0.15.0`** — `docker-compose.yml` (two sites: the `juniper-data`
+  service and `demo-seed`, which reuses its image) and `k8s/helm/juniper/values.yaml`. Release
+  `v0.15.0` was cut 2026-09-22 and PyPI serves it. The GHCR image was checked before the bump:
+  it is multi-arch (`linux/amd64` + `linux/arm64` + two attestation manifests); pulled and run,
+  it reports `__version__` `0.15.0`, matching its installed metadata and its
+  `org.opencontainers.image.version` label; it answers `GET /v1/health` with 200
+  (`"version":"0.15.0"`); and it carries **no** `juniper_data/tests/`, so the image half of
+  juniper-data#405 is in effect. (The 0.15.0 *wheel* on PyPI does still carry the suite —
+  juniper-data#420 fixed that after the tag was cut — but this stack runs the image, not the
+  wheel.)
+
+  What 0.15.0 changes for a deployment: `allow_truncation` becomes a tri-state (APD-DATA-052),
+  so a request's explicit `false` now refuses truncation even where the operator opted in.
+  Neither `JUNIPER_DATA_CSV_IMPORT_ALLOW_TRUNCATION` nor `JUNIPER_DATA_EQUITIES_ALLOW_TRUNCATION`
+  is set anywhere in this repo, so the one changed combination is unreachable on the shipped
+  stack. The `equities` / `equities_seq` generators move from `generator_version` `3.0.0` to
+  `5.0.0` (measured in both images: juniper-data#395's causal share history, then its scale-typo
+  fix), and that version is hashed into the `dataset_id`, so an equities artifact cached by the
+  0.14.0 image is not served for a new request. `arc_agi` gains a third `task_type`,
+  `structured`, which the data CHANGELOG records as additive. `demo-seed` requests `spiral` only,
+  so neither change reaches it.
+
+  The two compose sites move together because `tests/test_published_image_refs.py`'s
+  `test_shared_images_are_pinned_to_one_version` requires it. `scripts/verify_published_images.py`
+  reported this pin as `STALE PIN — 0.15.0 is published, this pins 0.14.0` before the change and
+  reports it current after it.
 
 - **`juniper-canopy` pinned to `0.8.1`** — `docker-compose.yml` (three sites: the `juniper-canopy`
   service, the demo variant and the dev variant) and `k8s/helm/juniper/values.yaml`. Release
@@ -21,8 +61,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   **Why this needed a human to notice.** The `Published Image Refs` gate added in #217 asserts
   that a pinned ref *resolves* — it does not assert that the ref is the *newest release*. So the
   stack pinned a superseded canopy for three days with every check green and nothing naming it.
-  A resolution gate cannot detect staleness; comparing `gh release list` against the pins is a
-  separate check that does not currently exist.
+  A resolution gate cannot detect staleness. That check now exists — see #226 under *Added*.
 
 ## [0.3.0] - 2026-09-17
 
