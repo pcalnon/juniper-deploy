@@ -69,7 +69,7 @@
 #      SHA-pinned checkout / setup-python / upload-artifact.
 #
 # References:
-#    - juniper-ci-tools (PyPI >=0.8.0,<0.9.0): juniper-symbol-loss-check /
+#    - juniper-ci-tools (PyPI >=0.9.0,<0.10.0): juniper-symbol-loss-check /
 #      juniper-docs-additions-check console scripts (canonical source; juniper-deploy
 #      consumes the package -- it hosts no inline copy).
 #    - juniper-cascor .github/workflows/sequence-safety.yml (the standalone advisory pair
