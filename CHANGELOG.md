@@ -21,6 +21,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`juniper-cascor-worker` pinned to `0.6.1`**: `docker-compose.yml` and
+  `k8s/helm/juniper/values.yaml`. Release `v0.6.1` was cut 2026-09-22 and PyPI serves it. The GHCR
+  image was checked before the bump:
+  - it is multi-arch (`linux/amd64` + `linux/arm64` + two attestation manifests);
+  - its `org.opencontainers.image.revision` label is `38f39cb8`, the `v0.6.1` tag's commit;
+  - pulled and run, it prints `__version__` `0.6.1` with torch `2.14.0+cpu`.
+
+  The `0.6.0` image it replaces reported `__version__` `0.4.0`, because its `__init__.py` hard-coded
+  a literal that was never bumped. juniper-cascor-worker#192 derives it from the installed
+  metadata, so it can no longer disagree. That is also why the check above uses the revision
+  label, not `__version__`. `verify_published_images.py` had flagged the pin as stale since the
+  tag appeared (#226's check).
+
 - **`juniper-data` pinned to `0.15.0`** — `docker-compose.yml` (two sites: the `juniper-data`
   service and `demo-seed`, which reuses its image) and `k8s/helm/juniper/values.yaml`. Release
   `v0.15.0` was cut 2026-09-22 and PyPI serves it. The GHCR image was checked before the bump:
