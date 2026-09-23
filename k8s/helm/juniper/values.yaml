@@ -298,7 +298,7 @@ worker:
     registry: "ghcr.io/pcalnon"
     repository: juniper-cascor-worker
     # DEPLOY-15: pinned; bump with juniper-cascor-worker releases.
-    tag: "0.6.0"
+    tag: "0.6.1"
     pullPolicy: IfNotPresent
 
   env:

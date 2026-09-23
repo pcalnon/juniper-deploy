@@ -361,7 +361,7 @@ services:
         GIT_SHA: "${GIT_SHA_WORKER:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_WORKER:-}"
-    image: ghcr.io/pcalnon/juniper-cascor-worker:0.6.0
+    image: ghcr.io/pcalnon/juniper-cascor-worker:0.6.1
     security_opt:
       - no-new-privileges:true
     cap_drop:
