@@ -20,6 +20,12 @@ What must stay true (each is pinned below):
   subchart still renders its own policy, which is not the chart's and is excluded by label.
 
 Skips when the ``helm`` binary is not available, like tests/test_helm_chart_probes.py.
+
+History: #232 shipped ``test_data_policy_allows_https_to_public_addresses_only``,
+``test_no_other_policy_gains_public_https``, ``test_policies_off_renders_no_policy`` and a
+``_public_https_rules`` helper. Validation showed eight strictly broader rules passing them, because
+they matched the rule's wording (an ``endPort``, a peerless rule, ``::/0``, two ``/1`` halves, a named
+port). The tests above replace them, and their names say what each one now pins.
 """
 
 import shutil
