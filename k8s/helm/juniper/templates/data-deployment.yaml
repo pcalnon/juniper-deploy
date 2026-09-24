@@ -21,6 +21,10 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
+      # juniper-data never calls the Kubernetes API, and since 2026-09-24 its NetworkPolicy lets it
+      # reach public addresses on TCP 443. On a cluster whose API server has a public IP, that
+      # includes the API server, so the pod carries no service-account token for it to accept.
+      automountServiceAccountToken: false
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

@@ -270,7 +270,7 @@ curl http://localhost:3001/api/health       # grafana      (observability profil
 
 | Concern | Implementation |
 |---------|----------------|
-| **Network isolation** | Five networks: `frontend` (bridge), `backend` (internal), `data` (internal), `monitoring` (bridge) and `data-egress` (bridge), which is `juniper-data`'s outbound route for the equities fetches and has no other member. Internal networks have no external connectivity. |
+| **Network isolation** | Five networks: `frontend` (bridge), `backend` (internal), `data` (internal), `monitoring` (bridge) and `data-egress` (bridge), which is `juniper-data`'s outbound route for the equities, mnist and arc_agi fetches and has no other member. Internal networks have no external connectivity. |
 | **Container hardening** | All Juniper application containers set `security_opt: no-new-privileges:true` and `cap_drop: ALL`. |
 | **Port binding** | Published Juniper service ports default to `127.0.0.1` through `${BIND_HOST:-127.0.0.1}`. `BIND_HOST=0.0.0.0` is an explicit escape hatch for deployments with a fronting authenticating proxy. Redis has no host binding. |
 | **Secrets** | API keys, the Grafana admin password, and the cascor auth token are distributed via Docker secrets mounted at `/run/secrets/<name>`. |

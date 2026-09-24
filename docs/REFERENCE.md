@@ -384,7 +384,7 @@ Compose secret definitions reference local files in `secrets/`:
 | `backend` | bridge, internal | `172.28.0.0/16` | juniper-cascor, juniper-cascor-demo, juniper-canopy, juniper-canopy-demo, juniper-cascor-worker, redis, prometheus |
 | `data` | bridge, internal | `172.29.0.0/16` | juniper-data, juniper-cascor, juniper-cascor-demo, juniper-canopy, juniper-canopy-demo, prometheus |
 | `monitoring` | bridge | `172.31.0.0/16` | prometheus, alertmanager, grafana |
-| `data-egress` | bridge | `172.27.0.0/16` | juniper-data (only; its outbound route for the equities fetches) |
+| `data-egress` | bridge | `172.27.0.0/16` | juniper-data (only; its outbound route for the equities, mnist and arc_agi fetches) |
 
 The static subnets keep Prometheus's scrape source address deterministic. `data-egress` is not a scrape path; it is pinned so dynamic IPAM cannot land on one of the other four. The CIDRs in `.env.observability` must match the pinned subnets each target shares with Prometheus:
 
@@ -691,7 +691,8 @@ juniper-deploy/
 │   ├── test_full_stack.py          # Cross-service integration tests
 │   ├── test_availability.py        # Availability checking fixtures
 │   ├── test_compose_security_config.py  # Docker security regression tests
-│   └── test_compose_data_egress.py      # juniper-data's outbound-only network
+│   ├── test_compose_data_egress.py      # juniper-data's outbound-only network
+│   └── test_helm_networkpolicy_data_egress.py  # the Helm half: data's 443 egress rule
 │
 ├── docs/
 │   ├── DOCUMENTATION_OVERVIEW.md   # Navigation index
@@ -776,7 +777,7 @@ Five Docker networks enforce service-to-service communication boundaries:
 | `monitoring` | bridge | Observability stack | prometheus, grafana |
 | `data-egress` | bridge | juniper-data's outbound route: the `equities` / `equities_seq` generators fetch from Yahoo Finance and SEC EDGAR | juniper-data only |
 
-Networks marked **internal** have no external connectivity — containers on these networks can only communicate with other containers on the same network. `data-egress` exists because of that: without it, every equities request failed at DNS with a `400` (owner ruling 2026-09-24). juniper-data publishes no port on it, so it is a route out, not a way in. `tests/test_compose_data_egress.py` pins who attaches, that it stays non-internal, and that juniper-data publishes no port.
+Networks marked **internal** have no external connectivity — containers on these networks can only communicate with other containers on the same network. `data-egress` exists because of that (owner ruling 2026-09-24): without it, every equities request failed at DNS with a `400`, and every mnist and arc_agi request failed with a `500` after about 23 s. juniper-data publishes no port on it. Its egress is unrestricted (any port, any destination), and on Docker older than 28 with a FORWARD policy of ACCEPT a LAN host routing `172.27.0.0/16` via the Docker host could reach it; see the network's definition in `docker-compose.yml`. `tests/test_compose_data_egress.py` pins who attaches, that it stays non-internal, that every service attaches to declared networks by name, and that juniper-data publishes no port.
 
 ### Container Hardening
 
@@ -850,7 +851,8 @@ pytest tests/ -v -m full_stack       # Cross-service tests only
 | `test_full_stack.py` | `full_stack` | CasCor-Data integration, Canopy dashboard, 3-service pipeline |
 | `test_availability.py` | — | Skip mechanism validation, fixture scope checks |
 | `test_compose_security_config.py` | — | Docker secret wiring, network isolation, Grafana secret-only password |
-| `test_compose_data_egress.py` | — | `data-egress` stays non-internal and juniper-data-only; `backend` / `data` stay internal; juniper-data publishes no port |
+| `test_compose_data_egress.py` | — | `data-egress` stays non-internal and juniper-data-only; every service attaches to declared networks by name; `backend` / `data` stay internal; juniper-data publishes no port |
+| `test_helm_networkpolicy_data_egress.py` | — | The data policy's egress is exactly DNS plus TCP 443 to public IPv4; no other policy opens `ipBlock` or peerless non-DNS egress; the data pod mounts no service-account token (skips without `helm`) |
 
 **Configurable service URLs** (via environment variables):
 

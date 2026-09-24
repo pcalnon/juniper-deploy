@@ -270,7 +270,7 @@ When `networkPolicies.enabled: true` (default), the chart enforces network segme
 
 | Pod | Ingress From | Egress To |
 |-----|-------------|-----------|
-| data | cascor, canopy, prometheus | DNS; HTTPS (443) to public addresses, for the equities fetches (RFC 1918, CGNAT and link-local excluded) |
+| data | cascor, canopy, prometheus | DNS; HTTPS (443) to public IPv4 addresses, for the equities, mnist and arc_agi fetches (RFC 1918, CGNAT and link-local excluded; a public API server is reachable, so the data pod mounts no service-account token) |
 | cascor | canopy, worker, prometheus | data, DNS |
 | canopy | all (ingress controller) | data, cascor, redis, DNS |
 | worker | none | cascor, DNS |

@@ -133,30 +133,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     `juniper-data`'s networks, `backend` and `data`, are both `internal: true`, so every such
     request failed at DNS. The API answered `400 {"detail":"Invalid request parameters"}`, while
     `GET /v1/generators` listed both generators as available.
+  - **It fixes `mnist` and `arc_agi` too.** Both fetch from the Hugging Face Hub at request time.
+    With no route out, the published 0.16.0 image answers `500` after about 23 s for each, while
+    listing both as available. The stack could not generate them under any pinned version.
   - **The network.** `data-egress` is a plain bridge on `172.27.0.0/16`, pinned like the other four
     so that dynamic IPAM cannot land on one of them. Only `juniper-data` attaches, and it publishes
-    no port, so the network is a route out, not a way in. Prometheus is not on it, so no
-    `METRICS_TRUSTED_IPS` allowlist changes. `backend` and `data` stay internal.
+    no port. Prometheus is not on it, so no `METRICS_TRUSTED_IPS` allowlist changes. `backend` and
+    `data` stay internal. Two limits:
+    - **Egress is unrestricted**: any port, any destination, including the LAN and, on a cloud VM,
+      its metadata endpoint. Compose cannot express a port or CIDR filter. The Helm rule below is
+      narrower.
+    - **No published port is not the same as no way in.** Docker 28 and later drop direct-routed
+      traffic to unpublished container ports. Older Docker (this repo supports >= 24.0), on a host
+      whose FORWARD policy is ACCEPT, does not, so a LAN host that routes `172.27.0.0/16` via the
+      Docker host could reach `juniper-data:8100`. The internal networks never had that exposure.
   - **Validated in the stack**, not only in a lone container. `docker compose up juniper-data` ran
     from this tree, then one authenticated `equities_seq` request (one ticker, 2023-01-03 to
     2024-06-03) was made from inside the service:
     - this tree: `201`, 219/35/36 rows;
     - `main`'s compose file: `400`, with `Could not resolve host: query2.finance.yahoo.com`.
 
-    The Docker host could already reach `juniper-data` on its `backend` and `data` addresses
-    (measured: `/v1/health` answered 200 on all three), so the new network adds no host-side
-    reachability.
+    The Docker host itself could already reach `juniper-data` on its `backend` and `data` addresses
+    (measured on Docker 29.7.2: `/v1/health` answered 200 on all three), so the new network adds no
+    reachability from the Docker host. For other hosts, see the second limit above.
   - **The guards.** The service's compose comment said a `ports:` mapping would be "silently
     ineffective", because every network it was on was internal. That is no longer true, so the
     comment now says a mapping would bind.
-    - `tests/test_compose_data_egress.py` (new, 4 tests) pins that `juniper-data` publishes no
-      port, that `data-egress` stays non-internal and has no other member, and that `backend` /
-      `data` stay internal.
+    - `tests/test_compose_data_egress.py` (new, 5 tests) pins five things:
+      - `juniper-data` publishes no port;
+      - `data-egress` stays non-internal however the boolean is spelled, and keeps IP masquerade;
+      - `data-egress` has no other member;
+      - every service attaches to declared networks by name, which rules out a
+        `network_mode: service:` sidecar and a service on an undeclared, dynamically addressed
+        network;
+      - `backend` / `data` stay internal.
     - `tests/test_compose_metrics_subnet_alignment.py` now also fails when a network is declared
       without being added to `EXPECTED_NETWORKS`. Before, a new network could ship on dynamic IPAM
       unchecked.
-    - A mutation check planted seven defects, and the test that names each one caught it
-      (juniper-ml `util/ad-hoc/2026-09-24_data_egress_mutation_check.py`).
+    - A mutation check planted twelve defects, and the test that names each one caught it
+      (juniper-ml `util/ad-hoc/2026-09-24_data_egress_mutation_check.py`). Five of them are gaps
+      that independent validation found in this PR's first version of the tests.
   - **Docs.** `README.md`, `docs/REFERENCE.md` (both network tables and the test inventory) and
     `docs/DEVELOPER_CHEATSHEET.md` list the fifth network.
   - **The Helm chart had the same gap.** The owner applied the same ruling there; see the next
@@ -165,20 +181,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Helm: `juniper-data`'s NetworkPolicy allows HTTPS to public addresses** (the k8s half of
   `data-egress` above; owner ruling 2026-09-24). With `networkPolicies.enabled` (the default), the
   deny-all and data policies allowed `juniper-data` DNS only. So in k8s, as in compose, every
-  equities fetch was blocked while `/v1/generators` reported both generators available.
+  equities, mnist and arc_agi fetch was blocked while `/v1/generators` reported the generators
+  available.
   - **The rule.** `networkpolicy-data.yaml` gains one egress rule: TCP 443 to `0.0.0.0/0`. It
     excludes RFC 1918, CGNAT (`100.64.0.0/10`, where some CNIs place pod or service CIDRs) and
-    link-local (`169.254.0.0/16`, cloud metadata), so the rule cannot reach cluster-internal
-    services. No other policy changes.
+    link-local (`169.254.0.0/16`, cloud metadata). No other policy changes.
+  - **What the exclusions do not cover.** They keep the rule off cluster addresses only on a
+    cluster that uses those ranges. On a cluster whose API server has a public IP on 443 (a GKE or
+    AKS public endpoint), or whose pod or service ranges are public, the rule reaches them. So the
+    **data pod now sets `automountServiceAccountToken: false`** (owner ruling 2026-09-24):
+    juniper-data never calls the Kubernetes API, and a reachable API server now finds no token to
+    accept.
+  - **IPv4 only.** On an IPv6-only cluster the fetches stay blocked. On a dual-stack pod, a fetch
+    that tries IPv6 first waits out its timeout before falling back: the SEC fetch uses a 30 s
+    `urlopen` timeout.
   - **Checks.** `helm lint` and `helm template` pass. `tests/test_helm_networkpolicy_data_egress.py`
-    (new, 3 tests, renders with `helm template` and skips without helm) pins three things:
-    - the rule and its exclusions;
-    - that no other Juniper policy opens public HTTPS;
-    - that `networkPolicies.enabled=false` renders none.
+    (new, 4 tests, renders with `helm template` and skips without helm) pins four things:
+    - the data policy's egress is exactly DNS plus that one rule, with no `endPort`;
+    - no other Juniper policy has an `ipBlock` egress peer or a peerless rule other than DNS;
+    - the data pod mounts no service-account token;
+    - `networkPolicies.enabled=false` renders none of the chart's policies.
 
-    A mutation check planted five defects, and the test that names each one caught it (juniper-ml
-    `util/ad-hoc/2026-09-24_helm_data_egress_mutation_check.py`). Its first draft selected policies
-    by a name the chart never renders and passed vacuously; the tests now select by label.
+    A mutation check planted fifteen defects, and the test that names each one caught it
+    (juniper-ml `util/ad-hoc/2026-09-24_helm_data_egress_mutation_check.py`). Eight of them are
+    strictly broader rules that passed this PR's first version of the tests, which pinned the
+    rule's wording rather than the policy's effect: an `endPort`, a peerless 443 rule, an
+    all-ports rule, `::/0`, two `/1` halves, and a named port. Before that, a draft that selected
+    policies by a name the chart never renders had passed vacuously; the tests select by label.
+  - *Corrected after independent validation.* As first merged, this entry said the rule "cannot
+    reach cluster-internal services", and #231's said its network was "a route out, not a way in".
+    Both overclaimed.
   - **Not proven live.** No cluster was available, so the rule is verified as rendered, not as
     enforced by a CNI.
   - `docs/USER_MANUAL.md`'s network-policy table lists the new egress.

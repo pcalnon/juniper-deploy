@@ -41,13 +41,21 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # HTTPS to public addresses only. The equities / equities_seq generators fetch from Yahoo
-    # Finance and SEC EDGAR at request time. Without this rule the deny-all egress blocks them:
-    # /v1/generators reports both generators available, and every request fails with a 400.
-    # This is the same owner ruling (2026-09-24) as the compose stack's `data-egress` network.
-    # Four ranges are excluded, so the rule cannot reach cluster-internal services or a cloud
-    # metadata endpoint: RFC 1918, CGNAT (some CNIs place pod or service CIDRs there), and
-    # link-local.
+    # HTTPS to public addresses. Several generators fetch their data at request time:
+    # equities / equities_seq from Yahoo Finance and SEC EDGAR, mnist and arc_agi from the
+    # Hugging Face Hub. Without this rule, the deny-all egress blocks them all, while
+    # /v1/generators still reports them available. This is the same owner ruling (2026-09-24)
+    # as the compose stack's `data-egress` network.
+    #
+    # Five ranges are excluded: RFC 1918 (three blocks), CGNAT (some CNIs place pod or service
+    # CIDRs there) and link-local (cloud metadata). That keeps the rule off cluster addresses
+    # ONLY when the cluster uses those ranges. On a cluster whose API server has a public IP on
+    # 443 (e.g. a GKE or AKS public endpoint), or whose pod or service ranges are public, the rule
+    # reaches them. That is why the data pod mounts no service-account token
+    # (data-deployment.yaml).
+    #
+    # IPv4 only. On an IPv6-only cluster the fetches stay blocked. On a dual-stack pod, a fetch
+    # that tries IPv6 first waits out its timeout before falling back to IPv4.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
