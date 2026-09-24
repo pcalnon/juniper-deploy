@@ -161,18 +161,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     comment now says a mapping would bind.
     - `tests/test_compose_data_egress.py` (new, 5 tests) pins five things:
       - `juniper-data` publishes no port;
-      - `data-egress` stays non-internal however the boolean is spelled, and keeps IP masquerade;
+      - `data-egress` is not internal and keeps IP masquerade, as LITERAL values, because a quoted
+        or interpolated value can resolve to internal at `up` time;
       - `data-egress` has no other member;
       - every service attaches to declared networks by name, which rules out a
         `network_mode: service:` sidecar and a service on an undeclared, dynamically addressed
         network;
-      - `backend` / `data` stay internal.
+      - `juniper-data` is on exactly `backend`, `data` and `data-egress`, and the first two stay
+        internal (the literal `true`).
     - `tests/test_compose_metrics_subnet_alignment.py` now also fails when a network is declared
       without being added to `EXPECTED_NETWORKS`. Before, a new network could ship on dynamic IPAM
       unchecked.
-    - A mutation check planted twelve defects, and the test that names each one caught it
-      (juniper-ml `util/ad-hoc/2026-09-24_data_egress_mutation_check.py`). Five of them are gaps
-      that independent validation found in this PR's first version of the tests.
+    - A mutation check planted fourteen defects, and the test that names each one caught it
+      (juniper-ml `util/ad-hoc/2026-09-24_data_egress_mutation_check.py`). Seven of them are gaps
+      that independent validation found in this PR's first two versions of the tests: a
+      namespace-sharing sidecar, a quoted and an interpolated `internal`, disabled masquerade,
+      a service on an undeclared network (two spellings), and juniper-data joining `frontend`.
   - **Docs.** `README.md`, `docs/REFERENCE.md` (both network tables and the test inventory) and
     `docs/DEVELOPER_CHEATSHEET.md` list the fifth network.
   - **The Helm chart had the same gap.** The owner applied the same ruling there; see the next
