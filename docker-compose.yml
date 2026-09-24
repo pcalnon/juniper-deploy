@@ -209,9 +209,9 @@ services:
     networks:
       - backend
       - data
-      # Outbound route only: the equities generators fetch from Yahoo Finance and
-      # SEC EDGAR at request time, and `backend` / `data` are internal. See the
-      # `data-egress` network definition.
+      # For outbound fetches: equities / equities_seq (Yahoo Finance, SEC EDGAR) and
+      # mnist / arc_agi (Hugging Face Hub) fetch at request time, and `backend` / `data`
+      # are internal. See the `data-egress` network definition.
       - data-egress
     deploy:
       <<: *resources-light
@@ -1236,24 +1236,37 @@ networks:
         - subnet: 172.31.0.0/16
   # Outbound route for juniper-data ALONE (owner ruling 2026-09-24).
   #
-  # Since juniper-data 0.16.0 (juniper-data#421) the image carries the `equities` /
-  # `equities_seq` dependencies. Those generators fetch from Yahoo Finance and SEC
-  # EDGAR at request time. juniper-data's other two networks are `internal: true`,
-  # which blocks those fetches: `/v1/generators` reported both generators available,
-  # and every request failed at DNS with `400 Invalid request parameters`. Measured
-  # on the published 0.16.0 image, the same request answers 201 with egress.
+  # Several generators fetch their data at request time:
+  # - `equities` / `equities_seq` (in the image since juniper-data 0.16.0,
+  #   juniper-data#421) from Yahoo Finance and SEC EDGAR;
+  # - `mnist` and `arc_agi` from the Hugging Face Hub.
+  # juniper-data's other two networks are `internal: true`, which blocked every one of
+  # those fetches while `/v1/generators` reported the generators available. Measured on
+  # the published 0.16.0 image with no route out:
+  # - equities requests answered `400 Invalid request parameters` (a DNS failure);
+  # - mnist and arc_agi answered `500` after about 23 s.
+  # The same equities request answers 201 with egress.
   #
   # The posture:
-  # - Only juniper-data attaches here.
-  # - It publishes no port, so this adds a route OUT, not a way in from the network.
+  # - Only juniper-data attaches here, and it publishes no port.
   # - Not a scrape path: Prometheus is not on it, so no METRICS_TRUSTED_IPS
   #   allowlist names it.
+  # - Egress is UNRESTRICTED: any port, any destination, including the LAN and, on a
+  #   cloud VM, its metadata endpoint. Compose cannot express a port or CIDR filter;
+  #   that takes host firewall rules. The Helm chart's equivalent is narrower: TCP 443,
+  #   private, CGNAT and link-local ranges excluded (networkpolicy-data.yaml).
+  # - Not publishing a port does not by itself make this network unreachable. Docker 28
+  #   and later drop direct-routed traffic to unpublished container ports. Older Docker
+  #   (this repo supports >= 24.0) on a host whose FORWARD policy is ACCEPT does not, so
+  #   a LAN host that routes 172.27.0.0/16 via this host could reach juniper-data:8100.
+  #   The internal networks never had that exposure.
   #
   # Pinned like the four above (D5), so dynamic IPAM cannot land on one of them:
   # 172.27.0.0/16 is the next /16 down from the top of Docker's default pool.
   # Collision-checked 2026-09-24 against the host daemon: only 172.17.0.0/16 (the
-  # default bridge) was allocated. tests/test_compose_data_egress.py pins who
-  # attaches and that it stays non-internal.
+  # default bridge) was allocated. As with the other four, a collision on another
+  # host is a hard `up` failure, not a silent one.
+  # tests/test_compose_data_egress.py pins who attaches and that it stays non-internal.
   data-egress:
     driver: bridge
     ipam:
