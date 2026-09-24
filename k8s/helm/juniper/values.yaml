@@ -37,7 +37,7 @@ data:
     repository: juniper-data
     # DEPLOY-15: Pin to a concrete version for reproducible deployments. Bump
     # this in lockstep with the juniper-data app version when releasing.
-    tag: "0.15.0"
+    tag: "0.16.0"
     pullPolicy: IfNotPresent
 
   service:
