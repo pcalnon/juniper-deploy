@@ -21,6 +21,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`juniper-data` pinned to `0.16.0`**: `docker-compose.yml` (two sites: the `juniper-data`
+  service and `demo-seed`, which reuses its image) and `k8s/helm/juniper/values.yaml`. Release
+  `v0.16.0` was cut 2026-09-24 at `39d1cab2`. Its PyPI publish waits at the owner's gate, but this
+  stack runs the image, not the wheel. The GHCR image was checked before the bump:
+  - it is multi-arch (`linux/amd64` + `linux/arm64` + two attestation manifests; index
+    `sha256:e8bddbe5…`);
+  - its `org.opencontainers.image.revision` label is `39d1cab2`, the `v0.16.0` tag's commit;
+  - pulled and run with its own `CMD`, it answers `GET /v1/health` with 200 (`"version":"0.16.0"`),
+    and juniper-data's own publish-path check, `util/check_image_serves.py`, exits 0 on it;
+  - it carries no `juniper_data/tests/`.
+
+  What 0.16.0 changes for a deployment:
+  - **The image now installs the equities dependencies** (juniper-data#421), so `GET /v1/generators`
+    reports `equities` and `equities_seq` as available. **They still cannot run in this stack.**
+    The generator fetches prices from Yahoo Finance and share history from SEC EDGAR at request
+    time, with a cache only under the container's home directory, which no volume persists.
+    `juniper-data` is attached only to `backend` and `data`, both `internal: true`, so it has no
+    route out. Measured on the published image with one `equities_seq` request (one ticker,
+    2023-01-03 to 2024-06-03, a fresh container each time):
+    - on a network with egress, it answers `201`;
+    - on an `--internal` network, it answers **`400 {"detail":"Invalid request parameters"}`**,
+      while its log shows `DNSError … Could not resolve host: query2.finance.yahoo.com`.
+
+    Under 0.15.0 every such request failed on the missing `yfinance` (per juniper-data#421). Under
+    0.16.0 it fails on the network, and the response blames the caller's parameters. This is what
+    `juniper-recurrence`'s `/train` and `/crossval` would hit for `equities_seq`. The fix is not in
+    this change: giving the service egress means relaxing the `internal: true` isolation, and that
+    decision is the owner's.
+  - **`equities_seq` is still `5.0.0` / `classification` here.** X8 (juniper-data#437: `regression`
+    at `6.0.0`) merged after the cut and ships in the next data release. `juniper-canopy` already
+    labels the dataset `regression`.
+  - **`arc_agi` moves to `generator_version` `4.0.0`** (juniper-data#430). A seeded request
+    therefore resolves to a new `dataset_id`, and no longer gets an artifact cached with the old
+    class metadata. Nothing in this repo requests `arc_agi`.
+  - **Conditional requests** (juniper-data#428): `ETag`s on the single-dataset reads, and
+    `PATCH …/tags` honours an optional `If-Match`, where a stale one gets `412`. **Breaking**
+    upstream: `access_count` / `last_accessed_at` leave every metadata representation and move to
+    `GET /v1/datasets/{dataset_id}/access`. Nothing in this repo reads the counters or PATCHes
+    tags.
+  - `demo-seed` requests `spiral` only, so none of this reaches it.
+
+  The two compose sites move together because `tests/test_published_image_refs.py`'s
+  `test_shared_images_are_pinned_to_one_version` requires it. `scripts/verify_published_images.py
+  --fail-on-stale` reported `STALE PIN — 0.16.0 is published, this pins 0.15.0` and exited 1 before
+  the change. It exits 0 after it, with all six refs current.
+
 - **`juniper-cascor-worker` pinned to `0.6.1`**: `docker-compose.yml` and
   `k8s/helm/juniper/values.yaml`. Release `v0.6.1` was cut 2026-09-22 and PyPI serves it. The GHCR
   image was checked before the bump:

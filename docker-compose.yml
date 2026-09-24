@@ -161,7 +161,7 @@ services:
         GIT_SHA: "${GIT_SHA_DATA:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_DATA:-}"
-    image: ghcr.io/pcalnon/juniper-data:0.15.0
+    image: ghcr.io/pcalnon/juniper-data:0.16.0
     container_name: juniper-data
     # No host port is published: juniper-data is attached only to the `backend`
     # and `data` networks, both `internal: true`. Docker cannot publish a host
@@ -514,7 +514,7 @@ services:
   # ═══════════════════════════════════════════════════════════════════════════
   demo-seed:
     profiles: ["demo"]
-    image: ghcr.io/pcalnon/juniper-data:0.15.0
+    image: ghcr.io/pcalnon/juniper-data:0.16.0
     # Pinned to the SAME ref as the `juniper-data` service above: demo-seed has
     # no `build:` of its own — it reuses the data image with an `entrypoint:`
     # override — so the "keep `build:` for local dev" rule is inapplicable here
