@@ -44,9 +44,11 @@ PROMETHEUS_PATHS = (
     REPO_ROOT / "prometheus" / "prometheus.demo.yml",
 )
 
-# The four networks declared in the compose `networks:` block. Pinning them is
-# the whole point of D5, so their absence is itself a drift.
-EXPECTED_NETWORKS = ("backend", "data", "frontend", "monitoring")
+# The five networks declared in the compose `networks:` block. Pinning them is
+# the whole point of D5, so their absence is itself a drift. `data-egress`
+# (2026-09-24) is not a scrape path. It is pinned so that dynamic IPAM cannot
+# land on one of the other four.
+EXPECTED_NETWORKS = ("backend", "data", "frontend", "monitoring", "data-egress")
 
 # Metrics-scraping target service -> its allowlist env var. These are the
 # MetricsAuthMiddleware-gated services `.env.observability` widens.
@@ -152,9 +154,16 @@ def test_target_contract_covers_every_prometheus_app_scrape() -> None:
 
 
 def test_every_network_pins_a_unique_static_subnet() -> None:
-    """All four compose networks must carry a static ipam.config.subnet (no dynamic IPAM)."""
+    """Every compose network must carry a static ipam.config.subnet (no dynamic IPAM)."""
     compose = _load_compose()
     subnets = _network_subnets(compose)
+    declared = set((compose.get("networks") or {}).keys())
+    # Without this, a network added to the compose file but not to EXPECTED_NETWORKS would
+    # never be checked. It could then ship on dynamic IPAM, which is the drift D5 exists to stop.
+    assert declared == set(EXPECTED_NETWORKS), (
+        f"declared networks {sorted(declared)} != EXPECTED_NETWORKS {sorted(EXPECTED_NETWORKS)}: "
+        f"add a new network here AND pin its subnet"
+    )
     for name in EXPECTED_NETWORKS:
         assert name in subnets, (
             f"network `{name}` has no static ipam.config.subnet — SEC-F19/D5 requires a pinned "

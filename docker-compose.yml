@@ -163,14 +163,16 @@ services:
         APP_VERSION: "${APP_VERSION_DATA:-}"
     image: ghcr.io/pcalnon/juniper-data:0.16.0
     container_name: juniper-data
-    # No host port is published: juniper-data is attached only to the `backend`
-    # and `data` networks, both `internal: true`. Docker cannot publish a host
-    # port from an internal-only network, so a `ports:` mapping here would be
-    # silently ineffective (visible in `docker inspect` but never bound/listening).
-    # Other services reach data over the Docker network (http://juniper-data:8100);
+    # No host port is published. Other services reach data over the internal
+    # `backend` and `data` networks (http://juniper-data:8100), and
     # scripts/{health_check,wait_for_services}.sh probe it via `docker compose exec`.
-    # To expose data on the host, also attach it to the non-internal `frontend`
-    # network and restore a `ports:` mapping.
+    # juniper-data is ALSO on `data-egress`, a non-internal network it uses only for
+    # outbound fetches (see the network's definition). Because that network is not
+    # internal, a `ports:` mapping here WOULD bind. It is no longer silently
+    # ineffective, as it was while every network here was internal. So do not add
+    # one unless exposing data on the host is the intent; if it is, bind it to
+    # `${BIND_HOST:-127.0.0.1}` like every other service.
+    # tests/test_compose_data_egress.py pins "no `ports:`".
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -207,6 +209,10 @@ services:
     networks:
       - backend
       - data
+      # Outbound route only: the equities generators fetch from Yahoo Finance and
+      # SEC EDGAR at request time, and `backend` / `data` are internal. See the
+      # `data-egress` network definition.
+      - data-egress
     deploy:
       <<: *resources-light
     restart: unless-stopped
@@ -1228,6 +1234,31 @@ networks:
     ipam:
       config:
         - subnet: 172.31.0.0/16
+  # Outbound route for juniper-data ALONE (owner ruling 2026-09-24).
+  #
+  # Since juniper-data 0.16.0 (juniper-data#421) the image carries the `equities` /
+  # `equities_seq` dependencies. Those generators fetch from Yahoo Finance and SEC
+  # EDGAR at request time. juniper-data's other two networks are `internal: true`,
+  # which blocks those fetches: `/v1/generators` reported both generators available,
+  # and every request failed at DNS with `400 Invalid request parameters`. Measured
+  # on the published 0.16.0 image, the same request answers 201 with egress.
+  #
+  # The posture:
+  # - Only juniper-data attaches here.
+  # - It publishes no port, so this adds a route OUT, not a way in from the network.
+  # - Not a scrape path: Prometheus is not on it, so no METRICS_TRUSTED_IPS
+  #   allowlist names it.
+  #
+  # Pinned like the four above (D5), so dynamic IPAM cannot land on one of them:
+  # 172.27.0.0/16 is the next /16 down from the top of Docker's default pool.
+  # Collision-checked 2026-09-24 against the host daemon: only 172.17.0.0/16 (the
+  # default bridge) was allocated. tests/test_compose_data_egress.py pins who
+  # attaches and that it stays non-internal.
+  data-egress:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.27.0.0/16
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Volumes

@@ -46,9 +46,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
     Under 0.15.0 every such request failed on the missing `yfinance` (per juniper-data#421). Under
     0.16.0 it fails on the network, and the response blames the caller's parameters. This is what
-    `juniper-recurrence`'s `/train` and `/crossval` would hit for `equities_seq`. The fix is not in
-    this change: giving the service egress means relaxing the `internal: true` isolation, and that
-    decision is the owner's.
+    `juniper-recurrence`'s `/train` and `/crossval` would hit for `equities_seq`. The owner ruled
+    for a dedicated egress network. See `data-egress` under *Fixed*.
   - **`equities_seq` is still `5.0.0` / `classification` here.** X8 (juniper-data#437: `regression`
     at `6.0.0`) merged after the cut and ships in the next data release. `juniper-canopy` already
     labels the dataset `regression`.
@@ -124,6 +123,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   that a pinned ref *resolves* — it does not assert that the ref is the *newest release*. So the
   stack pinned a superseded canopy for three days with every check green and nothing naming it.
   A resolution gate cannot detect staleness. That check now exists — see #226 under *Added*.
+
+### Fixed
+
+- **The stack can generate `equities` / `equities_seq`: `juniper-data` gets an outbound-only
+  network, `data-egress`** (owner ruling 2026-09-24).
+  - **Before this change.** Since the `0.16.0` pin above, the image carries the equities
+    dependencies, and the generators fetch from Yahoo Finance and SEC EDGAR at request time.
+    `juniper-data`'s networks, `backend` and `data`, are both `internal: true`, so every such
+    request failed at DNS. The API answered `400 {"detail":"Invalid request parameters"}`, while
+    `GET /v1/generators` listed both generators as available.
+  - **The network.** `data-egress` is a plain bridge on `172.27.0.0/16`, pinned like the other four
+    so that dynamic IPAM cannot land on one of them. Only `juniper-data` attaches, and it publishes
+    no port, so the network is a route out, not a way in. Prometheus is not on it, so no
+    `METRICS_TRUSTED_IPS` allowlist changes. `backend` and `data` stay internal.
+  - **Validated in the stack**, not only in a lone container. `docker compose up juniper-data` ran
+    from this tree, then one authenticated `equities_seq` request (one ticker, 2023-01-03 to
+    2024-06-03) was made from inside the service:
+    - this tree: `201`, 219/35/36 rows;
+    - `main`'s compose file: `400`, with `Could not resolve host: query2.finance.yahoo.com`.
+
+    The Docker host could already reach `juniper-data` on its `backend` and `data` addresses
+    (measured: `/v1/health` answered 200 on all three), so the new network adds no host-side
+    reachability.
+  - **The guards.** The service's compose comment said a `ports:` mapping would be "silently
+    ineffective", because every network it was on was internal. That is no longer true, so the
+    comment now says a mapping would bind.
+    - `tests/test_compose_data_egress.py` (new, 4 tests) pins that `juniper-data` publishes no
+      port, that `data-egress` stays non-internal and has no other member, and that `backend` /
+      `data` stay internal.
+    - `tests/test_compose_metrics_subnet_alignment.py` now also fails when a network is declared
+      without being added to `EXPECTED_NETWORKS`. Before, a new network could ship on dynamic IPAM
+      unchecked.
+    - A mutation check planted seven defects, and the test that names each one caught it
+      (juniper-ml `util/ad-hoc/2026-09-24_data_egress_mutation_check.py`).
+  - **Docs.** `README.md`, `docs/REFERENCE.md` (both network tables and the test inventory) and
+    `docs/DEVELOPER_CHEATSHEET.md` list the fifth network.
+  - **Not changed here: the Helm chart has the same gap.** With `networkPolicies.enabled`,
+    `networkpolicy-data.yaml` allows `juniper-data` egress on port 53 only. That decision is left
+    to the owner.
 
 ## [0.3.0] - 2026-09-17
 

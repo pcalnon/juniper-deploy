@@ -384,8 +384,9 @@ Compose secret definitions reference local files in `secrets/`:
 | `backend` | bridge, internal | `172.28.0.0/16` | juniper-cascor, juniper-cascor-demo, juniper-canopy, juniper-canopy-demo, juniper-cascor-worker, redis, prometheus |
 | `data` | bridge, internal | `172.29.0.0/16` | juniper-data, juniper-cascor, juniper-cascor-demo, juniper-canopy, juniper-canopy-demo, prometheus |
 | `monitoring` | bridge | `172.31.0.0/16` | prometheus, alertmanager, grafana |
+| `data-egress` | bridge | `172.27.0.0/16` | juniper-data (only; its outbound route for the equities fetches) |
 
-The static subnets keep Prometheus's scrape source address deterministic. The CIDRs in `.env.observability` must match the pinned subnets each target shares with Prometheus:
+The static subnets keep Prometheus's scrape source address deterministic. `data-egress` is not a scrape path; it is pinned so dynamic IPAM cannot land on one of the other four. The CIDRs in `.env.observability` must match the pinned subnets each target shares with Prometheus:
 
 | Metrics target | Shared networks with Prometheus | Trusted CIDRs in `.env.observability` |
 |----------------|---------------------------------|----------------------------------------|
@@ -393,7 +394,7 @@ The static subnets keep Prometheus's scrape source address deterministic. The CI
 | `juniper-cascor` | `backend`, `data`, `frontend` | `172.28.0.0/16`, `172.29.0.0/16`, `172.30.0.0/16`, loopback |
 | `juniper-canopy` | `backend`, `data`, `frontend` | `172.28.0.0/16`, `172.29.0.0/16`, `172.30.0.0/16`, loopback |
 
-The `monitoring` subnet is intentionally absent from those allowlists because no scrape target attaches to `monitoring`. `tests/test_compose_metrics_subnet_alignment.py` fails if a network loses its static subnet or if the allowlist CIDRs drift from the shared-network set.
+The `monitoring` subnet is intentionally absent from those allowlists because no scrape target attaches to `monitoring`. `tests/test_compose_metrics_subnet_alignment.py` fails if a network is declared without being listed in its `EXPECTED_NETWORKS`, if a network loses its static subnet, or if the allowlist CIDRs drift from the shared-network set.
 
 These metrics allowlists are network-scope authorization, not per-host authentication. Docker NAT can collapse clients to a bridge gateway address, so individual client identity must not be inferred from these CIDRs.
 
@@ -689,7 +690,8 @@ juniper-deploy/
 │   ├── test_data_service.py        # Dataset lifecycle tests
 │   ├── test_full_stack.py          # Cross-service integration tests
 │   ├── test_availability.py        # Availability checking fixtures
-│   └── test_compose_security_config.py  # Docker security regression tests
+│   ├── test_compose_security_config.py  # Docker security regression tests
+│   └── test_compose_data_egress.py      # juniper-data's outbound-only network
 │
 ├── docs/
 │   ├── DOCUMENTATION_OVERVIEW.md   # Navigation index
@@ -764,7 +766,7 @@ Relocated verbatim from `AGENTS.md` (P3 of the shared-session-memory plan) so it
 
 ### Network Isolation
 
-Four Docker networks enforce service-to-service communication boundaries:
+Five Docker networks enforce service-to-service communication boundaries:
 
 | Network | Type | Purpose | Services |
 |---------|------|---------|----------|
@@ -772,8 +774,9 @@ Four Docker networks enforce service-to-service communication boundaries:
 | `backend` | **internal** | CasCor + infrastructure (no external access) | juniper-cascor, redis, prometheus |
 | `data` | **internal** | JuniperData access (no external access) | juniper-data, juniper-cascor, juniper-canopy, prometheus |
 | `monitoring` | bridge | Observability stack | prometheus, grafana |
+| `data-egress` | bridge | juniper-data's outbound route: the `equities` / `equities_seq` generators fetch from Yahoo Finance and SEC EDGAR | juniper-data only |
 
-Networks marked **internal** have no external connectivity — containers on these networks can only communicate with other containers on the same network.
+Networks marked **internal** have no external connectivity — containers on these networks can only communicate with other containers on the same network. `data-egress` exists because of that: without it, every equities request failed at DNS with a `400` (owner ruling 2026-09-24). juniper-data publishes no port on it, so it is a route out, not a way in. `tests/test_compose_data_egress.py` pins who attaches, that it stays non-internal, and that juniper-data publishes no port.
 
 ### Container Hardening
 
@@ -847,6 +850,7 @@ pytest tests/ -v -m full_stack       # Cross-service tests only
 | `test_full_stack.py` | `full_stack` | CasCor-Data integration, Canopy dashboard, 3-service pipeline |
 | `test_availability.py` | — | Skip mechanism validation, fixture scope checks |
 | `test_compose_security_config.py` | — | Docker secret wiring, network isolation, Grafana secret-only password |
+| `test_compose_data_egress.py` | — | `data-egress` stays non-internal and juniper-data-only; `backend` / `data` stay internal; juniper-data publishes no port |
 
 **Configurable service URLs** (via environment variables):
 
