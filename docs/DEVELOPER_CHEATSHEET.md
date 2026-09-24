@@ -81,7 +81,7 @@ make health   # formatted report across all services
 
 Each service exposes `/v1/health`, `/v1/health/live`, and `/v1/health/ready`.
 
-Services are segmented across four Docker bridge networks:
+Services are segmented across five Docker bridge networks:
 
 | Network | Type | Services | Purpose |
 |---------|------|----------|---------|
@@ -89,6 +89,7 @@ Services are segmented across four Docker bridge networks:
 | `backend` | bridge, internal | cascor, cascor-demo, canopy, canopy-demo, redis, prometheus | CasCor API and internal backend traffic |
 | `data` | bridge, internal | data, cascor, cascor-demo, canopy, canopy-demo, prometheus | Dataset service network; not reachable from frontend directly |
 | `monitoring` | bridge | prometheus, alertmanager, grafana | Observability-only network for monitoring components |
+| `data-egress` | bridge | data | data's outbound route for the equities fetches (Yahoo Finance, SEC EDGAR); no port published, no other member |
 
 This architecture provides network segmentation: juniper-data is only accessible from the backend services, not directly from the frontend.
 
