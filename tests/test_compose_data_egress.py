@@ -30,14 +30,17 @@
 #    network they answer `500` after about 23 s (measured the same way, 2026-09-24).
 #
 #    What must stay true, each pinned below:
-#      - the network is NOT internal, however the boolean is spelled, and does not disable IP
-#        masquerade (either would be exactly the failure it exists to fix);
+#      - the network is NOT internal and does not disable IP masquerade, as LITERAL values:
+#        a quoted or interpolated value can resolve to internal at `up` time (either would be
+#        exactly the failure it exists to fix);
 #      - ONLY juniper-data attaches (so it is juniper-data's route out, not a shared network, and
 #        not a scrape path for Prometheus);
 #      - every service attaches to declared networks by name. A `network_mode: service:` sidecar
 #        would share juniper-data's egress without naming it, and a service with no `networks:`
 #        lands on an undeclared network with dynamic addressing;
-#      - juniper-data keeps `backend` and `data`, which stay internal: the egress is additive;
+#      - juniper-data is on exactly `backend`, `data` and `data-egress`, and the first two stay
+#        internal: the egress is additive, and another non-internal network would be a new
+#        exposure;
 #      - juniper-data publishes NO port. While every network it was on was internal, a `ports:`
 #        mapping could not bind. On a non-internal network it would, so the guarantee that the
 #        network used to give is now asserted instead. (Publishing is not the only way in:
@@ -74,18 +77,16 @@ def _service_networks(spec: dict) -> set[str]:
     return set(nets)  # short form: `networks: [backend, data]`
 
 
-def _truthy(value: object) -> bool:
-    """Compose accepts a boolean spelled several ways; a quoted "true" must count as true."""
-    return value is True or str(value).strip().lower() in {"true", "1", "yes", "on"}
-
-
 def test_data_egress_is_declared_and_not_internal() -> None:
+    # LITERAL values only. A quoted "true", or an interpolation such as ${EGRESS_INTERNAL:-true},
+    # can resolve to internal at `up` time while reading as a string here. So `internal` must be
+    # absent or the literal False, and the masquerade option absent or the literal "true".
     networks = _load_compose().get("networks") or {}
     assert EGRESS in networks, f"`{EGRESS}` is not declared: juniper-data has no outbound route, and every equities request fails at DNS"
     spec = networks[EGRESS] or {}
-    assert not _truthy(spec.get("internal")), f"`{EGRESS}` is internal: that blocks the Yahoo Finance / SEC EDGAR / Hugging Face fetches this network exists to allow"
+    assert spec.get("internal") in (None, False), f"`{EGRESS}` sets internal={spec.get('internal')!r}: it must be absent or the literal false, or it can block the Yahoo Finance / SEC EDGAR / Hugging Face fetches this network exists to allow"
     masquerade = (spec.get("driver_opts") or {}).get("com.docker.network.bridge.enable_ip_masquerade")
-    assert masquerade is None or _truthy(masquerade), f"`{EGRESS}` disables IP masquerade, so its traffic cannot leave the host"
+    assert masquerade in (None, True, "true"), f"`{EGRESS}` sets IP masquerade to {masquerade!r}: without it, its traffic cannot leave the host"
 
 
 def test_only_juniper_data_attaches_to_data_egress() -> None:
@@ -113,9 +114,11 @@ def test_juniper_data_keeps_its_internal_networks() -> None:
     compose = _load_compose()
     networks = compose.get("networks") or {}
     data_nets = _service_networks(compose["services"][DATA])
-    assert {"backend", "data", EGRESS} <= data_nets, f"{DATA} networks {sorted(data_nets)}: the egress route is additive, and `backend` / `data` are how the stack reaches it"
+    # EXACT set: joining `frontend` too would give juniper-data a second non-internal network,
+    # reachable by everything on it, which is a different decision from an outbound route.
+    assert data_nets == {"backend", "data", EGRESS}, f"{DATA} networks {sorted(data_nets)}: expected exactly backend, data and {EGRESS}. The egress route is additive, `backend` / `data` are how the stack reaches it, and any other network is a new exposure"
     for name in ("backend", "data"):
-        assert _truthy((networks[name] or {}).get("internal")), f"`{name}` must stay internal: the egress route is juniper-data's alone, not a relaxation of the shared networks"
+        assert (networks[name] or {}).get("internal") is True, f"`{name}` must stay internal (the literal true): the egress route is juniper-data's alone, not a relaxation of the shared networks"
 
 
 def test_juniper_data_publishes_no_port() -> None:
