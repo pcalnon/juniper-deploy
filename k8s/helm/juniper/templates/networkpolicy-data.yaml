@@ -41,4 +41,23 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+    # HTTPS to public addresses only. The equities / equities_seq generators fetch from Yahoo
+    # Finance and SEC EDGAR at request time. Without this rule the deny-all egress blocks them:
+    # /v1/generators reports both generators available, and every request fails with a 400.
+    # This is the same owner ruling (2026-09-24) as the compose stack's `data-egress` network.
+    # Four ranges are excluded, so the rule cannot reach cluster-internal services or a cloud
+    # metadata endpoint: RFC 1918, CGNAT (some CNIs place pod or service CIDRs there), and
+    # link-local.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 100.64.0.0/10
+              - 169.254.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
 {{- end }}

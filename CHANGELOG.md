@@ -159,9 +159,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
       (juniper-ml `util/ad-hoc/2026-09-24_data_egress_mutation_check.py`).
   - **Docs.** `README.md`, `docs/REFERENCE.md` (both network tables and the test inventory) and
     `docs/DEVELOPER_CHEATSHEET.md` list the fifth network.
-  - **Not changed here: the Helm chart has the same gap.** With `networkPolicies.enabled`,
-    `networkpolicy-data.yaml` allows `juniper-data` egress on port 53 only. That decision is left
-    to the owner.
+  - **The Helm chart had the same gap.** The owner applied the same ruling there; see the next
+    entry.
+
+- **Helm: `juniper-data`'s NetworkPolicy allows HTTPS to public addresses** (the k8s half of
+  `data-egress` above; owner ruling 2026-09-24). With `networkPolicies.enabled` (the default), the
+  deny-all and data policies allowed `juniper-data` DNS only. So in k8s, as in compose, every
+  equities fetch was blocked while `/v1/generators` reported both generators available.
+  - **The rule.** `networkpolicy-data.yaml` gains one egress rule: TCP 443 to `0.0.0.0/0`. It
+    excludes RFC 1918, CGNAT (`100.64.0.0/10`, where some CNIs place pod or service CIDRs) and
+    link-local (`169.254.0.0/16`, cloud metadata), so the rule cannot reach cluster-internal
+    services. No other policy changes.
+  - **Checks.** `helm lint` and `helm template` pass. `tests/test_helm_networkpolicy_data_egress.py`
+    (new, 3 tests, renders with `helm template` and skips without helm) pins three things:
+    - the rule and its exclusions;
+    - that no other Juniper policy opens public HTTPS;
+    - that `networkPolicies.enabled=false` renders none.
+
+    A mutation check planted five defects, and the test that names each one caught it (juniper-ml
+    `util/ad-hoc/2026-09-24_helm_data_egress_mutation_check.py`). Its first draft selected policies
+    by a name the chart never renders and passed vacuously; the tests now select by label.
+  - **Not proven live.** No cluster was available, so the rule is verified as rendered, not as
+    enforced by a CNI.
+  - `docs/USER_MANUAL.md`'s network-policy table lists the new egress.
 
 ## [0.3.0] - 2026-09-17
 
