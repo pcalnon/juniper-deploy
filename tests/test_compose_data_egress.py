@@ -128,6 +128,28 @@ def test_no_service_uses_extends() -> None:
     assert not users, f"services using `extends` hide inherited networks from these checks: {users}"
 
 
+def test_compose_file_includes_nothing() -> None:
+    # A top-level `include:` merges another file's services and networks, so it can add a member to
+    # `data-egress` or redefine it where these checks never look. The same class as `extends`.
+    assert "include" not in _load_compose(), "a top-level `include:` merges services and networks these checks cannot see"
+
+
+def test_no_declared_network_is_an_external_alias() -> None:
+    # `external: true` plus `name:` would make another declared key the SAME Docker network as
+    # data-egress, attaching its members without naming data-egress.
+    networks = _load_compose().get("networks") or {}
+    aliased = sorted(name for name, spec in networks.items() if "external" in (spec or {}) or "name" in (spec or {}))
+    assert not aliased, f"declared networks must not be external or renamed: {aliased}"
+
+
+def test_juniper_data_has_no_dns_or_host_overrides() -> None:
+    # `dns: [127.0.0.1]` or an `extra_hosts` entry for a fetch host reproduces the measured DNS
+    # failure without touching any network.
+    spec = _load_compose()["services"][DATA]
+    overrides = sorted(key for key in ("dns", "dns_search", "dns_opt", "extra_hosts") if key in spec)
+    assert not overrides, f"{DATA} must not override DNS or hosts: {overrides}"
+
+
 def test_juniper_data_keeps_its_internal_networks() -> None:
     compose = _load_compose()
     networks = compose.get("networks") or {}
