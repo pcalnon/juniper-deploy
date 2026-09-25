@@ -1259,7 +1259,9 @@ networks:
   #   and later drop direct-routed traffic to unpublished container ports. Older Docker
   #   (this repo supports >= 24.0) on a host whose FORWARD policy is ACCEPT does not, so
   #   a LAN host that routes 172.27.0.0/16 via this host could reach juniper-data:8100.
-  #   The internal networks never had that exposure.
+  #   The internal networks never had that exposure. Both statements assume Docker manages
+  #   the host firewall (the default). With `"iptables": false` in daemon.json, neither
+  #   the Docker 28 protection nor the internal-network isolation rules are installed.
   #
   # Pinned like the four above (D5), so dynamic IPAM cannot land on one of them:
   # 172.27.0.0/16 is the next /16 down from the top of Docker's default pool.
