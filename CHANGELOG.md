@@ -23,8 +23,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **`juniper-data` pinned to `0.16.0`**: `docker-compose.yml` (two sites: the `juniper-data`
   service and `demo-seed`, which reuses its image) and `k8s/helm/juniper/values.yaml`. Release
-  `v0.16.0` was cut 2026-09-24 at `39d1cab2`. Its PyPI publish waits at the owner's gate, but this
-  stack runs the image, not the wheel. The GHCR image was checked before the bump:
+  `v0.16.0` was cut 2026-09-24 at `39d1cab2`, and PyPI has served it since 18:35Z. This stack runs
+  the image, not the wheel. The GHCR image was checked before the bump:
   - it is multi-arch (`linux/amd64` + `linux/arm64` + two attestation manifests; index
     `sha256:e8bddbe5…`);
   - its `org.opencontainers.image.revision` label is `39d1cab2`, the `v0.16.0` tag's commit;
@@ -135,7 +135,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     `GET /v1/generators` listed both generators as available.
   - **It fixes `mnist` and `arc_agi` too.** Both fetch from the Hugging Face Hub at request time.
     With no route out, the published 0.16.0 image answers `500` after about 23 s for each, while
-    listing both as available. The stack could not generate them under any pinned version.
+    listing both as available. So the stack could not fetch them from the Hub under any pinned
+    version. (`arc_agi`'s `source: local` needs no network.) Measured in the stack after #234, with
+    the route: mnist `201` (48,000/6,000/6,000 rows, 37 s), arc_agi `201` (1,374/172/171, 4 s).
   - **The network.** `data-egress` is a plain bridge on `172.27.0.0/16`, pinned like the other four
     so that dynamic IPAM cannot land on one of them. Only `juniper-data` attaches, and it publishes
     no port. Prometheus is not on it, so no `METRICS_TRUSTED_IPS` allowlist changes. `backend` and
@@ -159,24 +161,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - **The guards.** The service's compose comment said a `ports:` mapping would be "silently
     ineffective", because every network it was on was internal. That is no longer true, so the
     comment now says a mapping would bind.
-    - `tests/test_compose_data_egress.py` (new, 5 tests) pins five things:
+    - `tests/test_compose_data_egress.py` (new, 6 tests) pins six things:
       - `juniper-data` publishes no port;
-      - `data-egress` is not internal and keeps IP masquerade, as LITERAL values, because a quoted
-        or interpolated value can resolve to internal at `up` time;
+      - `data-egress`'s whole definition, exactly. Checking keys one by one let other options undo
+        the route: `internal`, masquerade, `gateway_mode_ipv4: routed` (no NAT), `nat-unprotected`
+        (it reopens direct routing), `inhibit_ipv4`, and interpolations of any of them;
       - `data-egress` has no other member;
-      - every service attaches to declared networks by name, which rules out a
+      - every service attaches to declared networks, by names the file declares. That rules out a
         `network_mode: service:` sidecar and a service on an undeclared, dynamically addressed
-        network;
+        network such as `default`;
+      - no service uses `extends`, whose merged `networks` the attachment checks cannot see;
       - `juniper-data` is on exactly `backend`, `data` and `data-egress`, and the first two stay
         internal (the literal `true`).
     - `tests/test_compose_metrics_subnet_alignment.py` now also fails when a network is declared
       without being added to `EXPECTED_NETWORKS`. Before, a new network could ship on dynamic IPAM
       unchecked.
-    - A mutation check planted fourteen defects, and the test that names each one caught it
-      (juniper-ml `util/ad-hoc/2026-09-24_data_egress_mutation_check.py`). Seven of them are gaps
-      that independent validation found in this PR's first two versions of the tests: a
-      namespace-sharing sidecar, a quoted and an interpolated `internal`, disabled masquerade,
-      a service on an undeclared network (two spellings), and juniper-data joining `frontend`.
+    - A mutation check planted twenty-one defects, and the test that names each one caught it
+      (juniper-ml `util/ad-hoc/2026-09-24_data_egress_mutation_check.py`). Fourteen of them are
+      gaps that three independent validation rounds found in this PR's earlier versions of the
+      tests.
   - **Docs.** `README.md`, `docs/REFERENCE.md` (both network tables and the test inventory) and
     `docs/DEVELOPER_CHEATSHEET.md` list the fifth network.
   - **The Helm chart had the same gap.** The owner applied the same ruling there; see the next
@@ -200,18 +203,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     that tries IPv6 first waits out its timeout before falling back: the SEC fetch uses a 30 s
     `urlopen` timeout.
   - **Checks.** `helm lint` and `helm template` pass. `tests/test_helm_networkpolicy_data_egress.py`
-    (new, 4 tests, renders with `helm template` and skips without helm) pins four things:
-    - the data policy's egress is exactly DNS plus that one rule, with no `endPort`;
-    - no other Juniper policy has an `ipBlock` egress peer or a peerless rule other than DNS;
-    - the data pod mounts no service-account token;
-    - `networkPolicies.enabled=false` renders none of the chart's policies.
+    (new, 5 tests; renders with `helm template`, skips without helm) evaluates policies the way
+    Kubernetes does. A pod's egress is the UNION over every NetworkPolicy that selects it, whatever
+    that policy's own labels, and a pod no Egress policy selects is unrestricted. It pins:
+    - the data pod is governed, and its effective egress is exactly DNS plus that one rule, with no
+      `endPort`;
+    - every other Juniper pod is governed, with no `ipBlock` or peerless non-DNS egress;
+    - the data pod mounts no service-account token, by automount or by a projected volume;
+    - with `networkPolicies.enabled=false`, no policy selects a Juniper pod;
+    - no other network-policy kind is rendered (these tests cannot evaluate one).
 
-    A mutation check planted fifteen defects, and the test that names each one caught it
-    (juniper-ml `util/ad-hoc/2026-09-24_helm_data_egress_mutation_check.py`). Eight of them are
-    strictly broader rules that passed this PR's first version of the tests, which pinned the
-    rule's wording rather than the policy's effect: an `endPort`, a peerless 443 rule, an
-    all-ports rule, `::/0`, two `/1` halves, and a named port. Before that, a draft that selected
-    policies by a name the chart never renders had passed vacuously; the tests select by label.
+    **Accepted limits:**
+    - The DNS rule has no peer, so ports 53 are open to any address.
+    - The Redis subchart's own policy allows its pods all egress.
+    - Only the default values are rendered.
+
+    A mutation check planted twenty-six defects, and the test that names each one caught it
+    (juniper-ml `util/ad-hoc/2026-09-24_helm_data_egress_mutation_check.py`). The tests reached
+    this shape through three rounds of validation:
+    - #232's version matched the rule's wording, and eight broader rules passed it;
+    - #233's version looked at one policy at a time, so a widened deny-all, a second or unlabelled
+      policy, a widened selector, or a data policy that no longer applied all passed.
   - *Corrected after independent validation.* As first merged, this entry said the rule "cannot
     reach cluster-internal services", and #231's said its network was "a route out, not a way in".
     Both overclaimed.
