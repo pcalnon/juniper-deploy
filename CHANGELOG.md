@@ -161,7 +161,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - **The guards.** The service's compose comment said a `ports:` mapping would be "silently
     ineffective", because every network it was on was internal. That is no longer true, so the
     comment now says a mapping would bind.
-    - `tests/test_compose_data_egress.py` (new, 6 tests) pins six things:
+    - `tests/test_compose_data_egress.py` (new, 9 tests) pins nine things:
       - `juniper-data` publishes no port;
       - `data-egress`'s whole definition, exactly. Checking keys one by one let other options undo
         the route: `internal`, masquerade, `gateway_mode_ipv4: routed` (no NAT), `nat-unprotected`
@@ -170,14 +170,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
       - every service attaches to declared networks, by names the file declares. That rules out a
         `network_mode: service:` sidecar and a service on an undeclared, dynamically addressed
         network such as `default`;
-      - no service uses `extends`, whose merged `networks` the attachment checks cannot see;
+      - no service uses `extends`, and the file has no top-level `include`. Both merge services or
+        networks the attachment checks cannot see;
+      - no declared network is `external` or renamed. An alias could make another key the same
+        Docker network;
+      - `juniper-data` overrides no DNS or hosts (`dns`, `extra_hosts`, …). Either reproduces the
+        measured DNS failure;
       - `juniper-data` is on exactly `backend`, `data` and `data-egress`, and the first two stay
         internal (the literal `true`).
+
+      These are checks on the file as written, not a Compose engine. Out of scope: another compose
+      file passed with `-f`, and the daemon's own configuration.
     - `tests/test_compose_metrics_subnet_alignment.py` now also fails when a network is declared
       without being added to `EXPECTED_NETWORKS`. Before, a new network could ship on dynamic IPAM
       unchecked.
-    - A mutation check planted twenty-one defects, and the test that names each one caught it
-      (juniper-ml `util/ad-hoc/2026-09-24_data_egress_mutation_check.py`). Fourteen of them are
+    - A mutation check planted twenty-five defects, and the test that names each one caught it
+      (juniper-ml `util/ad-hoc/2026-09-24_data_egress_mutation_check.py`). Eighteen of them are
       gaps that three independent validation rounds found in this PR's earlier versions of the
       tests.
   - **Docs.** `README.md`, `docs/REFERENCE.md` (both network tables and the test inventory) and
@@ -203,27 +211,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     that tries IPv6 first waits out its timeout before falling back: the SEC fetch uses a 30 s
     `urlopen` timeout.
   - **Checks.** `helm lint` and `helm template` pass. `tests/test_helm_networkpolicy_data_egress.py`
-    (new, 5 tests; renders with `helm template`, skips without helm) evaluates policies the way
-    Kubernetes does. A pod's egress is the UNION over every NetworkPolicy that selects it, whatever
-    that policy's own labels, and a pod no Egress policy selects is unrestricted. It pins:
+    (new, 6 tests; renders with `helm template`, skips without helm) is a STATIC MODEL of part of
+    Kubernetes' NetworkPolicy semantics, not a cluster. It models:
+    - a pod's egress is the union over every NetworkPolicy that selects it, whatever that policy's
+      own labels, and a pod no Egress policy selects is unrestricted;
+    - a policy selects pods in its own namespace only;
+    - `policyTypes` defaults as Kubernetes does: empty or absent means Ingress, plus Egress only
+      when the policy has egress rules.
+
+    **It FAILS on constructs it does not model**, rather than passing them:
+    - `matchExpressions` selectors;
+    - `*List` wrappers;
+    - non-core network-policy kinds;
+    - `hostNetwork` on a Juniper pod.
+
+    It pins five things:
     - the data pod is governed, and its effective egress is exactly DNS plus that one rule, with no
       `endPort`;
-    - every other Juniper pod is governed, with no `ipBlock` or peerless non-DNS egress;
+    - every other Juniper pod is governed, with no `ipBlock` or peerless non-DNS egress. Juniper
+      pods here are Deployments, StatefulSets, DaemonSets, ReplicaSets, Jobs, CronJobs and Pods;
     - the data pod mounts no service-account token, by automount or by a projected volume;
-    - with `networkPolicies.enabled=false`, no policy selects a Juniper pod;
-    - no other network-policy kind is rendered (these tests cannot evaluate one).
+    - with `networkPolicies.enabled=false`, no policy of any type selects a Juniper pod;
+    - no other network-policy kind is rendered.
 
     **Accepted limits:**
     - The DNS rule has no peer, so ports 53 are open to any address.
     - The Redis subchart's own policy allows its pods all egress.
     - Only the default values are rendered.
+    - Enforcement by a real CNI is untested.
 
-    A mutation check planted twenty-six defects, and the test that names each one caught it
+    A mutation check planted thirty-four defects, and the test that names each one caught it
     (juniper-ml `util/ad-hoc/2026-09-24_helm_data_egress_mutation_check.py`). The tests reached
-    this shape through three rounds of validation:
+    this shape through three rounds of validation, each refuting the previous version:
     - #232's version matched the rule's wording, and eight broader rules passed it;
-    - #233's version looked at one policy at a time, so a widened deny-all, a second or unlabelled
-      policy, a widened selector, or a data policy that no longer applied all passed.
+    - #233's version looked at one policy at a time. A widened deny-all, a second or unlabelled
+      policy, a widened selector, or a data policy that no longer applied all passed;
+    - #235's version mis-defaulted `policyTypes` and ignored namespaces, `hostNetwork` and List
+      wrappers. It also weakened the policies-off check to Egress policies only. #236 fixes all
+      of it.
   - *Corrected after independent validation.* As first merged, this entry said the rule "cannot
     reach cluster-internal services", and #231's said its network was "a route out, not a way in".
     Both overclaimed.
