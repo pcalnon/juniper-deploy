@@ -6,6 +6,7 @@
 # Author:        Paul Calnon
 #
 # Date Created:  2026-08-20
+# Last Modified: 2026-10-05
 #
 # License:       MIT License
 # Copyright:     Copyright (c) 2024-2026 Paul Calnon
@@ -13,11 +14,15 @@
 # Description:
 #    Snapshot-root preflight for `make up` / `demo` / `dev` / `monitor` / `obs-demo`.
 #
-#    The stack shares ONE snapshot root across every origin — the host's direct
-#    CLI, the systemd service, and the containers, which BIND-MOUNT the host
-#    directory at /app/cascor-snapshots. Snapshots are project assets: they live
-#    inside the Juniper tree so the whole-tree offline backup captures them, and
-#    they are protected from deletion (a bind mount survives `docker compose
+#    The stack BIND-MOUNTS two host snapshot roots, one per model service:
+#
+#      /app/cascor-snapshots      cascor (+ canopy), .h5   JUNIPER_CASCOR_SNAPSHOTS_HOST_DIR
+#      /app/recurrence-snapshots  recurrence, .npz         JUNIPER_RECURRENCE_SNAPSHOTS_HOST_DIR
+#
+#    Each root is shared by every origin of its service — the host's direct CLI,
+#    the systemd service, and the containers. Snapshots are project assets: they
+#    live inside the Juniper tree so the whole-tree offline backup captures them,
+#    and they are protected from deletion (a bind mount survives `docker compose
 #    down -v` and `make clean`, which a named volume does not).
 #
 #    WHY THIS PREFLIGHT EXISTS — the failure it prevents is SILENT.
@@ -31,12 +36,14 @@
 #    somewhere nobody backs up or EPERMs against root ownership — the exact
 #    silently-empty class this whole change set exists to close.
 #
-#    Two ways to hit it without doing anything obviously wrong: run compose from
-#    a copy of the repo (a worktree, an extracted archive) so `../juniper-cascor`
-#    resolves elsewhere, or set JUNIPER_CASCOR_SNAPSHOTS_HOST_DIR to a path that
-#    does not exist yet.
+#    Ways to hit it without doing anything obviously wrong: run compose from a
+#    copy of the repo (a worktree, an extracted archive) so `../juniper-cascor`
+#    resolves elsewhere; set a *_SNAPSHOTS_HOST_DIR variable to a path that does
+#    not exist yet; or bring juniper-recurrence up on a host where nothing has
+#    created `../juniper-recurrence/recurrence-snapshots` — unlike cascor's root,
+#    no checkout tracks that directory yet.
 #
-#    Checks, per unique bind-mount source targeting /app/cascor-snapshots:
+#    Checks, per unique (mount target, bind-mount source) pair:
 #
 #      [OK]         exists, is a directory, and is writable by this uid   -> OK
 #      [MISSING]    does not exist — the daemon would create it root-owned -> FAIL
@@ -44,11 +51,12 @@
 #      [READONLY]   exists but is not writable by this uid                -> FAIL
 #      [OUTSIDE]    resolves outside the Juniper tree                     -> warn
 #                   (backup coverage is the owner's call, not this script's)
-#      [EMPTY]      exists and is writable but holds no .h5               -> warn
+#      [EMPTY]      exists and is writable but holds no .h5 / .npz        -> warn
 #                   (legitimate on a first run; suspicious otherwise)
 #
 #    Bypass with JUNIPER_SNAPSHOT_ROOT_OK=1 (mirrors JUNIPER_BUILD_STALE_OK /
-#    JUNIPER_IMAGE_STALE_OK). Read-only: creates nothing, changes nothing.
+#    JUNIPER_IMAGE_STALE_OK); it bypasses both roots. Read-only: creates
+#    nothing, changes nothing.
 #
 # Usage:
 #    scripts/preflight_snapshot_root.sh [--profile full] [--env-file FILE] ...
@@ -69,13 +77,24 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
-MOUNT_TARGET="/app/cascor-snapshots"
+# The snapshot roots this preflight knows: container target | artifact extension the
+# service writes there | the variable that relocates the host side. A bind-mounted
+# snapshot root missing from this table is not checked, so a new one belongs here.
+SNAPSHOT_ROOTS=(
+    "/app/cascor-snapshots|h5|JUNIPER_CASCOR_SNAPSHOTS_HOST_DIR"
+    "/app/recurrence-snapshots|npz|JUNIPER_RECURRENCE_SNAPSHOTS_HOST_DIR"
+)
+SNAPSHOT_TARGETS=()
+for root in "${SNAPSHOT_ROOTS[@]}"; do
+    SNAPSHOT_TARGETS+=("${root%%|*}")
+done
 
 CONFIG_JSON=""
 PASSTHROUGH=()
 
 usage() {
-    sed -n '12,63p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    # Description through Exit codes, wherever they fall: stop at the closing banner.
+    awk 'NR > 2 && /^#####/ { exit } /^# Description:/ { on = 1 } on { sub(/^# ?/, ""); print }' "${BASH_SOURCE[0]}"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -132,13 +151,13 @@ if [[ -z "${render_json//[[:space:]]/}" ]]; then
     exit 2
 fi
 
-# ── Extract the unique bind-mount sources for the snapshot target ──────────
+# ── Extract the unique (target, source) bind-mount pairs for the snapshot roots ──
 # python3 owns the JSON parse (no jq dependency), matching the sibling preflights.
 render_file="$(mktemp "${TMPDIR:-/tmp}/preflight_snapshot_root.XXXXXX")"
 trap 'rm -f "$render_file"' EXIT
 printf '%s' "$render_json" > "$render_file"
 
-sources_raw="$(python3 - "$render_file" "$MOUNT_TARGET" <<'PY'
+pairs_raw="$(python3 - "$render_file" "${SNAPSHOT_TARGETS[@]}" <<'PY'
 import json
 import sys
 
@@ -149,25 +168,25 @@ except (OSError, ValueError) as exc:
     sys.stderr.write(f"preflight_snapshot_root: could not read/parse compose config JSON: {exc}\n")
     sys.exit(2)
 
-target = sys.argv[2]
-sources = set()
+targets = set(sys.argv[2:])
+pairs = set()
 for svc in (config.get("services") or {}).values():
     for vol in ((svc or {}).get("volumes") or []):
         # Long form (what `config --format json` always renders) and, defensively,
         # the short "src:dst[:opts]" string form in case a future render differs.
         if isinstance(vol, dict):
-            if vol.get("target") == target and vol.get("type") == "bind" and vol.get("source"):
-                sources.add(str(vol["source"]))
+            if vol.get("target") in targets and vol.get("type") == "bind" and vol.get("source"):
+                pairs.add((str(vol["target"]), str(vol["source"])))
         elif isinstance(vol, str):
             parts = vol.split(":")
-            if len(parts) >= 2 and parts[1] == target:
-                sources.add(parts[0])
-print("\n".join(sorted(sources)))
+            if len(parts) >= 2 and parts[1] in targets:
+                pairs.add((parts[1], parts[0]))
+print("\n".join(f"{target}\t{source}" for target, source in sorted(pairs)))
 PY
 )"
 
-if [[ -z "${sources_raw//[[:space:]]/}" ]]; then
-    echo "preflight_snapshot_root: no ${MOUNT_TARGET} bind mounts in this render (nothing to check)"
+if [[ -z "${pairs_raw//[[:space:]]/}" ]]; then
+    echo "preflight_snapshot_root: no snapshot-root bind mounts (${SNAPSHOT_TARGETS[*]}) in this render (nothing to check)"
     exit 0
 fi
 
@@ -182,13 +201,21 @@ JUNIPER_TREE="${JUNIPER_ROOT:-$(dirname "$REPO_ROOT")}"
 failures=0
 warnings=0
 
-while IFS= read -r source; do
+while IFS=$'\t' read -r target source; do
     [[ -z "$source" ]] && continue
+    ext=""
+    host_var=""
+    for root in "${SNAPSHOT_ROOTS[@]}"; do
+        if [[ "${root%%|*}" == "$target" ]]; then
+            IFS='|' read -r _ ext host_var <<< "$root"
+            break
+        fi
+    done
     if [[ ! -e "$source" ]]; then
         printf '%s[MISSING]%s    %s\n' "$RED" "$RESET" "$source"
         printf '             the daemon would CREATE this root-owned and the stack would come up\n'
         printf '             with an empty archive. Create it yourself, or point\n'
-        printf '             JUNIPER_CASCOR_SNAPSHOTS_HOST_DIR at the real root.\n'
+        printf '             %s at the real root.\n' "$host_var"
         failures=$((failures + 1))
         continue
     fi
@@ -211,15 +238,15 @@ while IFS= read -r source; do
         warnings=$((warnings + 1))
     fi
 
-    count="$(find "$resolved" -maxdepth 1 -name '*.h5' -printf '.' 2>/dev/null | wc -c)"
+    count="$(find "$resolved" -maxdepth 1 -name "*.${ext}" -printf '.' 2>/dev/null | wc -c)"
     if [[ "$count" -eq 0 ]]; then
         printf '%s[EMPTY]%s      %s%s\n' "$YELLOW" "$RESET" "$resolved" "$note"
-        printf '             no .h5 present — expected on a first run, suspicious otherwise\n'
+        printf '             no .%s present — expected on a first run, suspicious otherwise\n' "$ext"
         warnings=$((warnings + 1))
     else
-        printf '%s[OK]%s         %s (%s .h5)%s\n' "$GREEN" "$RESET" "$resolved" "$count" "$note"
+        printf '%s[OK]%s         %s (%s .%s)%s\n' "$GREEN" "$RESET" "$resolved" "$count" "$ext" "$note"
     fi
-done <<< "$sources_raw"
+done <<< "$pairs_raw"
 
 if [[ "$failures" -gt 0 ]]; then
     printf '%spreflight_snapshot_root: %d unusable snapshot root(s). Bypass with JUNIPER_SNAPSHOT_ROOT_OK=1.%s\n' \

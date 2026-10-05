@@ -173,6 +173,22 @@ These environment variables point containers to their mounted Docker secret file
 
 The Grafana admin password is **Docker-secret-only** — there is no environment-variable fallback. Set the password by writing it to `secrets/grafana_admin_password.txt` before starting the `observability` profile.
 
+### Persistent Storage
+
+What outlives a container, and where it lives. A bind mount survives `docker compose down -v` and `make clean`; a named volume does not.
+
+| Store | Service(s) | Container path | Host side | Kind |
+|-------|------------|----------------|-----------|------|
+| Datasets | juniper-data | `/app/data/datasets` | `juniper-data-datasets` | named volume |
+| CasCor snapshots (`.h5`) | juniper-cascor, juniper-cascor-demo, juniper-canopy | `/app/cascor-snapshots` | `${JUNIPER_CASCOR_SNAPSHOTS_HOST_DIR:-../juniper-cascor/cascor-snapshots}` (the demo service reads `JUNIPER_CASCOR_DEMO_SNAPSHOTS_HOST_DIR` first) | bind mount |
+| Recurrence snapshots (`.npz`) | juniper-recurrence | `/app/recurrence-snapshots` | `${JUNIPER_RECURRENCE_SNAPSHOTS_HOST_DIR:-../juniper-recurrence/recurrence-snapshots}` | bind mount |
+
+A snapshot root must **exist, and be writable by the containers' uid 1000, before bring-up**. The daemon creates a missing bind source root-owned, and every save then fails. `make up`, `demo`, `dev`, `monitor` and `obs-demo` check both roots first; `make snapshot-preflight` runs the check alone, and `JUNIPER_SNAPSHOT_ROOT_OK=1` bypasses it. No checkout tracks the recurrence root yet, so create it once, from this directory: `mkdir -p ../juniper-recurrence/recurrence-snapshots`.
+
+**juniper-recurrence does not restore a model on boot.** The bind mount makes the snapshot *files* outlive the container; it does not bring the *model* back. A restarted or recreated `juniper-recurrence` starts `idle`, and nothing in this stack loads a snapshot by itself. `restored` is reached only by an explicit `POST /v1/model/snapshots/{id}/restore`, with an id from `GET /v1/model/snapshots`.
+
+The pinned `juniper-recurrence:0.5.0` image **predates the snapshot routes** (juniper-recurrence#172 is unreleased). Under it nothing writes to the mount and `JUNIPER_RECURRENCE_SNAPSHOTS_DIR` is ignored; both take effect with the first recurrence release that carries #172. An image built locally (`docker compose build juniper-recurrence`) from a checkout that carries #172 has the routes and wears the same `0.5.0` tag; its `org.opencontainers.image.revision` label tells the two apart (the published 0.5.0 is `4f601b1`). `bash scripts/test_recurrence_snapshots.sh` runs the save → restart → recreate → list → restore round trip against whichever image compose resolves.
+
 ### Healthcheck Tuning
 
 All container healthchecks reference shared YAML anchors (`x-healthcheck-defaults`, `x-healthcheck-cascor`, `x-healthcheck-canopy`, `x-healthcheck-worker`, `x-healthcheck-redis`). Override the interval/timeout/retries/start-period values via `HEALTHCHECK_*`, `CASCOR_HEALTHCHECK_*`, `CANOPY_HEALTHCHECK_*`, `WORKER_HEALTHCHECK_*`, and `REDIS_HEALTHCHECK_*` environment variables. See [`docs/REFERENCE.md`](docs/REFERENCE.md) for the full list of overrideable healthcheck variables.

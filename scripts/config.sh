@@ -84,3 +84,16 @@ TRAINING_START_WAIT="${TRAINING_START_WAIT:-5}"
 # to bring up the full stack and verify ReadinessResponse format on each
 # /v1/health/ready endpoint.
 ENHANCED_TIMEOUT="${ENHANCED_TIMEOUT:-90}"
+
+# ─────────────────────────────────────────────────────────────────────────
+# test_recurrence_snapshots.sh — W1.12 recurrence snapshot-persistence smoke
+# ─────────────────────────────────────────────────────────────────────────
+
+# Wait budget (seconds) for juniper-recurrence to answer /v1/health after the
+# bring-up, the restart, and the recreate. Its image's own HEALTHCHECK allows a
+# 40s start period for the import stack.
+RECURRENCE_SMOKE_TIMEOUT="${RECURRENCE_SMOKE_TIMEOUT:-120}"
+
+# Per-request timeout (seconds) for the smoke's API calls. POST /v1/train has
+# juniper-data generate the dataset and fits inline, so it is the slow one.
+RECURRENCE_SMOKE_HTTP_TIMEOUT="${RECURRENCE_SMOKE_HTTP_TIMEOUT:-60}"
