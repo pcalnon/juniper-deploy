@@ -629,6 +629,30 @@ services:
       # profile (in-container escape hatch: JUNIPER_SKIP_AUTH_POSTURE_CHECK=1).
       JUNIPER_RECURRENCE_API_KEYS_FILE: /run/secrets/juniper_recurrence_api_keys
       JUNIPER_RECURRENCE_REQUIRE_AUTH: "${JUNIPER_RECURRENCE_REQUIRE_AUTH:-true}"
+      # Declared, never derived -- see the volumes comment below. Matches the bind-mount target.
+      JUNIPER_RECURRENCE_SNAPSHOTS_DIR: /app/recurrence-snapshots
+    volumes:
+      # SNAPSHOT ROOT -- a BIND MOUNT of the host's recurrence snapshot store, not a named volume,
+      # for the three reasons recorded on juniper-cascor's mount above: it survives
+      # `docker compose down -v` and `make clean`; it is the directory the host's direct-CLI and
+      # systemd tiers use, so a model saved by a container is restored by a host run and vice
+      # versa; and it sits inside the Juniper tree the whole-tree offline backup walks. Decision of
+      # record: juniper-recurrence `juniper_recurrence/settings.py` (`snapshots_dir`), ruled in
+      # §11.1 of juniper-ml notes/JUNIPER_2026-09-16_JUNIPER-RECURRENCE_MODEL-PERSISTENCE-DESIGN.md.
+      #
+      # NO RESTORE ON BOOT. The mount makes the snapshot FILES outlive the container, not the model.
+      # A restarted or recreated juniper-recurrence starts `idle`, and nothing in this stack loads a
+      # snapshot by itself. `restored` is reached only by an explicit
+      # `POST /v1/model/snapshots/{id}/restore` with an id from `GET /v1/model/snapshots`.
+      #
+      # The pinned 0.5.0 image PREDATES the snapshot routes (juniper-recurrence#172 is unreleased):
+      # under it nothing writes here and the variable above is ignored. Both take effect with the
+      # first recurrence release that carries #172. Smoke: scripts/test_recurrence_snapshots.sh.
+      #
+      # The source must EXIST and be writable by uid 1000 (the image's `juniper` user) before
+      # bring-up, or the daemon creates it root-owned and every save fails.
+      # `make snapshot-preflight` checks it. `../juniper-recurrence` matches build.context above.
+      - ${JUNIPER_RECURRENCE_SNAPSHOTS_HOST_DIR:-../juniper-recurrence/recurrence-snapshots}:/app/recurrence-snapshots
     secrets:
       - juniper_data_api_keys
       - juniper_recurrence_api_keys

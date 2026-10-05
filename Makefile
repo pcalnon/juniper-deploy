@@ -59,10 +59,11 @@ BUILD_PREFLIGHT := bash scripts/preflight_build_freshness.sh
 IMAGE_PREFLIGHT := bash scripts/preflight_image_provenance.sh
 
 # Snapshot-root preflight (storage-convention ruling 2026-08-20): the containers
-# BIND-MOUNT the host's shared snapshot root at /app/cascor-snapshots. A missing
-# source is the silent failure -- the daemon creates it root-owned and the stack
-# comes up healthy over an empty archive. Verifies existence, type, writability,
-# and that the root sits inside the Juniper tree the offline backup walks.
+# BIND-MOUNT the host's snapshot roots -- cascor's at /app/cascor-snapshots and
+# recurrence's at /app/recurrence-snapshots (W1.12). A missing source is the silent
+# failure -- the daemon creates it root-owned and the stack comes up healthy over an
+# empty archive. Verifies existence, type, writability, and that each root sits
+# inside the Juniper tree the offline backup walks.
 # Bypass: JUNIPER_SNAPSHOT_ROOT_OK=1
 SNAPSHOT_PREFLIGHT := bash scripts/preflight_snapshot_root.sh
 
@@ -123,7 +124,7 @@ preflight:  ## Verify loopback-publish bind attestation for every profile (no da
 image-preflight:  ## Verify built images match their source checkouts (provenance labels; JUNIPER_IMAGE_STALE_OK=1 to bypass)
 	@$(IMAGE_PREFLIGHT) --profile full --profile demo --profile dev --profile test --profile observability
 
-snapshot-preflight:  ## Verify the shared snapshot root exists and is writable (JUNIPER_SNAPSHOT_ROOT_OK=1 to bypass)
+snapshot-preflight:  ## Verify the cascor + recurrence snapshot roots exist and are writable (JUNIPER_SNAPSHOT_ROOT_OK=1 to bypass)
 	@$(SNAPSHOT_PREFLIGHT) --profile full --profile demo --profile dev --profile test --profile observability
 
 up: prepare-secrets ## Start all services (--profile full, detached)
@@ -172,6 +173,8 @@ obs-demo: prepare-secrets  ## Start demo stack with observability (scrapes junip
 		$(PREFLIGHT) --env-file .env.observability --profile demo --profile observability
 	@PROMETHEUS_CONFIG_FILE=prometheus.demo.yml \
 		$(IMAGE_PREFLIGHT) --env-file .env.observability --profile demo --profile observability
+	@PROMETHEUS_CONFIG_FILE=prometheus.demo.yml \
+		$(SNAPSHOT_PREFLIGHT) --env-file .env.observability --profile demo --profile observability
 	@PROMETHEUS_CONFIG_FILE=prometheus.demo.yml \
 		$(COMPOSE) -f $(COMPOSE_FILE) \
 		--env-file .env.observability \

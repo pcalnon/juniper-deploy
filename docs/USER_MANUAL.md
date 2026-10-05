@@ -500,6 +500,15 @@ Validates enhanced health check response format across all services (8 steps).
 bash scripts/test_health_enhanced.sh
 ```
 
+### test_recurrence_snapshots.sh
+
+Proves a `juniper-recurrence` model snapshot outlives its container (8 steps): train a tiny closed-form fit, save a snapshot, restart the container, recreate it, then list and restore. It asserts the service reports `idle` after the restart and after the recreate (nothing restores a model on boot), and `restored` only after the explicit restore. It runs under its own compose project with a scratch snapshot root and throwaway API keys, refuses to start while a Juniper stack is up, and tears itself down. The published `juniper-recurrence:0.5.0` predates the snapshot routes, so it needs an image that carries them.
+
+```bash
+bash scripts/test_recurrence_snapshots.sh
+bash scripts/test_recurrence_snapshots.sh --keep   # leave the smoke stack up for inspection
+```
+
 ---
 
 ## Container Shell Access

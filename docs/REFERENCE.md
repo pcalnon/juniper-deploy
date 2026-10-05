@@ -504,6 +504,7 @@ All file-based secrets are mounted at `/etc/juniper/secrets/` (read-only).
 | `scripts/wait_for_services.sh [TIMEOUT]` | Block until all services healthy | 90s |
 | `scripts/test_demo_profile.sh` | End-to-end demo profile test (7 steps) | 120s |
 | `scripts/test_health_enhanced.sh` | Enhanced health response validation (8 steps) | -- |
+| `scripts/test_recurrence_snapshots.sh [--timeout SECONDS] [--keep]` | Recurrence snapshot persistence smoke: save → restart → recreate → list → restore (8 steps) | 120s per health wait |
 | `scripts/test_k8s.sh [--driver kind\|minikube] [--no-teardown]` | Kubernetes integration test (local cluster) | 300s |
 
 ---
@@ -651,6 +652,19 @@ These environment variables point containers to their mounted Docker secret file
 | `CANOPY_API_KEY_FILE` | juniper-canopy | `/run/secrets/canopy_api_key` |
 | `JUNIPER_CASCOR_API_KEY_FILE` | juniper-canopy | `/run/secrets/juniper_cascor_api_keys` |
 | `CASCOR_AUTH_TOKEN_FILE` | juniper-cascor-worker | `/run/secrets/cascor_auth_token` |
+
+### Snapshot Storage
+
+Snapshot roots are bind mounts of host directories. Each host directory must exist and be writable by the containers' uid 1000 before bring-up; `make snapshot-preflight` checks them. Persistence semantics, including juniper-recurrence's no-restore-on-boot contract: [README § Persistent Storage](../README.md#persistent-storage).
+
+| Variable | Service | Default | Notes |
+|----------|---------|---------|-------|
+| `JUNIPER_CASCOR_SNAPSHOTS_HOST_DIR` | juniper-cascor, juniper-canopy | `../juniper-cascor/cascor-snapshots` | Host side of `/app/cascor-snapshots` |
+| `JUNIPER_CASCOR_DEMO_SNAPSHOTS_HOST_DIR` | juniper-cascor-demo | `JUNIPER_CASCOR_SNAPSHOTS_HOST_DIR` | Demo-only override |
+| `JUNIPER_RECURRENCE_SNAPSHOTS_HOST_DIR` | juniper-recurrence | `../juniper-recurrence/recurrence-snapshots` | Host side of `/app/recurrence-snapshots` (W1.12) |
+| `JUNIPER_CASCOR_SNAPSHOTS_DIR` | juniper-cascor, juniper-cascor-demo | `/app/cascor-snapshots` | Set in `docker-compose.yml`; equals the mount target |
+| `JUNIPER_CANOPY_SNAPSHOT_DIR` | juniper-canopy | `/app/cascor-snapshots` | Set in `docker-compose.yml`; canopy lists cascor's snapshots from here |
+| `JUNIPER_RECURRENCE_SNAPSHOTS_DIR` | juniper-recurrence | `/app/recurrence-snapshots` | Set in `docker-compose.yml`; equals the mount target. Ignored by the pinned 0.5.0 image, which predates the snapshot routes |
 
 ---
 
@@ -871,6 +885,7 @@ pytest tests/ -v -m full_stack       # Cross-service tests only
 |--------|---------|
 | `scripts/test_demo_profile.sh` | 7-step demo profile validation (config, start, wait, seed check, training, canopy, shutdown) |
 | `scripts/test_health_enhanced.sh` | 8-step health check validation (config, start, liveness, readiness, schema, dependencies, Docker healthcheck) |
+| `scripts/test_recurrence_snapshots.sh` | 8-step recurrence snapshot persistence smoke (render, bring-up, routes, train, save, restart, recreate, restore) under its own compose project, with a scratch snapshot root and throwaway keys |
 
 ---
 

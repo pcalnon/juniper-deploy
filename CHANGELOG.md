@@ -18,6 +18,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `--no-currency` to skip it. A missing ref breaks `up` for everyone; a stale one ships an older
   but working stack, so failing by default would block every unrelated PR the moment an upstream
   release landed. *Entry added after the fact — #226 landed without one.*
+- **`juniper-recurrence` model snapshots are a bind mount of the host's snapshot store (W1.12,
+  F-DEP2).** The service declared no volume and no `JUNIPER_RECURRENCE_SNAPSHOTS_DIR`, so a
+  snapshot it saved lived in the container's writable layer and died on recreate. It now declares
+  `JUNIPER_RECURRENCE_SNAPSHOTS_DIR=/app/recurrence-snapshots` and binds
+  `${JUNIPER_RECURRENCE_SNAPSHOTS_HOST_DIR:-../juniper-recurrence/recurrence-snapshots}` there,
+  mirroring cascor's mount for the same three reasons: it survives `docker compose down -v` and
+  `make clean`, it is the directory the host's CLI and systemd tiers use, and it sits inside the
+  Juniper tree the offline backup walks. Decision of record: juniper-recurrence
+  `juniper_recurrence/settings.py` (`snapshots_dir`), ruled in §11.1 of juniper-ml
+  `notes/JUNIPER_2026-09-16_JUNIPER-RECURRENCE_MODEL-PERSISTENCE-DESIGN.md`. One service
+  definition covers every profile it runs in (`full`, `demo`, `dev`, `test`). The Helm chart
+  carries no recurrence workload, so it is unchanged.
+  - **No restore on boot.** The mount makes snapshot files outlive the container, not the model:
+    a restarted or recreated service starts `idle`, and `restored` is reached only by
+    `POST /v1/model/snapshots/{id}/restore` with an id from `GET /v1/model/snapshots`. Stated next
+    to the mount and in the README's new *Persistent Storage* section.
+  - **Inert under the pinned image.** The published `juniper-recurrence:0.5.0` (revision
+    `4f601b1`) predates the snapshot routes of juniper-recurrence#172, which is unreleased.
+    Probed, it has no `routers.snapshots` module and no `snapshots_dir` setting, and it answers
+    `GET /v1/model/snapshots` with 404. The mount takes effect with the first recurrence release
+    that carries #172. No pin moves here.
+  - **Operator action.** No checkout tracks `../juniper-recurrence/recurrence-snapshots` yet
+    (cascor's root is a tracked `cascor-snapshots/.gitkeep`), so the snapshot preflight now fails
+    `make up` / `demo` / `dev` / `monitor` / `obs-demo` until it exists. Run
+    `mkdir -p ../juniper-recurrence/recurrence-snapshots` once, or point
+    `JUNIPER_RECURRENCE_SNAPSHOTS_HOST_DIR` elsewhere. Without the preflight, the daemon would
+    create it root-owned inside the juniper-recurrence checkout, and every save would fail.
+  - `.env.example` documents the override; `docs/REFERENCE.md` gains a *Snapshot Storage* table.
+- **`scripts/test_recurrence_snapshots.sh`**: the save → restart → recreate → list → restore smoke.
+  A plain `restart` keeps the container's writable layer, so it passes with or without the mount.
+  The smoke therefore also recreates the container (`up --force-recreate`), asserts the container
+  id changed, checks that the saved `.npz` is on the host side of the mount, and asserts `idle`
+  after both. Its own compose project, a scratch snapshot root and throwaway keys keep it off the
+  operator's stack, archive and secrets. Measured locally: against an image built from
+  juniper-recurrence `be081fa`, all 8 steps pass; with the mount removed, it fails at the
+  recreate; against the published 0.5.0, it fails at step 3 with the missing-routes diagnosis.
+- `tests/test_compose_recurrence_snapshot_mount.py` pins the mount and the declared path, which
+  must agree (the cascor failure class). `tests/test_snapshot_root_preflight.py` is the first test
+  of the snapshot-root preflight: both roots, per-root artifact counts, NOTDIR / READONLY / bypass,
+  the compose census, and the bring-up wiring.
 
 ### Changed
 
@@ -123,6 +163,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   that a pinned ref *resolves* — it does not assert that the ref is the *newest release*. So the
   stack pinned a superseded canopy for three days with every check green and nothing naming it.
   A resolution gate cannot detect staleness. That check now exists — see #226 under *Added*.
+- **`scripts/preflight_snapshot_root.sh` checks every bind-mounted snapshot root**, not only
+  `/app/cascor-snapshots`. A `SNAPSHOT_ROOTS` table names each root's mount target, the artifact
+  it counts (`.h5` for cascor, `.npz` for recurrence), and the variable its `[MISSING]` remedy
+  names. Output for the cascor root is unchanged.
 
 ### Fixed
 
@@ -255,6 +299,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - **Not proven live.** No cluster was available, so the rule is verified as rendered, not as
     enforced by a CNI.
   - `docs/USER_MANUAL.md`'s network-policy table lists the new egress.
+- **`make obs-demo` brought services up without the snapshot-root preflight**, although the
+  script's own header listed it, and the demo profile starts `juniper-cascor-demo` and, now with a
+  mount, `juniper-recurrence`. It runs after the image preflight, as in the other bring-up targets.
+- `scripts/preflight_snapshot_root.sh --help` printed a fixed line range that stopped before the
+  last exit code. It now prints from *Description* to the end of the header.
 
 ## [0.3.0] - 2026-09-17
 

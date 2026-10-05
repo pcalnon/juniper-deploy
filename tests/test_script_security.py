@@ -32,6 +32,7 @@ SHELL_SCRIPTS = [
     "health_check.sh",
     "test_demo_profile.sh",
     "test_health_enhanced.sh",
+    "test_recurrence_snapshots.sh",
 ]
 
 
@@ -85,6 +86,7 @@ class TestPortValidation:
             "health_check.sh",
             "test_demo_profile.sh",
             "test_health_enhanced.sh",
+            "test_recurrence_snapshots.sh",
         ]
         for script_name in scripts_using_port_vars:
             content = _read_text(SCRIPTS_DIR / script_name)
