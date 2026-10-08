@@ -107,11 +107,9 @@ PLAN = "juniper-ml notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-E
 
 
 def _fit_timeout() -> float:
-    raw = os.environ.get(ENV_RECURRENCE_SMOKE_TIMEOUT, "")
-    try:
-        return float(raw) if raw else float(DEFAULT_RECURRENCE_SMOKE_TIMEOUT)
-    except ValueError:
-        pytest.fail(f"{ENV_RECURRENCE_SMOKE_TIMEOUT}={raw!r} is not a number of seconds")
+    raw = os.environ.get(ENV_RECURRENCE_SMOKE_TIMEOUT, "") or str(DEFAULT_RECURRENCE_SMOKE_TIMEOUT)
+    assert raw.replace(".", "", 1).isdigit(), f"{ENV_RECURRENCE_SMOKE_TIMEOUT}={raw!r} is not a number of seconds"
+    return float(raw)
 
 
 def _body(resp: requests.Response) -> Any:
@@ -296,9 +294,7 @@ def test_juniper_data_labels_equities_seq_regression(dataset_meta: dict[str, Any
             f"The fit itself ran: the arrays did not change, only the label. Until the stack's juniper-data serves 6.0.0, canopy and this stack disagree with the producer about the dataset "
             f"(F-P4 / F-DEP1, W1.11 in {PLAN}). Move the juniper-data pin, or run against an image built from juniper-data main."
         )
-    try:
-        major = int(generator_version.split(".", 1)[0])
-    except ValueError:
-        pytest.fail(f"{fit_dataset_id} carries generator_version {generator_version!r}, which is not X.Y.Z")
-    assert major >= FIRST_REGRESSION_GENERATOR_MAJOR, f"{fit_dataset_id} is labelled 'regression' at generator {generator_version}, below the {FIRST_REGRESSION_GENERATOR_MAJOR}.0.0 that X8 introduced; the label and the version disagree"
+    major_text = generator_version.split(".", 1)[0]
+    assert major_text.isdigit(), f"{fit_dataset_id} carries generator_version {generator_version!r}, which is not X.Y.Z"
+    assert int(major_text) >= FIRST_REGRESSION_GENERATOR_MAJOR, f"{fit_dataset_id} is labelled 'regression' at generator {generator_version}, below the {FIRST_REGRESSION_GENERATOR_MAJOR}.0.0 that X8 introduced; the label and the version disagree"
     assert dataset_meta.get("n_classes") is None, f"a 'regression' artifact still carries n_classes {dataset_meta.get('n_classes')!r} (X8 nulls it)"
