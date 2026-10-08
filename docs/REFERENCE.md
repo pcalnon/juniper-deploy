@@ -767,7 +767,7 @@ juniper-deploy/
     ├── workflows/
     │   ├── ci.yml                  # CI/CD pipeline (v0.2.0)
     │   ├── claude.yml              # @claude assistant (see Claude Code workflow)
-    │   ├── sequence-safety.yml     # Per-PR ADVISORY sequence-safety screens
+    │   ├── sequence-safety.yml     # Per-PR REQUIRED sequence-safety screens
     │   └── main-verify.yml         # Post-merge bypass-proof sequence-safety net
     ├── CODEOWNERS
     └── dependabot.yml

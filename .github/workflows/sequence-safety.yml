@@ -72,8 +72,8 @@
 #    - juniper-ci-tools (PyPI >=0.9.0,<0.10.0): juniper-symbol-loss-check /
 #      juniper-docs-additions-check console scripts (canonical source; juniper-deploy
 #      consumes the package -- it hosts no inline copy).
-#    - juniper-cascor .github/workflows/sequence-safety.yml (the standalone advisory pair
-#      this ports) + juniper-ml .github/workflows/ci.yml (the original per-PR advisory job)
+#    - juniper-cascor .github/workflows/sequence-safety.yml (the standalone pair this
+#      ports) + juniper-ml .github/workflows/ci.yml (the original per-PR job; both now required)
 #    - juniper-ml notes/JUNIPER_2026-07-28_JUNIPER-ML_CURSOR-PR-FLOOD-REMEDIATION-ANALYSIS.md
 #    - juniper-ml notes/JUNIPER_2026-08-07_JUNIPER-ECOSYSTEM_SEQUENCE-SAFETY-ROLLOUT-PLAN.md (Wave 2)
 #####################################################################################################################################################################################################
@@ -86,7 +86,7 @@ on:
       - main
       - develop
 
-# Per-PR ref, cancel superseded runs: an advisory review signal only needs the latest push.
+# Per-PR ref, cancel superseded runs: the ruleset reads this required check on the PR's head commit, so only the latest push needs a verdict.
 concurrency:
   group: sequence-safety-${{ github.ref }}
   cancel-in-progress: true
