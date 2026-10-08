@@ -61,6 +61,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`juniper-data` pinned to `0.17.0`** (W1.11, F-DEP1 / F-P4 of juniper-ml
+  `notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-END-AUDIT-AND-DEVELOPMENT-PLAN.md`):
+  `docker-compose.yml` (two sites: the `juniper-data` service and `demo-seed`, which reuses its
+  image) and `k8s/helm/juniper/values.yaml`. The recurrence and canopy pins do not move here; they
+  belong to the plan's W1.13 release train.
+  - **Why.** 0.16.0 serves `equities_seq` at generator `5.0.0` with `task_type: classification` and
+    `n_classes: 2`. juniper-data#437 (X8) relabelled it `regression` at `6.0.0` on `main`, 22
+    minutes after v0.16.0 was cut, so no release carries it yet. Under the 0.16.0 pin, this stack
+    serves the old label to canopy and juniper-recurrence by construction.
+  - **The arrays do not change, only the metadata.** A recurrence fit reads `y_reg_*` under both
+    versions. What moves is the stored meta (`task_type`, `n_classes` and `class_distribution`
+    become null) and the `dataset_id`, which hashes the generator version. A cached 5.0.0 artifact
+    therefore cannot answer a 6.0.0 request.
+  - Also in the release, from juniper-data#451: under `fundamentals_fill="drop"`, an `equities` or
+    `equities_seq` request whose `purchase_date` is a weekday or more after `start_date` is now
+    refused with a 400 (W1.8). Nothing in this repo sends one.
+  - **Drafted before the image existed.** On 2026-10-08, `0.17.0` was on neither PyPI, GitHub
+    Releases nor GHCR (GHCR tags: `0.14.0`, `0.15.0`, `0.16.0`), so the *Published Image Refs*
+    job fails this tree until the image is published. The pre-bump image checks recorded for
+    0.16.0 below (multi-arch index, revision label equal to the tag's commit, `GET /v1/health`
+    reporting the version, no `juniper_data/tests/`) are still owed. They are added to this entry
+    when the image exists, together with a probe that `equities_seq` answers `6.0.0` /
+    `regression`.
+
 - **`juniper-data` pinned to `0.16.0`**: `docker-compose.yml` (two sites: the `juniper-data`
   service and `demo-seed`, which reuses its image) and `k8s/helm/juniper/values.yaml`. Release
   `v0.16.0` was cut 2026-09-24 at `39d1cab2`, and PyPI has served it since 18:35Z. This stack runs
