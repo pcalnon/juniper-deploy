@@ -2,9 +2,9 @@
 
 ## Navigation Guide to juniper-deploy Documentation
 
-**Version:** 0.2.0
+**Version:** 0.2.1
 **Status:** Active
-**Last Updated:** April 6, 2026
+**Last Updated:** October 8, 2026
 **Project:** Juniper - Docker Compose & Kubernetes Orchestration
 
 ---
@@ -33,6 +33,7 @@
 | **Run integration tests** | [TESTING_QUICK_START.md](testing/TESTING_QUICK_START.md) | docs/testing/ |
 | **See development conventions** | [AGENTS.md](../AGENTS.md) | Root |
 | **Quick-reference dev tasks** | [DEVELOPER_CHEATSHEET.md](DEVELOPER_CHEATSHEET.md) | docs/ |
+| **Ask @claude on a PR or issue** | [REFERENCE.md — Claude Code](REFERENCE.md#claude-code-workflow) | docs/ |
 | **See version history** | [CHANGELOG.md](../CHANGELOG.md) | Root |
 
 ---
@@ -127,8 +128,8 @@ juniper-data (8100)
 
 ---
 
-**Last Updated:** April 6, 2026
-**Version:** 0.2.0
+**Last Updated:** October 8, 2026
+**Version:** 0.2.1
 **Maintainer:** Paul Calnon
 
 > See the [Juniper Ecosystem Guide](../../CLAUDE.md) for the full project map and dependency graph.

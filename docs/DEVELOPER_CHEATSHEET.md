@@ -1,7 +1,7 @@
 # Developer Cheatsheet — juniper-deploy
 
-**Version**: 1.2.0
-**Date**: 2026-04-06
+**Version**: 1.2.1
+**Date**: 2026-10-08
 **Project**: juniper-deploy
 
 ---
@@ -192,6 +192,12 @@ bash scripts/test_demo_profile.sh
 
 ---
 
+## Claude on GitHub
+
+Comment `@claude` (any case, as its own word) on an issue title or body, a new issue comment, a pull request review, or a review comment. The contract, including which texts are ignored, is [Claude Code workflow](REFERENCE.md#claude-code-workflow).
+
+---
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
@@ -202,6 +208,10 @@ bash scripts/test_demo_profile.sh
 | Services can't reach each other | Wrong internal URL | Verify `JUNIPER_DATA_URL` uses container name, not `localhost` |
 | Prometheus shows no targets | Metrics not enabled | Set `*_METRICS_ENABLED=true` in `.env` |
 | Grafana no data | Prometheus not scraping | Check `http://localhost:9090/targets` for scrape status |
+| `@claude` comment does nothing | The workflow `if` (a case-insensitive substring test) only reads issue titles, issue bodies, new comments, and submitted reviews; an edited comment or a PR title/body never starts the job | Comment again with `@claude` in one of those texts |
+| Job is green and Claude never replies | The action requires `@claude` as its own token (whitespace, end, or `. , ! ? ; :`), or the event is `issues: assigned` with `assignee_trigger` unset | See [Claude Code workflow](REFERENCE.md#claude-code-workflow) |
+| `Actor does not have write permissions to the repository` | The commenter is neither an admin nor a writer (or is an app account whose login lacks the `[bot]` suffix); this fails even when the text would not have matched | A writer comments `@claude` |
+| `Workflow initiated by non-human actor` | `allowed_bots` is empty, so a `[bot]` login is rejected after the write check | A human with write comments `@claude` |
 
 ---
 
