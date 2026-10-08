@@ -88,6 +88,16 @@ JUNIPER_TEST_DATA_URL=http://custom-host:8100 pytest tests/ -v
 JUNIPER_TEST_DATA_API_KEY=mykey JUNIPER_TEST_CASCOR_API_KEY=mykey pytest tests/ -v
 ```
 
+Or point at a key file, the stack's Docker-secret form. It is read only when the plain variable is unset: the first non-comment line, first comma-separated entry, so an accept-list file works as-is. The compose `test-runner` uses this form for canopy and juniper-data, reading `/run/secrets/...`:
+
+```bash
+JUNIPER_TEST_CANOPY_API_KEY_FILE=secrets/canopy_api_key.txt JUNIPER_TEST_DATA_API_KEY_FILE=secrets/juniper_data_api_keys.txt pytest tests/ -v
+```
+
+### The W1.11 canopy → recurrence → juniper-data smoke
+
+`tests/test_canopy_recurrence_equities_smoke.py` stages `equities_seq` through canopy and fits it on juniper-recurrence. It reaches juniper-data by service name, so it is meant for the test-runner. `scripts/test_canopy_recurrence_smoke.sh` runs it there against an isolated copy of the stack; see `docs/USER_MANUAL.md`.
+
 ---
 
 ## 4. Script-Based Tests

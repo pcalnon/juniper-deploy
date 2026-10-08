@@ -33,7 +33,7 @@
 #    repos' CPU-only check.
 #
 # Usage:
-#    docker run --rm -i -e EXPECT_TESTS=51 --entrypoint python IMAGE - < util/check_image_test_suite.py
+#    docker run --rm -i -e EXPECT_TESTS=54 --entrypoint python IMAGE - < util/check_image_test_suite.py
 #
 # Exit status:
 #    0  the expected number of tests collected, with no collection errors
@@ -48,11 +48,14 @@ import platform
 import subprocess
 import sys
 
+# Must equal Dockerfile.test's CMD and publish-image.yml's LIVE_MODULES, in the same order:
+# tests/test_live_suite_wiring.py fails when they drift.
 MODULES = [
     "tests/test_health.py",
     "tests/test_availability.py",
     "tests/test_data_service.py",
     "tests/test_full_stack.py",
+    "tests/test_canopy_recurrence_equities_smoke.py",
 ]
 
 

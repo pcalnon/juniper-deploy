@@ -1142,12 +1142,27 @@ services:
       JUNIPER_TEST_DATA_URL: http://juniper-data:8100
       JUNIPER_TEST_CASCOR_URL: http://juniper-cascor:8200
       JUNIPER_TEST_CANOPY_URL: http://juniper-canopy:8050
+      # W1.11 canopy -> juniper-recurrence -> juniper-data smoke
+      # (tests/test_canopy_recurrence_equities_smoke.py). It drives canopy's control routes and
+      # reads juniper-data's dataset metadata, and both answer 401 without a key while
+      # *_REQUIRE_AUTH is on, which it is by default. The keys arrive as the SAME secrets the
+      # services validate against (symmetric mount), through tests/conftest.py's *_FILE
+      # indirection, so the container's environment carries paths, never key values.
+      JUNIPER_TEST_CANOPY_API_KEY_FILE: /run/secrets/canopy_api_key
+      JUNIPER_TEST_DATA_API_KEY_FILE: /run/secrets/juniper_data_api_keys
+    secrets:
+      - canopy_api_key
+      - juniper_data_api_keys
     depends_on:
       juniper-data:
         condition: service_healthy
       juniper-cascor:
         condition: service_healthy
       juniper-canopy:
+        condition: service_healthy
+      # canopy does not depend on juniper-recurrence (it connects lazily, at the first fit), so
+      # without this the smoke could Start before the service is up: its start_period is 40 s.
+      juniper-recurrence:
         condition: service_healthy
     networks:
       - backend

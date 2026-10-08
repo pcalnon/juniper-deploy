@@ -5,7 +5,7 @@
 # Author:        Paul Calnon
 #
 # Date Created:  2026-03-02
-# Last Modified: 2026-09-16
+# Last Modified: 2026-10-08
 #
 # License:       MIT License
 # Copyright:     Copyright (c) 2024-2026 Paul Calnon
@@ -68,12 +68,13 @@ LABEL org.opencontainers.image.source="https://github.com/pcalnon/juniper-deploy
 LABEL org.opencontainers.image.revision="${GIT_SHA}"
 LABEL org.opencontainers.image.created="${BUILD_DATE}"
 
-# THE LIVE-STACK MODULES ONLY -- 51 tests -- not `tests/`.
+# THE LIVE-STACK MODULES ONLY -- 54 tests -- not `tests/`.
 #
 # The suite splits cleanly in two, and the split is measured rather than judged:
-# a host run reports `264 passed, 51 deselected` when these four modules are
-# deselected, and this image collects exactly 51 with only the two COPYs above.
-# The other ~269 are REPO-HYGIENE tests -- they assert things about
+# a host run reports `373 passed, 54 deselected` when these five modules are
+# deselected (2026-10-08; `264 passed, 51 deselected` with four, 2026-09-16), and
+# this image collects exactly 54 with only the two COPYs above.
+# The other ~373 are REPO-HYGIENE tests -- they assert things about
 # docker-compose.yml, the Makefile, .github/workflows/, the Helm chart, the
 # prometheus rules, the pre-commit config. Those are meaningless pointed at a
 # deployed stack, and making them collect here would mean copying essentially
@@ -84,9 +85,15 @@ LABEL org.opencontainers.image.created="${BUILD_DATE}"
 # So the allowlist above is small and stable BY DESIGN: it is the security
 # boundary as much as the scope. Never widen this to `COPY . .`; .dockerignore
 # is the second line of defence, not the first.
+#
+# The fifth module, the W1.11 canopy -> juniper-recurrence -> juniper-data smoke, is
+# authenticated: it reads its keys from /run/secrets through tests/conftest.py's *_FILE
+# indirection, so the compose `test-runner` service mounts them at RUN time. Nothing secret is
+# copied into this image; the security boundary above is unchanged.
 CMD ["pytest", \
      "tests/test_health.py", \
      "tests/test_availability.py", \
      "tests/test_data_service.py", \
      "tests/test_full_stack.py", \
+     "tests/test_canopy_recurrence_equities_smoke.py", \
      "-v", "--tb=short"]

@@ -509,6 +509,30 @@ bash scripts/test_recurrence_snapshots.sh
 bash scripts/test_recurrence_snapshots.sh --keep   # leave the smoke stack up for inspection
 ```
 
+### test_canopy_recurrence_smoke.sh
+
+Runs the W1.11 canopy → juniper-recurrence → juniper-data smoke (`tests/test_canopy_recurrence_equities_smoke.py`) in the test-runner image. It selects Recurrence (LMU), stages `equities_seq` with the recurrence-ready bundle (one symbol, pinned dates), starts a fit, and checks three things:
+
+- Start answers 200 and the fit reports a regression metrics block.
+- juniper-data minted the dataset from the request canopy staged.
+- juniper-data labels that dataset `regression` at generator 6.0.0 or later.
+
+The last check fails against published juniper-data 0.16.0 and earlier, which serve `equities_seq` as `5.0.0` / `classification`, and the failure names the version it saw.
+
+The script brings the stack up as its own compose project, so it can run beside a live stack:
+
+- every container is renamed and no host port is published;
+- the pinned subnets are released;
+- the snapshot roots and API keys are scratch, and `.env` is not read.
+
+The rendered config is checked for all of this before anything starts, and nothing is built from a sibling checkout. A local tag can be a dev build (`docker compose build` stamps the release tag), so `--published` runs every pin by the digest GHCR serves for it. juniper-data fetches AAPL prices and SEC filings over the network at request time.
+
+```bash
+bash scripts/test_canopy_recurrence_smoke.sh --published                       # the released stack
+docker build -t juniper-data-local:main ../juniper-data                        # a juniper-data checkout...
+bash scripts/test_canopy_recurrence_smoke.sh --published --data-image juniper-data-local:main   # ...against everything else as released
+```
+
 ---
 
 ## Container Shell Access
