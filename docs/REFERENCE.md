@@ -2,9 +2,9 @@
 
 ## juniper-deploy Technical Reference
 
-**Version:** 0.2.1
+**Version:** 0.2.2
 **Status:** Active
-**Last Updated:** July 4, 2026
+**Last Updated:** October 8, 2026
 **Project:** Juniper - Docker Compose & Kubernetes Orchestration
 
 ---
@@ -24,6 +24,7 @@
 - [Grafana Configuration](#grafana-configuration)
 - [Environment Variable Reference](#environment-variable-reference)
 - [Directory Layout Reference](#directory-layout-reference)
+- [Claude Code Workflow](#claude-code-workflow)
 - [Security Architecture Reference](#security-architecture-reference)
 - [Testing Reference](#testing-reference)
 - [Documentation Reference](#documentation-reference)
@@ -765,6 +766,7 @@ juniper-deploy/
 └── .github/
     ├── workflows/
     │   ├── ci.yml                  # CI/CD pipeline (v0.2.0)
+    │   ├── claude.yml              # @claude assistant (see Claude Code workflow)
     │   ├── sequence-safety.yml     # Per-PR ADVISORY sequence-safety screens
     │   └── main-verify.yml         # Post-merge bypass-proof sequence-safety net
     ├── CODEOWNERS
@@ -772,6 +774,66 @@ juniper-deploy/
 ```
 
 ---
+
+---
+
+## Claude Code Workflow
+
+`.github/workflows/claude.yml` is the `@claude` assistant for this repo. The version in force is the `# vX.Y.Z` comment on the action's `uses:` line. Dependabot's `github-actions` updates group only `github/codeql-action` (`.github/dependabot.yml`), so a bump of `anthropics/claude-code-action` arrives as its own pull request. The second gate below lives in the action's own source, so any SHA bump can change it (defaults, matcher, check order, messages, branch naming) even when the events, the job `if`, the permissions, and the `with:` inputs stay the same; re-check it at the new SHA. Verified at `v1.0.240`; `v1.0.237` behaves the same.
+
+The file header says `ANTHROPIC_API_KEY` is an org-level secret and that this repo must be able to read it. The job passes `secrets.ANTHROPIC_API_KEY` as the action's only input, `anthropic_api_key`. The header also names `juniper-ml/.github/workflows/claude.yml` as the fleet source of truth. The behavior below is this repo's file.
+
+### What starts the job
+
+Workflow name `Claude Code`, job id `claude`, runner `ubuntu-latest`. The job `if` uses GitHub's `contains`, which is a case-insensitive substring test: `@Claude` starts the job too.
+
+| Event | Types that run | Text the `if` reads |
+|-------|----------------|---------------------|
+| `issue_comment` | `created` | `github.event.comment.body` |
+| `pull_request_review_comment` | `created` | `github.event.comment.body` |
+| `pull_request_review` | `submitted` | `github.event.review.body` |
+| `issues` | `opened`, `assigned` | issue `body` or `title` |
+
+Those four texts are the whole surface. A mention in a pull request title or body has no event here (`pull_request` is not subscribed). Editing a comment or a review has no event here either.
+
+### Permissions and checkout
+
+| Permission | Level |
+|------------|-------|
+| `contents` | `write` |
+| `pull-requests` | `write` |
+| `issues` | `write` |
+| `id-token` | `write` |
+| `actions` | `read` |
+
+The checkout step is SHA-pinned `actions/checkout` with `fetch-depth: 1`. Its version record is the comment on that `uses:` line.
+
+`id-token: write` is used on every run that starts: no `github_token` input is passed, so the action trades the job's OIDC token for a Claude GitHub App installation token, which makes the GitHub API calls and pushes. The Claude GitHub App must be installed on this repo. The model authenticates with `ANTHROPIC_API_KEY`.
+
+### Second gate inside the action
+
+`contains('@claude')` only decides whether the job starts. The pinned action then applies its own checks. Inputs left unset keep the action defaults: `trigger_phrase` is `@claude`, `allowed_bots` is empty, `assignee_trigger` is empty, `prompt` is empty, `branch_prefix` is `claude/`, and `branch_name_template` is empty.
+
+After that token exchange (a workflow-validation rejection there, expected while the workflow file itself is changing, exits green with `Skipping action due to workflow validation:`), write access is checked for `github.actor` (this workflow has no `workflow_run` event, so that is the only account):
+
+- An admin or a writer continues.
+- A login ending in `[bot]` passes this check with no API lookup.
+- Anyone else fails the step with `Actor does not have write permissions to the repository`. `allowed_non_write_users` is unset, and the workflow does not pass `github_token`, so that bypass stays off.
+
+When the actor may continue, the action looks for `@claude` as its own token. The match is case-insensitive. The token must start the text or follow whitespace, and it must end the text or be followed by whitespace or one of `. , ! ? ; :`. A miss logs `No trigger found, skipping remaining steps` and the step returns success, so the job is green and Claude does not reply.
+
+| Text | Job | Action |
+|------|-----|--------|
+| `@claude please check the health endpoint` in a new comment | starts | runs |
+| `@Claude` | starts | runs (both checks ignore case) |
+| `see@claude` in a comment | starts | skips green for a writer (no boundary before the token); anyone else fails the write check first |
+| `@claude.com` | starts | runs (`.` is an allowed terminator) |
+
+`issues: assigned` is the sharp case. The job starts when the title or body already contains `@claude`. The action's assignee path fires only when `assignee_trigger` is set, and the title/body path runs only for `opened`. With `assignee_trigger` empty, assignment hits the successful skip above.
+
+A `[bot]` login that passed the write check and matched the token then hits the human-actor check. Empty `allowed_bots` allows no bot, and the step throws `Workflow initiated by non-human actor:`.
+
+A match selects tag mode (`prompt` is empty). On an open pull request Claude works on that PR's own head branch; pushes go only to this repo, so a fork PR's branch is never updated. On an issue, or a closed or merged pull request, the empty branch template becomes `claude/issue-<number>-<YYYYMMDD-HHmm>` or `claude/pr-<number>-<YYYYMMDD-HHmm>`, cut from the default branch, with a timestamp from the runner's local clock. The action's default `label_trigger` is `claude`, and this workflow has no `labeled` event, so a label alone does not start the job.
 
 ---
 
@@ -949,6 +1011,6 @@ numpy>=1.24
 
 ---
 
-**Last Updated:** July 4, 2026
-**Version:** 0.2.1
+**Last Updated:** October 8, 2026
+**Version:** 0.2.2
 **Maintainer:** Paul Calnon
