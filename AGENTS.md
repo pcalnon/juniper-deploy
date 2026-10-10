@@ -5,7 +5,7 @@
 **Author**: Paul Calnon
 **License**: MIT License
 **Version**: 0.3.0
-**Last Updated**: 2026-09-17
+**Last Updated**: 2026-10-08
 
 ---
 
@@ -129,7 +129,7 @@ bash scripts/test_health_enhanced.sh    # Enhanced health check validation
 | `docs/` | 8 documentation files (see Documentation section) |
 | **CI/CD** | |
 | `.github/workflows/ci.yml` | GitHub Actions pipeline (pre-commit, compose validation, Docker integration) |
-| `.github/workflows/sequence-safety.yml` | Per-PR ADVISORY sequence-safety screens (symbol-loss + docs deletion-magnitude via `juniper-ci-tools`) |
+| `.github/workflows/sequence-safety.yml` | Per-PR REQUIRED sequence-safety screens (symbol-loss + docs deletion-magnitude via `juniper-ci-tools`) |
 | `.github/workflows/main-verify.yml` | Post-merge bypass-proof sequence-safety net (screens-only; stable-title tracking issue) |
 | `.github/CODEOWNERS` | Code ownership rules |
 | `.github/dependabot.yml` | Dependabot configuration |
@@ -189,9 +189,9 @@ GitHub Actions workflow (`.github/workflows/ci.yml`, v0.2.0):
 - All GitHub Actions are SHA-pinned (checkout@v6.0.2, setup-python@v6.2.0, cache@v5.0.4)
 - `docker-compose-check` pre-commit hook is skipped in CI (handled by dedicated `validate-compose` job)
 
-### Sequence-Safety Advisory Net (rollout W2, 2026-08-08)
+### Sequence-Safety Net (required check; rollout W2, 2026-08-08)
 
-Two **advisory** workflows port the ecosystem sequence-safety screens (the 2026-07-28 Cursor-PR-flood remediation) into juniper-deploy as the final consumer of the rollout (8th of 8 repos). Both consume the published `juniper-ci-tools>=0.9.0,<0.10.0` package — no inline copy lives in this repo.
+Two workflows port the ecosystem sequence-safety screens (the 2026-07-28 Cursor-PR-flood remediation) into juniper-deploy as the final consumer of the rollout (8th of 8 repos). Both consume the published `juniper-ci-tools>=0.9.0,<0.10.0` package — no inline copy lives in this repo.
 
 | Workflow | Trigger | Role |
 |----------|---------|------|
@@ -200,7 +200,10 @@ Two **advisory** workflows port the ecosystem sequence-safety screens (the 2026-
 
 **Scope (owner decision, option b):** the symbol screen is scoped to `tests/**/*.py` (the security-wiring tests) and `scripts/**/*.bash` (operational bash); the docs deletion-magnitude screen uses the universal default (`AGENTS.md` + `docs/**/*.md` + `notes/**/*.md`).
 
-**Advisory only:** neither workflow is wired into the `required-checks` quality gate, and this rollout makes **no** branch-ruleset change. The escape hatches are the `Allow-Symbol-Loss:` / `Allow-Docs-Rewrite:` commit trailers (primary) and the `allow-symbol-loss` / `docs-rewrite` PR labels (WARN-only downgrade).
+**Required, but outside the Quality Gate:** `sequence-safety.yml` publishes **`Sequence Safety`**, a required context in ruleset `juniper-deploy-rules` (id `14715370`), so a red run blocks merge into `main`.
+Neither workflow is wired into the `required-checks` Quality Gate (a `needs:` entry can only name a job in the same workflow), so a green Quality Gate does not mean mergeable. `main-verify.yml` runs after the merge and is not a PR status check.
+The escape hatches are the `Allow-Symbol-Loss:` / `Allow-Docs-Rewrite:` commit trailers (primary, and the only waiver `main-verify.yml` honours; on a squash merge, carry them into the squash commit message) and the `allow-symbol-loss` / `docs-rewrite` PR labels (WARN-only downgrade, which greens the required check for that PR).
+Live list: `gh api repos/pcalnon/juniper-deploy/rulesets/14715370 --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context'`.
 
 ---
 

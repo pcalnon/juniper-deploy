@@ -328,6 +328,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   mount, `juniper-recurrence`. It runs after the image preflight, as in the other bring-up targets.
 - `scripts/preflight_snapshot_root.sh --help` printed a fixed line range that stopped before the
   last exit code. It now prints from *Description* to the end of the header.
+- **`AGENTS.md` called `Sequence Safety` advisory ("Advisory only", "no branch-ruleset
+  change").** Ruleset `juniper-deploy-rules` (14715370) requires that context on `main`, so a
+  red run blocks the merge. The section is now titled *(required check)*. It says neither
+  workflow sits in the `required-checks` Quality Gate, so a green Quality Gate does not mean
+  mergeable, and it gives the ruleset query. It also says an owner label greens the check for
+  one PR, while `main-verify.yml` runs after the merge and honours only the commit trailers. The
+  same claim is corrected in the `docs/REFERENCE.md` tree and in `main-verify.yml`'s header, and
+  in `sequence-safety.yml`'s concurrency comment and References lines. Comment text only in the
+  workflows; the parsed YAML is unchanged.
 
 ## [0.3.0] - 2026-09-17
 
