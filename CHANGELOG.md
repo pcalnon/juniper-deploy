@@ -61,6 +61,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`juniper-data` pinned to `0.17.0`** (W1.11, F-DEP1 / F-P4 of juniper-ml
+  `notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-END-AUDIT-AND-DEVELOPMENT-PLAN.md`):
+  `docker-compose.yml` (two sites: the `juniper-data` service and `demo-seed`, which reuses its
+  image) and `k8s/helm/juniper/values.yaml`. The recurrence and canopy pins do not move here; they
+  belong to the plan's W1.13 release train.
+  - **Why.** 0.16.0 serves `equities_seq` at generator `5.0.0` with `task_type: classification` and
+    `n_classes: 2`. juniper-data#437 (X8) relabelled it `regression` at `6.0.0` on `main`, 22
+    minutes after v0.16.0 was cut, so 0.17.0 is the first release that carries it. Under the
+    0.16.0 pin, this stack serves the old label to canopy and juniper-recurrence by construction.
+  - **The arrays do not change, only the metadata.** A recurrence fit reads `y_reg_*` under both
+    versions. What moves is the stored meta (`task_type`, `n_classes` and `class_distribution`
+    become null) and the `dataset_id`, which hashes the generator version. A cached 5.0.0 artifact
+    therefore cannot answer a 6.0.0 request.
+  - Also in the release, from juniper-data#451: under `fundamentals_fill="drop"`, an `equities` or
+    `equities_seq` request whose `purchase_date` is a weekday or more after `start_date` is now
+    refused with a 400 (W1.8). Nothing in this repo sends one.
+  - **Drafted before the image existed, checked after it.** On 2026-10-08, `0.17.0` was on
+    neither PyPI, GitHub Releases nor GHCR (GHCR tags: `0.14.0`, `0.15.0`, `0.16.0`), so the
+    *Published Image Refs* job failed this tree until publication. Release `v0.17.0` was cut
+    2026-10-08 23:48Z at `f13a83ee`, and PyPI has served it since 2026-10-10 09:02Z. This stack
+    runs the image, not the wheel. The GHCR image was checked before this was marked ready
+    (2026-10-10):
+    - it is multi-arch (`linux/amd64` + `linux/arm64` + two attestation manifests; index
+      `sha256:3ab1ef79…`);
+    - its `org.opencontainers.image.revision` label is `f13a83ee`, the `v0.17.0` tag's commit, on
+      both platforms;
+    - pulled by digest and run with its own `CMD`, it answers `GET /v1/health` with 200
+      (`"version":"0.17.0"`), and juniper-data's own publish-path check,
+      `util/check_image_serves.py`, exits 0 on it;
+    - it carries no `juniper_data/tests/`;
+    - its generator registry declares `equities_seq` at `6.0.0` / `regression`, available.
+
+    End to end, the canopy → juniper-recurrence → juniper-data smoke (#245,
+    `scripts/test_canopy_recurrence_smoke.sh --published`) passed 3/3 on this pin, with every
+    image run by the digest GHCR serves for its tag: juniper-canopy `0.8.1`, juniper-recurrence
+    `0.5.0`, juniper-cascor `0.11.0` and this `0.17.0`. Its third test reads juniper-data's stored
+    metadata for the fit's dataset: `regression`, generator `6.0.0`, `n_classes` null.
+
+    `scripts/verify_published_images.py --fail-on-stale` exits 0 on this tree, with all six refs
+    current. Before the change it reported `STALE PIN — 0.17.0 is published, this pins 0.16.0`
+    and exited 1.
+
 - **`juniper-data` pinned to `0.16.0`**: `docker-compose.yml` (two sites: the `juniper-data`
   service and `demo-seed`, which reuses its image) and `k8s/helm/juniper/values.yaml`. Release
   `v0.16.0` was cut 2026-09-24 at `39d1cab2`, and PyPI has served it since 18:35Z. This stack runs
