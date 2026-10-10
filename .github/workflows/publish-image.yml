@@ -32,7 +32,7 @@
 #    test. Nothing asserted otherwise, so nobody noticed for six months.
 #
 #    THE EXPECTED COUNT IS DERIVED, NOT HARDCODED. The runner collects the same
-#    four modules from the CHECKOUT, then requires the IMAGE to collect the same
+#    five modules from the CHECKOUT, then requires the IMAGE to collect the same
 #    number. That makes this a differential check between the source tree and
 #    the packaged artifact -- the exact thing that diverged -- with no constant
 #    that can silently drift. A bare "collection succeeded" would not do: an
@@ -79,14 +79,17 @@ env:
   # the deployment. GHCR packages are account-scoped; the link back to this repo
   # comes from Dockerfile.test's org.opencontainers.image.source label.
   IMAGE_NAME: ${{ github.repository }}-test
-  # The four modules that talk to LIVE SERVICES. The rest of tests/ is
+  # The five modules that talk to LIVE SERVICES. The rest of tests/ is
   # repo-hygiene (compose, Makefile, workflows, Helm, prometheus) and is
-  # deliberately NOT packaged -- see Dockerfile.test's CMD comment.
+  # deliberately NOT packaged -- see Dockerfile.test's CMD comment. Keep this
+  # list, Dockerfile.test's CMD and util/check_image_test_suite.py's MODULES
+  # identical: tests/test_live_suite_wiring.py fails when they drift.
   LIVE_MODULES: >-
     tests/test_health.py
     tests/test_availability.py
     tests/test_data_service.py
     tests/test_full_stack.py
+    tests/test_canopy_recurrence_equities_smoke.py
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════════════════════════

@@ -189,6 +189,7 @@ bash scripts/test_demo_profile.sh
 | `tests/test_health.py` | Health endpoint + schema validation |
 | `tests/test_data_service.py` | Dataset lifecycle integration |
 | `tests/test_full_stack.py` | Cross-service end-to-end tests |
+| `tests/test_canopy_recurrence_equities_smoke.py` | W1.11 canopy → recurrence → juniper-data smoke (`bash scripts/test_canopy_recurrence_smoke.sh --published`) |
 
 ---
 

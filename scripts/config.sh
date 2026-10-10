@@ -97,3 +97,12 @@ RECURRENCE_SMOKE_TIMEOUT="${RECURRENCE_SMOKE_TIMEOUT:-120}"
 # Per-request timeout (seconds) for the smoke's API calls. POST /v1/train has
 # juniper-data generate the dataset and fits inline, so it is the slow one.
 RECURRENCE_SMOKE_HTTP_TIMEOUT="${RECURRENCE_SMOKE_HTTP_TIMEOUT:-60}"
+
+# ─────────────────────────────────────────────────────────────────────────
+# test_canopy_recurrence_smoke.sh — W1.11 canopy -> recurrence -> juniper-data smoke
+# ─────────────────────────────────────────────────────────────────────────
+
+# Wait budget (seconds) for `docker compose up --wait` to see juniper-data,
+# juniper-cascor, redis, juniper-recurrence and juniper-canopy healthy. canopy
+# waits for cascor, whose torch import is the slow part of a cold start.
+CANOPY_RECURRENCE_SMOKE_TIMEOUT="${CANOPY_RECURRENCE_SMOKE_TIMEOUT:-300}"

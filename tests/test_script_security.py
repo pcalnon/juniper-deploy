@@ -33,6 +33,7 @@ SHELL_SCRIPTS = [
     "test_demo_profile.sh",
     "test_health_enhanced.sh",
     "test_recurrence_snapshots.sh",
+    "test_canopy_recurrence_smoke.sh",
 ]
 
 

@@ -8,6 +8,66 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **The test-runner image carries an authenticated canopy → juniper-recurrence → juniper-data smoke
+  (W1.11; F-P4 / F-DEP1 of juniper-ml
+  `notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-END-AUDIT-AND-DEVELOPMENT-PLAN.md`).**
+  `tests/test_canopy_recurrence_equities_smoke.py` drives canopy as an operator does: select
+  Recurrence (LMU), stage `equities_seq`, Start. The dataset request is the plan's recurrence-ready
+  bundle at its smallest: AAPL, `fundamentals_fill: drop`, `log_return`, 2023-01-03 to 2024-06-03.
+  It then checks three hops:
+  1. Start answers 200, and the fit reports a regression metrics block: `mse` / `rmse` / `mae` /
+     `r2`, all finite, `rmse = sqrt(mse)`, no `accuracy`.
+  2. juniper-data minted the fit's dataset from the request canopy staged.
+  3. juniper-data labels that dataset `regression` at generator 6.0.0 or later.
+
+  Details:
+  - **Check 3 reads the producer's metadata, and fails by design against juniper-data 0.16.0.**
+    X8 (juniper-data#437) changed the stored meta, not the arrays: a recurrence fit reads
+    `y_reg_*` under 5.0.0 and 6.0.0 alike, so the metrics block cannot tell the two contracts
+    apart. Against published juniper-data 0.16.0, checks 1 and 2 pass, and check 3 fails with a
+    message that names the version, the label and the `dataset_id` it saw.
+  - **Authenticated.** The `test-runner` service mounts `canopy_api_key` and
+    `juniper_data_api_keys`, the secrets those services validate against, and reads them through
+    a new `*_FILE` indirection in `tests/conftest.py`
+    (`JUNIPER_TEST_{DATA,CASCOR,CANOPY}_API_KEY_FILE`). Its environment carries paths, never key
+    values.
+  - The `test-runner` also waits for juniper-recurrence to be healthy. canopy connects to it
+    lazily, so nothing else orders the two.
+  - The image's `CMD`, `publish-image.yml`'s `LIVE_MODULES` and
+    `util/check_image_test_suite.py`'s `MODULES` gain the module (51 → 54 tests). Nothing tied
+    those three lists together before; `tests/test_live_suite_wiring.py` now fails when they
+    differ. It also fails when a `*_API_KEY_FILE` variable names a secret the runner does not
+    mount, the cascor failure class this file already records twice.
+- **`scripts/test_canopy_recurrence_smoke.sh`** runs that module in the test-runner against a
+  copy of the stack it brings up as its own compose project. The copy is isolated enough to run
+  beside a live stack:
+  - every container is renamed and no host port is published;
+  - the pinned subnets are released to Docker's pool;
+  - the snapshot roots and API keys are scratch, and `.env` is not read.
+
+  The rendered config is checked for all of this before anything starts. `up --no-build` means
+  nothing is built from a sibling checkout. `--image SERVICE=REF` / `--data-image REF` swap a
+  service image. `--published` runs every pin by the digest GHCR serves for its tag.
+  - **A local tag is not a release.** On the host this was written on, all four local Juniper
+    tags were `docker compose build` outputs carrying release tags: `juniper-data:0.16.0` was
+    revision `29be6d3` and `juniper-recurrence:0.5.0` was `be081fa`. None matched GHCR, and under
+    Docker's containerd image store each still showed a digest. `--published` reads no local tag
+    and changes none.
+  - **Measured 2026-10-08**, with every pin as GHCR serves it unless noted:
+    - **juniper-data built from `main` `462da218`** (the W1.11 slip rule's "smoke green against a
+      `main` checkout of juniper-data"): 3 passed. The other images were canopy 0.8.1 `a1a0f13c`,
+      recurrence 0.5.0 `4f601b1` and cascor 0.11.0 `5eb6f144`.
+    - **juniper-data 0.16.0 (`39d1cab2`)**: 2 passed, and the label check failed with
+      `juniper-data 0.16.0 served equities_seq at generator 5.0.0 with task_type
+      'classification' (n_classes 2)`.
+    - Every run tore its project down completely.
+  - **canopy did not refuse the pair under 0.16.0.** The fit completed (219 windows), so the
+    plan's F-P4 "canopy's regression gate refuses the pair against the published image" did not
+    reproduce on the REST control path. canopy's compatibility gate reads its own registry, which
+    labels `equities_seq` `regression` in 0.8.1 and on `main`. Its own contract test records that
+    juniper-data's `GeneratorInfo` does not carry `task_type`. The disagreement is real, but it
+    lives only in juniper-data's metadata, which is what check 3 reads.
+
 - **`scripts/verify_published_images.py` reports a STALE pin, not only a missing one** (#226).
   The D-1 gate (#217) proved every ref *resolves* on both arches; it could not say whether a ref
   is the newest release, which is how `juniper-canopy:0.8.0` stayed pinned for three days after

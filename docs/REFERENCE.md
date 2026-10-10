@@ -506,6 +506,7 @@ All file-based secrets are mounted at `/etc/juniper/secrets/` (read-only).
 | `scripts/test_demo_profile.sh` | End-to-end demo profile test (7 steps) | 120s |
 | `scripts/test_health_enhanced.sh` | Enhanced health response validation (8 steps) | -- |
 | `scripts/test_recurrence_snapshots.sh [--timeout SECONDS] [--keep]` | Recurrence snapshot persistence smoke: save → restart → recreate → list → restore (8 steps) | 120s per health wait |
+| `scripts/test_canopy_recurrence_smoke.sh [--published] [--image SERVICE=REF] [--data-image REF] [--runner-image REF] [--timeout SECONDS] [--fit-timeout SECONDS] [--keep]` | W1.11 canopy → recurrence → juniper-data smoke: runs `tests/test_canopy_recurrence_equities_smoke.py` in the test-runner against an isolated, unpublished, renamed copy of the stack (5 steps) | 300s bring-up; 360s fit |
 | `scripts/test_k8s.sh [--driver kind\|minikube] [--no-teardown]` | Kubernetes integration test (local cluster) | 300s |
 
 ---
@@ -704,6 +705,8 @@ juniper-deploy/
 │   ├── test_health.py              # Health endpoint tests (3 services)
 │   ├── test_data_service.py        # Dataset lifecycle tests
 │   ├── test_full_stack.py          # Cross-service integration tests
+│   ├── test_canopy_recurrence_equities_smoke.py  # W1.11 canopy -> recurrence -> data smoke
+│   ├── test_live_suite_wiring.py   # The live-module lists agree; the smoke's key wiring
 │   ├── test_availability.py        # Availability checking fixtures
 │   ├── test_compose_security_config.py  # Docker security regression tests
 │   ├── test_compose_data_egress.py      # juniper-data's outbound-only network
@@ -925,6 +928,8 @@ pytest tests/ -v -m full_stack       # Cross-service tests only
 | `test_health.py` | `health` | Liveness, readiness, schema, content-type for all 3 services |
 | `test_data_service.py` | `data` | Generators, dataset lifecycle (create, read, download, delete), stats |
 | `test_full_stack.py` | `full_stack` | CasCor-Data integration, Canopy dashboard, 3-service pipeline |
+| `test_canopy_recurrence_equities_smoke.py` | `full_stack` | W1.11, authenticated: select Recurrence, stage `equities_seq`, Start → 200 and a regression metrics block; juniper-data minted the staged request; juniper-data labels the dataset `regression` at generator ≥ 6.0.0. The last check FAILS against published juniper-data ≤ 0.16.0 by design, naming the version and label it saw |
+| `test_live_suite_wiring.py` | — | `Dockerfile.test`'s CMD, `publish-image.yml`'s `LIVE_MODULES` and `util/check_image_test_suite.py`'s `MODULES` are identical; the test-runner's `*_API_KEY_FILE` variables name secrets it mounts, the same ones canopy and juniper-data validate; conftest's `*_FILE` parse |
 | `test_availability.py` | — | Skip mechanism validation, fixture scope checks |
 | `test_compose_security_config.py` | — | Docker secret wiring, network isolation, Grafana secret-only password |
 | `test_compose_data_egress.py` | — | `data-egress`'s definition is pinned exactly and it is juniper-data-only; every service attaches to networks the file declares; no `extends`, `include` or external alias; juniper-data publishes no port and overrides no DNS; `backend` / `data` stay internal |
@@ -940,6 +945,10 @@ pytest tests/ -v -m full_stack       # Cross-service tests only
 | `JUNIPER_TEST_DATA_API_KEY` | *(unset)* |
 | `JUNIPER_TEST_CASCOR_API_KEY` | *(unset)* |
 | `JUNIPER_TEST_CANOPY_API_KEY` | *(unset)* |
+| `JUNIPER_TEST_DATA_API_KEY_FILE` | *(unset)*: read when the plain variable is unset; first non-comment line, first comma-separated entry. The compose `test-runner` sets it to `/run/secrets/juniper_data_api_keys` |
+| `JUNIPER_TEST_CASCOR_API_KEY_FILE` | *(unset)*: as above |
+| `JUNIPER_TEST_CANOPY_API_KEY_FILE` | *(unset)*: as above. The compose `test-runner` sets it to `/run/secrets/canopy_api_key` |
+| `JUNIPER_TEST_RECURRENCE_SMOKE_TIMEOUT` | `360`: seconds from Start to a terminal fit status in the W1.11 smoke |
 
 ### Shell Script Tests
 
@@ -948,6 +957,7 @@ pytest tests/ -v -m full_stack       # Cross-service tests only
 | `scripts/test_demo_profile.sh` | 7-step demo profile validation (config, start, wait, seed check, training, canopy, shutdown) |
 | `scripts/test_health_enhanced.sh` | 8-step health check validation (config, start, liveness, readiness, schema, dependencies, Docker healthcheck) |
 | `scripts/test_recurrence_snapshots.sh` | 8-step recurrence snapshot persistence smoke (render, bring-up, routes, train, save, restart, recreate, restore) under its own compose project, with a scratch snapshot root and throwaway keys |
+| `scripts/test_canopy_recurrence_smoke.sh` | 5-step W1.11 smoke (render check, images, bring-up, images under test, the pytest module in the test-runner). Its own compose project, with every container renamed, no host port published, subnets unpinned, scratch snapshot roots and throwaway keys, so it runs beside a live stack. `--published` runs each pin by the digest GHCR serves for its tag, because a local tag can be a dev build. `--data-image` is the slip rule's "juniper-data `main`" run |
 
 ---
 
@@ -1008,6 +1018,7 @@ numpy>=1.24
 | `tests/test_health.py` | ~25 | Health endpoints for all services |
 | `tests/test_data_service.py` | ~20 | Dataset lifecycle and generator tests |
 | `tests/test_full_stack.py` | ~25 | Cross-service integration (data → cascor → canopy) |
+| `tests/test_canopy_recurrence_equities_smoke.py` | 3 | W1.11 canopy → recurrence → juniper-data smoke (`equities_seq`) |
 
 ---
 

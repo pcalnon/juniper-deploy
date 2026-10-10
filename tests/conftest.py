@@ -6,7 +6,7 @@
 # Author:        Paul Calnon
 #
 # Date Created:  2026-02-25
-# Last Modified: 2026-02-25
+# Last Modified: 2026-10-08
 #
 # License:       MIT License
 # Copyright:     Copyright (c) 2024-2026 Paul Calnon
@@ -23,6 +23,7 @@
 #####################################################################################################################################################################################################
 
 import os
+from pathlib import Path
 
 import pytest
 import requests
@@ -34,10 +35,13 @@ from constants import (  # noqa: F401 — DEFAULT_TIMEOUT is re-exported for fix
     DEFAULT_INTERNAL_DATA_URL,
     DEFAULT_TIMEOUT,
     ENV_CANOPY_API_KEY,
+    ENV_CANOPY_API_KEY_FILE,
     ENV_CANOPY_URL,
     ENV_CASCOR_API_KEY,
+    ENV_CASCOR_API_KEY_FILE,
     ENV_CASCOR_URL,
     ENV_DATA_API_KEY,
+    ENV_DATA_API_KEY_FILE,
     ENV_DATA_URL,
     ENV_INTERNAL_DATA_URL,
 )
@@ -53,10 +57,40 @@ CANOPY_URL = os.environ.get(ENV_CANOPY_URL, DEFAULT_CANOPY_URL)
 # URL that juniper-cascor uses internally to reach juniper-data (docker network)
 _CASCOR_INTERNAL_DATA_URL = os.environ.get(ENV_INTERNAL_DATA_URL, DEFAULT_INTERNAL_DATA_URL)
 
+def _api_key(env_name: str, file_env_name: str) -> str:
+    """Resolve one service's API key: ``env_name``, else the file ``file_env_name`` names, else "".
+
+    The file form is the stack's Docker-secret convention, so the compose ``test-runner`` can
+    hand a key over as ``/run/secrets/<name>`` instead of as an environment value. The first
+    non-comment line is read, and within it the first comma-separated entry: the
+    ``juniper_data_api_keys`` secret is an ACCEPT-LIST, and any one of its keys authenticates.
+
+    An unreadable file resolves to "" rather than raising. Raising here would fail the import
+    of this conftest and with it every module in the session, including the ones that need no
+    key. Without a key, the first authenticated call answers 401, and the modules that make
+    one say which variable to set.
+    """
+    value = os.environ.get(env_name, "")
+    if value:
+        return value
+    key_file = os.environ.get(file_env_name, "")
+    if not key_file:
+        return ""
+    try:
+        text = Path(key_file).read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            return line.split(",", 1)[0].strip()
+    return ""
+
+
 # API keys for authenticated requests (empty string = no auth)
-DATA_API_KEY = os.environ.get(ENV_DATA_API_KEY, "")
-CASCOR_API_KEY = os.environ.get(ENV_CASCOR_API_KEY, "")
-CANOPY_API_KEY = os.environ.get(ENV_CANOPY_API_KEY, "")
+DATA_API_KEY = _api_key(ENV_DATA_API_KEY, ENV_DATA_API_KEY_FILE)
+CASCOR_API_KEY = _api_key(ENV_CASCOR_API_KEY, ENV_CASCOR_API_KEY_FILE)
+CANOPY_API_KEY = _api_key(ENV_CANOPY_API_KEY, ENV_CANOPY_API_KEY_FILE)
 
 
 # ---------------------------------------------------------------------------
