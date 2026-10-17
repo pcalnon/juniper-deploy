@@ -42,10 +42,10 @@
 #
 #    THE IMAGE DECIDES THE RESULT. It runs whatever image compose resolves for
 #    juniper-recurrence, and prints that image's id and its version and revision labels. The
-#    published juniper-recurrence:0.5.0 PREDATES the snapshot routes (juniper-recurrence#172 is
-#    unreleased), so against it step 3 fails with that diagnosis. An image built from a
-#    recurrence checkout that carries #172 passes, and `docker compose build` gives that image
-#    the same 0.5.0 tag, which is why the labels are printed.
+#    pinned juniper-recurrence:0.6.0 is the first release with the snapshot routes
+#    (juniper-recurrence#172). Images through 0.5.0 predate them, so against one step 3 fails with
+#    that diagnosis. `docker compose build` gives a local build the pinned tag whatever it was
+#    built from, which is why the labels are printed.
 #
 #    Offline apart from the local daemon: the dataset is juniper-data's closed-form
 #    irregular_sine generator.
@@ -429,7 +429,7 @@ case "$HTTP_STATUS" in
         fi
         ;;
     404)
-        fail "GET /v1/model/snapshots -> 404: this image has no snapshot routes. The published juniper-recurrence:0.5.0 predates them (juniper-recurrence#172 is unreleased); they ship with the next recurrence release. To exercise the mount before that, build the image from a recurrence checkout that carries #172 (docker compose build juniper-recurrence)."
+        fail "GET /v1/model/snapshots -> 404: this image has no snapshot routes. They first shipped in juniper-recurrence 0.6.0 (juniper-recurrence#172); images through 0.5.0 predate them. Check the version and revision labels printed above, and pin or build 0.6.0 or later."
         exit 1
         ;;
     *)
