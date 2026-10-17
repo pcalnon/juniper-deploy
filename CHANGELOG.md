@@ -121,6 +121,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`juniper-recurrence` pinned to `0.6.0` and `juniper-canopy` to `0.9.0`** (W1.13 of juniper-ml
+  `notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-END-AUDIT-AND-DEVELOPMENT-PLAN.md`,
+  the P1 release train). The sites are `docker-compose.yml` (recurrence: one; canopy: three, the
+  `juniper-canopy`, `juniper-canopy-demo` and `juniper-canopy-dev` services) and
+  `k8s/helm/juniper/values.yaml` (`canopy.image.tag`). These are the last two pins W1.13 owns:
+  juniper-data moved to `0.17.0` in W1.11, and the cascor pins are not this plan's.
+  - **What the stack gains.**
+    - **recurrence 0.6.0** is the first release with the snapshot routes (juniper-recurrence#172).
+      This stack's bind mount, `JUNIPER_RECURRENCE_SNAPSHOTS_DIR` and
+      `scripts/test_recurrence_snapshots.sh` were inert under `0.5.0`, and are live from this pin
+      (W1.12). It also adds operation identity (`operation_id`, `expect_operation_id`, the
+      `training` / `restoring` / `failed` / `restored` states), the 120 s juniper-data timeout, and
+      W1.14: a 5xx no longer relays the data client's text, and a padded key is refused at load.
+      Its image runs juniper-data-client 0.6.0's W1.4 validator.
+    - **canopy 0.9.0** follows a timed-out recurrence fit by operation, names a busy 409's holder,
+      sends the seed plus edits only, shows the service's 4xx detail and version, and carries
+      four security fixes (owner-rated High).
+    The comments at `docker-compose.yml`'s recurrence mount, `README.md`, `docs/REFERENCE.md` and
+    `scripts/test_recurrence_snapshots.sh`, which said the pinned image predates the snapshot routes,
+    now say that 0.6.0 is the first image with them.
+  - **The images were checked before this merged.**
+    - **`juniper-recurrence:0.6.0`**: tags `0.6.0` / `0.6` / `latest` resolve to one index,
+      `sha256:bb2f4ac5…`, which covers `linux/amd64` + `linux/arm64` plus attestations. Its
+      `org.opencontainers.image.version` is `0.6.0`, and its `revision` is `535d1e78`, the
+      `juniper-recurrence-v0.6.0` tag's commit. The publish workflow's
+      `util/check_image_serves.py` passed on each pushed digest.
+    - **`juniper-canopy:0.9.0`**: tags `0.9.0` / `0.9` / `latest` resolve to one index,
+      `sha256:b262d978…`, which covers `linux/amd64` + `linux/arm64` plus attestations. Its
+      `org.opencontainers.image.version` is `0.9.0`, and its `revision` is `bd001153`, the `v0.9.0`
+      tag's commit. That commit carries juniper-canopy#750, so the image's lock pins
+      juniper-data-client `0.6.0`. The publish workflow's serve check passed on each pushed digest.
+    - `docker compose config --images`, rendered across the `full`, `demo`, `dev` and `test`
+      profiles, names `juniper-canopy:0.9.0` three times and `juniper-recurrence:0.6.0` once.
+
 - **`juniper-data` pinned to `0.17.0`** (W1.11, F-DEP1 / F-P4 of juniper-ml
   `notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-END-AUDIT-AND-DEVELOPMENT-PLAN.md`):
   `docker-compose.yml` (two sites: the `juniper-data` service and `demo-seed`, which reuses its
