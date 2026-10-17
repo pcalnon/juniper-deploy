@@ -595,7 +595,7 @@ services:
         GIT_SHA: "${GIT_SHA_RECURRENCE:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_RECURRENCE:-}"
-    image: ghcr.io/pcalnon/juniper-recurrence:0.5.0
+    image: ghcr.io/pcalnon/juniper-recurrence:0.6.0
     container_name: juniper-recurrence
     ports:
       - "${BIND_HOST:-127.0.0.1}:${RECURRENCE_HOST_PORT:-8211}:${RECURRENCE_PORT:-8210}"
@@ -645,9 +645,9 @@ services:
       # snapshot by itself. `restored` is reached only by an explicit
       # `POST /v1/model/snapshots/{id}/restore` with an id from `GET /v1/model/snapshots`.
       #
-      # The pinned 0.5.0 image PREDATES the snapshot routes (juniper-recurrence#172 is unreleased):
-      # under it nothing writes here and the variable above is ignored. Both take effect with the
-      # first recurrence release that carries #172. Smoke: scripts/test_recurrence_snapshots.sh.
+      # The pinned 0.6.0 image is the first release with the snapshot routes (juniper-recurrence#172):
+      # it writes here and reads the variable above. Images through 0.5.0 predate the routes, so
+      # under them nothing writes here. Smoke: scripts/test_recurrence_snapshots.sh.
       #
       # The source must EXIST and be writable by uid 1000 (the image's `juniper` user) before
       # bring-up, or the daemon creates it root-owned and every save fails.
@@ -683,7 +683,7 @@ services:
         GIT_SHA: "${GIT_SHA_CANOPY:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_CANOPY:-}"
-    image: ghcr.io/pcalnon/juniper-canopy:0.8.1
+    image: ghcr.io/pcalnon/juniper-canopy:0.9.0
     container_name: juniper-canopy
     ports:
       - "${BIND_HOST:-127.0.0.1}:${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
@@ -827,7 +827,7 @@ services:
         GIT_SHA: "${GIT_SHA_CANOPY:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_CANOPY:-}"
-    image: ghcr.io/pcalnon/juniper-canopy:0.8.1
+    image: ghcr.io/pcalnon/juniper-canopy:0.9.0
     container_name: juniper-canopy-demo
     ports:
       - "${BIND_HOST:-127.0.0.1}:${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
@@ -918,7 +918,7 @@ services:
         GIT_SHA: "${GIT_SHA_CANOPY:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_CANOPY:-}"
-    image: ghcr.io/pcalnon/juniper-canopy:0.8.1
+    image: ghcr.io/pcalnon/juniper-canopy:0.9.0
     container_name: juniper-canopy-dev
     ports:
       - "${BIND_HOST:-127.0.0.1}:${CANOPY_PORT:-8050}:${CANOPY_PORT:-8050}"
