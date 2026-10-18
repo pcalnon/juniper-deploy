@@ -217,7 +217,7 @@ canopy:
     registry: "ghcr.io/pcalnon"
     repository: juniper-canopy
     # DEPLOY-15: pinned; bump with juniper-canopy releases.
-    tag: "0.8.1"
+    tag: "0.9.0"
     pullPolicy: IfNotPresent
 
   service:
