@@ -121,6 +121,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`juniper-recurrence` pinned to `0.6.1`** (M1 of juniper-ml
+  `notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-END-AUDIT-AND-DEVELOPMENT-PLAN.md`;
+  owner ruling 2026-10-18, taken once juniper-ml's `[recurrence]` floor moved to `>=0.6.1` in
+  juniper-ml#2243). The pin was `0.6.0`.
+  - **What 0.6.1 is.** A packaging-metadata patch: it floors `juniper-recurrence-model>=0.4.0` and
+    `juniper-data-client>=0.6.0`, the owner's 2026-10-10 ruling that 0.6.0 shipped without
+    (juniper-recurrence#206). The image's runtime does not change: `requirements.lock` already
+    pinned model 0.4.0 and data-client 0.6.0 in 0.6.0's image. The pin follows so that the deployed
+    tag and the index agree on which release carries the floors.
+  - **The image, verified on GHCR 2026-10-18**: tags `0.6.1` / `0.6` / `latest` resolve to one
+    index, digest `sha256:d00478fb119044c748547fd9ba1578bb176c000a13fec42407f4dfe1bb00857d`;
+    linux/amd64 `sha256:57ebf305…` and linux/arm64 `sha256:ca3ac933…`;
+    `org.opencontainers.image.version` is `0.6.1` and `revision` is `cad03ed5`, the
+    `juniper-recurrence-v0.6.1` tag's commit. `publish-image.yml` (run 39152653744) passed its
+    serve check on each pushed digest and labels the image CPU-only.
+  - **The Helm chart is untouched**: `k8s/helm/juniper/values.yaml` carries no recurrence image.
+  - **Smokes not re-run for this pin.** `scripts/test_recurrence_snapshots.sh` (8/8) and
+    `scripts/test_canopy_recurrence_smoke.sh` (3/3) passed on 0.6.0's image on 2026-10-18; this
+    change's host cannot pull from GHCR, and the 0.6.1 image differs from 0.6.0's only in the
+    package's metadata. Re-run both at the next bring-up on a host whose Docker reaches GHCR.
+  - Prose that named 0.6.0 as the pinned image (`docker-compose.yml`'s snapshot comment, `README.md`,
+    `docs/REFERENCE.md`'s `JUNIPER_RECURRENCE_SNAPSHOTS_DIR` row, the header comment of
+    `scripts/test_recurrence_snapshots.sh`) now names 0.6.1 and says the routes shipped in 0.6.0.
+    The script's 404 message, which says the routes first shipped in 0.6.0, is unchanged.
+
 - **`juniper-recurrence` pinned to `0.6.0` and `juniper-canopy` to `0.9.0`** (W1.13 of juniper-ml
   `notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-END-AUDIT-AND-DEVELOPMENT-PLAN.md`,
   the P1 release train). The sites are `docker-compose.yml` (recurrence: one; canopy: three, the
