@@ -42,7 +42,7 @@
 #
 #    THE IMAGE DECIDES THE RESULT. It runs whatever image compose resolves for
 #    juniper-recurrence, and prints that image's id and its version and revision labels. The
-#    pinned juniper-recurrence:0.6.1 carries the snapshot routes, which shipped in 0.6.0
+#    pinned juniper-recurrence:0.7.0 carries the snapshot routes, which shipped in 0.6.0
 #    (juniper-recurrence#172). Images through 0.5.0 predate them, so against one step 3 fails with
 #    that diagnosis. `docker compose build` gives a local build the pinned tag whatever it was
 #    built from, which is why the labels are printed.

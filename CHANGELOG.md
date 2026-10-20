@@ -121,6 +121,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`juniper-recurrence` pinned to `0.7.0`** (P5 of juniper-ml
+  `notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-END-AUDIT-AND-DEVELOPMENT-PLAN.md`;
+  approved 2026-10-19 with the session's merge approval, the ruling 0.7.0 reopened, taken with juniper-ml's
+  `[recurrence]` floor moving to `>=0.7.0` in juniper-ml#2260). The pin was `0.6.1`.
+  - **What 0.7.0 is.** W5.8 (B), W5.9 and W5.10 of the plan: the service's `default_ridge` becomes
+    `"gcv"` on juniper-recurrence-model 0.5.0, which standardises the linear readout's memory block with
+    the train-fold statistics for any non-zero ridge (`ridge = 0` unchanged), so a `POST /v1/crossval`
+    that names no ridge no longer blows up on the equities row (the W5.1 note's −2.1e4 becomes −0.195 on
+    the E-H artifact); `POST /v1/train` and every crossval fold carry a `diagnostics` block (`readout`,
+    `theta`, `ridge_mode` / `ridge_selected`, `gamma`, `gcv_at_edge` / `null_model`). Unlike 0.6.1 this
+    changes the image's runtime: its lock pins model 0.5.0 (0.4.0 before). The snapshot routes, the auth
+    posture, the port and the environment variables are unchanged.
+  - **The image, verified on GHCR 2026-10-19**: tags `0.7.0` / `0.7` / `latest` resolve to one index,
+    digest `sha256:8dbb693db50c6945fb8a7c8e2866a282dde7f9830b652c9c902c632d6bbd1acd`; linux/amd64
+    `sha256:fbbd1c06…` and linux/arm64 `sha256:e60a91b0…`; `org.opencontainers.image.version` is `0.7.0`
+    and `revision` is `5c576da4`, the `juniper-recurrence-v0.7.0` tag's commit. `publish-image.yml`
+    (run 39194767477) is green.
+  - **The Helm chart is untouched**: `k8s/helm/juniper/values.yaml` carries no recurrence image.
+  - **Smokes not re-run for this pin.** This change's host cannot pull from GHCR. Both
+    `scripts/test_recurrence_snapshots.sh` and `scripts/test_canopy_recurrence_smoke.sh` are owed on the
+    0.7.0 image at the next bring-up on a host whose Docker reaches GHCR -- the first real-runtime change
+    since they last passed (0.6.0's image, 2026-10-18); the default-ridge change alters numbers, not routes.
+  - **Not 0.8.0.** juniper-recurrence 0.8.0 (W5.2: entity-grouped chronological CV over the `trainval`
+    pool) is on an open PR behind the model 0.6.0 PyPI gate; the pin follows when it publishes. Note that
+    0.7.0's own `[torch]` extra cannot resolve (its model floor was left at `<0.5.0`); the image installs
+    the base distribution without torch and is unaffected.
+  - Prose that named 0.6.1 as the pinned image (`docker-compose.yml`'s snapshot comment, `README.md`,
+    `docs/REFERENCE.md`'s `JUNIPER_RECURRENCE_SNAPSHOTS_DIR` row, the header comment of
+    `scripts/test_recurrence_snapshots.sh`) now names 0.7.0; the routes still shipped in 0.6.0.
+
 - **`juniper-recurrence` pinned to `0.6.1`** (M1 of juniper-ml
   `notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-END-AUDIT-AND-DEVELOPMENT-PLAN.md`;
   owner ruling 2026-10-18, taken once juniper-ml's `[recurrence]` floor moved to `>=0.6.1` in

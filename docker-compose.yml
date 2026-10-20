@@ -595,7 +595,7 @@ services:
         GIT_SHA: "${GIT_SHA_RECURRENCE:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_RECURRENCE:-}"
-    image: ghcr.io/pcalnon/juniper-recurrence:0.6.1
+    image: ghcr.io/pcalnon/juniper-recurrence:0.7.0
     container_name: juniper-recurrence
     ports:
       - "${BIND_HOST:-127.0.0.1}:${RECURRENCE_HOST_PORT:-8211}:${RECURRENCE_PORT:-8210}"
@@ -645,7 +645,7 @@ services:
       # snapshot by itself. `restored` is reached only by an explicit
       # `POST /v1/model/snapshots/{id}/restore` with an id from `GET /v1/model/snapshots`.
       #
-      # The pinned 0.6.1 image carries the snapshot routes (shipped in 0.6.0, juniper-recurrence#172):
+      # The pinned 0.7.0 image carries the snapshot routes (shipped in 0.6.0, juniper-recurrence#172):
       # it writes here and reads the variable above. Images through 0.5.0 predate the routes, so
       # under them nothing writes here. Smoke: scripts/test_recurrence_snapshots.sh.
       #
