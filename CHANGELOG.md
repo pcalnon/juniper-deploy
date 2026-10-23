@@ -121,6 +121,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`juniper-data` pinned to `0.17.1` and `juniper-cascor` to `0.12.0`**, in `docker-compose.yml`
+  (the `juniper-data` and `demo-seed` services; `juniper-cascor` and `juniper-cascor-demo`) and in
+  `k8s/helm/juniper/values.yaml`. Both are the releases that put the shared security patches into
+  the images: `juniper-observability` 0.4.1 (`configure_sentry` stops sending frame-local
+  variables, which could hold the real API key, to Sentry) and `juniper-service-core` 0.7.1.
+  Item 3 of the Cursor flood-3 follow-up (juniper-ml
+  `notes/JUNIPER_2026-10-08_JUNIPER-ECOSYSTEM_CURSOR-FLOOD-3-DISPOSITION.md` §8).
+  - **juniper-data 0.17.1** is a lock-only security patch: no application code changed.
+  - **juniper-cascor 0.12.0** is a minor release, 66 first-parent commits after 0.11.0. Among them:
+    - a non-ASCII `X-API-Key` is a 401, not a 500 (cascor#689);
+    - `FailedAuthThrottle.check()` is bounded (cascor#710);
+    - the image no longer ships the test suite, and `.dockerignore` holds below the build-context
+      root (cascor#660, cascor#661);
+    - `GET /v1/training/status` reports `current_dataset` (cascor#676).
+  - **cascor's BLAS default changed, and this file does not override it.** 0.12.0 sets
+    `OMP_NUM_THREADS` / `MKL_NUM_THREADS` / `OPENBLAS_NUM_THREADS` to **2** wherever they are
+    unset (owner decision D1). `JUNIPER_CASCOR_BLAS_THREADS=<n>` picks another width, and `0` /
+    `off` / `none` restore the runtime default. Neither cascor service here sets any of them.
+  - **Verified on GHCR before pinning**, with `docker buildx imagetools inspect`. Each index
+    carries `linux/amd64` and `linux/arm64`, and each revision label is its release tag's commit:
+
+    | Image | Index digest | Revision |
+    | --- | --- | --- |
+    | `juniper-data:0.17.1` | `sha256:c5a4b7fda73acbddd5d8eedffb9f6517ff582847aa58089f6f3fcaddd5dcdef2` | `381e660b` (`v0.17.1`) |
+    | `juniper-cascor:0.12.0` | `sha256:1cc2723b0b03a2fed8a27ede66f959502791c63bac988327cf07d069c7083016` | `41ea53e5` (`v0.12.0`) |
+
+    Running each published image reports its own version with `juniper-observability` 0.4.1 and
+    `juniper-service-core` 0.7.1. `scripts/verify_published_images.py --fail-on-stale` passes:
+    all 6 refs resolve on both arches, none behind its latest release.
 - **`juniper-recurrence` pinned to `0.8.0`** (W5.2 / P5 of juniper-ml
   `notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-END-AUDIT-AND-DEVELOPMENT-PLAN.md`;
   approved 2026-10-20 with the session's merge approval, the ruling 0.7.0 reopened, taken with juniper-ml's

@@ -37,7 +37,7 @@ data:
     repository: juniper-data
     # DEPLOY-15: Pin to a concrete version for reproducible deployments. Bump
     # this in lockstep with the juniper-data app version when releasing.
-    tag: "0.17.0"
+    tag: "0.17.1"
     pullPolicy: IfNotPresent
 
   service:
@@ -117,7 +117,7 @@ cascor:
     registry: "ghcr.io/pcalnon"
     repository: juniper-cascor
     # DEPLOY-15: pinned; bump with juniper-cascor releases.
-    tag: "0.11.0"
+    tag: "0.12.0"
     pullPolicy: IfNotPresent
 
   service:
