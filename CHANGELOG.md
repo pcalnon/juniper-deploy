@@ -121,6 +121,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`juniper-recurrence` pinned to `0.8.0`** (W5.2 / P5 of juniper-ml
+  `notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-END-AUDIT-AND-DEVELOPMENT-PLAN.md`;
+  approved 2026-10-20 with the session's merge approval, the ruling 0.7.0 reopened, taken with juniper-ml's
+  `[recurrence]` floor moving to `>=0.8.0` in juniper-ml#2292). The pin was `0.7.0`.
+  - **What 0.8.0 is.** W5.2 of the plan: `POST /v1/crossval` selects over juniper-recurrence-model 0.6.0's
+    composed `trainval` pool, so the reserved `test` partition is never in a fold; a multi-ticker artifact's
+    folds are cut on the global date per entity (`ticker_code` / `window_end_date`) with the embargo purged
+    per entity; `embargo` defaults to the look-back; the optional `embargo_days`; a `folding` block on the
+    response and on `GET /v1/crossval/status`; `dataset.split` reads `trainval`. The `[torch]` extra resolves
+    again (0.7.0's was disjoint from its base floor; the image ships no torch and was unaffected). This changes
+    the image's runtime: its lock pins model 0.6.0 (0.5.0 before). The snapshot routes, the auth posture, the
+    port and the environment variables are unchanged.
+  - **The image, verified on GHCR 2026-10-20**: tags `0.8.0` / `0.8` / `latest` resolve to one index,
+    digest `sha256:f3bc2a4c1a6cee7d65a2589ddc955e7d9b6f2ad2a37db87bb83d1c9651cf854b`; linux/amd64 `sha256:481360f6494d8ecf040ec7234626b438ff184ee587d9d110abcd8a0df4ed2201` and linux/arm64 `sha256:79f1d241aeaee956c21d0c09ddceb4498dd29a3bb1942e4f20d57498ae52b735`;
+    `org.opencontainers.image.version` is `0.8.0` and `revision` is `6a98515e`, the `juniper-recurrence-v0.8.0`
+    tag's commit. `publish-image.yml` (run 39411081827) is green.
+  - **The Helm chart is untouched**: `k8s/helm/juniper/values.yaml` carries no recurrence image.
+  - **Smokes not re-run for this pin.** This change's host cannot pull from GHCR. Both
+    `scripts/test_recurrence_snapshots.sh` and `scripts/test_canopy_recurrence_smoke.sh` are owed on the
+    0.8.0 image at the next bring-up on a host whose Docker reaches GHCR (they were last green on 0.6.0's
+    image, 2026-10-18; the 0.7.0 pin shipped the same way). The crossval change alters fold membership and
+    the response shape (`folding`), not the snapshot routes.
+  - Prose that named 0.7.0 as the pinned image (`docker-compose.yml`'s snapshot comment, `README.md`,
+    `docs/REFERENCE.md`'s `JUNIPER_RECURRENCE_SNAPSHOTS_DIR` row, the header comment of
+    `scripts/test_recurrence_snapshots.sh`) now names 0.8.0; the routes still shipped in 0.6.0.
+
 - **`juniper-recurrence` pinned to `0.7.0`** (P5 of juniper-ml
   `notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-END-AUDIT-AND-DEVELOPMENT-PLAN.md`;
   approved 2026-10-19 with the session's merge approval, the ruling 0.7.0 reopened, taken with juniper-ml's
