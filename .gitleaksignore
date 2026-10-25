@@ -1,0 +1,30 @@
+# .gitleaksignore -- historical findings gitleaks must not re-report.
+#
+# Every entry is COMMIT-scoped (`<40-hex commit>:<file>:<rule>:<line>`), so it
+# silences that one historical commit and nothing a later commit adds. A
+# file-scoped entry (`<file>:<rule>:<line>`) would also hide any FUTURE secret
+# written at that line, so none is allowed here, and every entry sits under a
+# comment naming its class (tests/test_gitleaks_config.py enforces both).
+#
+# Only push / pull_request scans are commit-ranged; a workflow_dispatch run of
+# ci.yml scans every commit reachable from every remote branch and tag. These
+# entries are what that scan finds once .gitleaks.toml loads the default
+# ruleset, measured 2026-10-25 with gitleaks 8.24.3 (juniper-ml's
+# util/ad-hoc/2026-10-10_gitleaks_probe.py `scan --scope ci-dispatch`, driven by
+# util/ad-hoc/2026-10-25_gitleaks_probe_for_repo.py: 32 remote head/tag SHAs,
+# 334 commits, 2 findings) and classified with
+# util/ad-hoc/2026-10-10_gitleaks_finding_inspect.py (shape and masked context
+# only; no value was printed). Values are never written here.
+#
+# ============================================================================
+# gitleaks' default ruleset -- every entry below classified as a false positive
+# ============================================================================
+#
+# Placeholder: the README's API-key curl example, a documented placeholder of
+# four lowercase words joined by - (the `my-<service>-secret-key` pattern the
+# same section uses for CANOPY_API_KEY). No longer in README.md.
+4d100c14d414f657f9d9eb1700e28e9f771ab983:README.md:curl-auth-header:153
+# Example: the illustrative value in docs/SECRETS_ONBOARDING.md's "add a new
+# secret" how-to (`echo "NEW_API_KEY=..." >> .env.secrets`): two short words
+# and a word with three digits, joined by -. Still in that document.
+bb649702003798f46c435bba8dc7b202fd59f685:docs/SECRETS_ONBOARDING.md:generic-api-key:137
