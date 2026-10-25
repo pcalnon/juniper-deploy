@@ -4,14 +4,32 @@
 # Detects accidentally committed secrets. SOPS-encrypted files are allowlisted
 # since they contain encrypted (not plaintext) secrets.
 #
-# Usage:
-#   gitleaks detect --config .gitleaks.toml
-#   gitleaks detect --config .gitleaks.toml --baseline-path .gitleaks-baseline.json
+# 2026-10-25: until this date the file had no `[extend]` table, and a gitleaks
+# v8 config without one loads ONLY its own `[[rules]]` -- of which there are
+# none. The `Gitleaks` job in ci.yml therefore ran with ZERO rules and passed
+# vacuously on every push, pull request and dispatched run: a fabricated GitHub
+# token went through it while gitleaks' built-in config flags the same token.
+# juniper-ml#2203 found and fixed the same defect there.
+# `[extend] useDefault = true` below loads gitleaks' built-in ruleset; the
+# allowlist EXTENDS it. tests/test_gitleaks_config.py pins that the table is
+# present and that the real engine fires.
+#
+# The built-in ruleset reports historical false positives. Those are in
+# .gitleaksignore, each COMMIT-scoped and under a comment naming its class.
+#
+# Usage (CI and a local run both auto-discover this file and .gitleaksignore):
+#   gitleaks git --redact          # committed history
+#   gitleaks dir --redact .        # the working tree, INCLUDING gitignored files
 #
 # See: https://github.com/gitleaks/gitleaks#configuration
 # =============================================================================
 
 title = "Juniper Gitleaks Configuration"
+
+# Load gitleaks' built-in rules; the allowlist below EXTENDS them.
+# Removing this table silently empties the ruleset again (see the header).
+[extend]
+useDefault = true
 
 # Do NOT use [allowlist].paths to exempt .env.enc files — this would
 # skip ALL rules for those files, including plaintext secret detection.

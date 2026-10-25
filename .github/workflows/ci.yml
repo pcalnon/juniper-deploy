@@ -123,6 +123,41 @@ jobs:
           # the cutover. Drop this once gitleaks-action publishes a
           # release pinned to node24 (upstream PR #215).
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+          # The engine version, stated rather than inherited: gitleaks-action
+          # v3.0.0 defaults to this same 8.24.3 (src/index.js at the pinned
+          # SHA), but a bump of the action SHA would change it silently.
+          # tests/test_gitleaks_config.py pins it.
+          GITLEAKS_VERSION: "8.24.3"
+        # What it scans (src/index.js / src/gitleaks.js at the pinned SHA):
+        # `push` and `pull_request` scan the event's own commits;
+        # `workflow_dispatch` passes no --log-opts, so it scans EVERY commit
+        # reachable from every branch and tag of this fetch-depth-0 checkout.
+        # .gitleaks.toml and .gitleaksignore are auto-discovered at the repo
+        # root. Until 2026-10-25 .gitleaks.toml had no `[extend]` table, so
+        # this job ran with ZERO rules and could not fail.
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade "pip>=26.1.1"
+          pip install -r requirements-test.txt
+
+      - name: Gitleaks config self-test (real engine)
+        # The Unit Tests job runs this file too, but with no gitleaks binary
+        # its real-engine cases skip. Here the binary the Run Gitleaks step
+        # put on PATH is present, and GITLEAKS_PARITY_REQUIRED turns a missing
+        # binary into a failure instead of a skip, because a check that could
+        # not run is not a pass: the built-in ruleset must fire on a
+        # fabricated token through the auto-discovered .gitleaks.toml (the
+        # config is not vacuous).
+        env:
+          GITLEAKS_PARITY_REQUIRED: "1"
+        run: pytest tests/test_gitleaks_config.py -v --tb=short
 
   # ═══════════════════════════════════════════════════════════════════════════
   # SOPS Encryption Validation

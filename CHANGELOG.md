@@ -560,6 +560,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   in `sequence-safety.yml`'s concurrency comment and References lines. Comment text only in the
   workflows; the parsed YAML is unchanged.
 
+### Security
+
+- **The `Gitleaks` job loaded zero rules and could not fail; it now loads gitleaks' built-in
+  ruleset.** `.gitleaks.toml` held an `[allowlist]` and no `[extend]` table, and a gitleaks v8
+  config without `[extend] useDefault = true` loads only its own `[[rules]]`, of which it had none.
+  Every push, pull-request and dispatched scan therefore passed vacuously: a fabricated GitHub
+  token went through the config while gitleaks' built-in config flags it (the defect
+  juniper-ml#2203 fixed there). The table is added; the age-key and SOPS-ciphertext allowlist is
+  kept, and the header's usage lines no longer name a `.gitleaks-baseline.json` that does not exist.
+  - **History measured.** A `workflow_dispatch` run scans every commit reachable from every remote
+    branch and tag. Measured with gitleaks 8.24.3 over exactly that scope (32 head/tag SHAs, 334
+    commits): 2 findings, both false positives -- a placeholder API key in the README's curl
+    example and the illustrative value in `docs/SECRETS_ONBOARDING.md`'s "add a new secret"
+    how-to. Each is a commit-scoped entry in the new `.gitleaksignore`, under a comment naming its
+    class; the rescan finds none. No finding was in a tracked `.env*` file.
+  - **The engine is pinned**: `GITLEAKS_VERSION: "8.24.3"` on the gitleaks-action step, the version
+    its v3.0.0 installs by default, so a bump of the action SHA cannot change it silently.
+  - Pins: `tests/test_gitleaks_config.py` (new, 8 tests): the config extends the defaults and has
+    no global `[allowlist].paths`; the real engine fires the built-in `github-pat` rule on a
+    runtime-built fabricated token through the auto-discovered and the explicit config (with a
+    no-config control); the ignore file is commit-scoped and classed; CI pins the engine and runs
+    this file. Its real-engine cases skip in the Unit Tests job (no binary) and run in the
+    Gitleaks job, after the action, with `GITLEAKS_PARITY_REQUIRED=1`, which turns a missing binary
+    into a failure.
+
 ## [0.3.0] - 2026-09-17
 
 ### Added
