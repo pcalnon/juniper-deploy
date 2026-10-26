@@ -576,6 +576,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   same claim is corrected in the `docs/REFERENCE.md` tree and in `main-verify.yml`'s header, and
   in `sequence-safety.yml`'s concurrency comment and References lines. Comment text only in the
   workflows; the parsed YAML is unchanged.
+- **`main-verify.yml` said its catch-up base is the most recent SUCCESSFUL run.** The resolver
+  takes the newest completed run whose `Assert screens reached a verdict` step passed (a finding
+  is a verdict, so it advances the base), then falls back to the last successful run, then
+  `github.event.before`, then `HEAD^1`. Run-level success was the rule before the screened tier
+  was ported here, and five comments still stated it: the header's job description, its Security
+  Notes, the `actions: read` comment, and the comments in the resolver and screens steps. All five
+  now state the tiers the code runs. Comments only: the YAML differs only in shell comment lines
+  inside two `run:` blocks, and `tests/test_main_verify_catchup_base.py`, which runs the
+  resolver's own shell, passes unchanged. Found by the Cursor flood-3 evaluation: juniper-ml
+  `notes/JUNIPER_2026-10-08_JUNIPER-ECOSYSTEM_CURSOR-FLOOD-3-DISPOSITION.md` §4.
+- **`claude.yml`'s header said `ANTHROPIC_API_KEY` is set at the organization level.** Juniper
+  repos are user-owned, so no organization secret can reach them; the key is a repository secret
+  here, added 2026-10-10. The header now says so, and so does `docs/REFERENCE.md` § Claude Code
+  Workflow, which repeated the claim. Same record, §4.
 
 ### Security
 
