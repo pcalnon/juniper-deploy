@@ -784,7 +784,7 @@ juniper-deploy/
 
 `.github/workflows/claude.yml` is the `@claude` assistant for this repo. The version in force is the `# vX.Y.Z` comment on the action's `uses:` line. Dependabot's `github-actions` updates group only `github/codeql-action` (`.github/dependabot.yml`), so a bump of `anthropics/claude-code-action` arrives as its own pull request. The second gate below lives in the action's own source, so any SHA bump can change it (defaults, matcher, check order, messages, branch naming) even when the events, the job `if`, the permissions, and the `with:` inputs stay the same; re-check it at the new SHA. Verified at `v1.0.240`; `v1.0.237` behaves the same.
 
-The file header says `ANTHROPIC_API_KEY` is an org-level secret and that this repo must be able to read it. The job passes `secrets.ANTHROPIC_API_KEY` as the action's only input, `anthropic_api_key`. The header also names `juniper-ml/.github/workflows/claude.yml` as the fleet source of truth. The behavior below is this repo's file.
+`ANTHROPIC_API_KEY` is a repository secret: Juniper repos are user-owned, so no organization secret can reach them. The job passes `secrets.ANTHROPIC_API_KEY` as the action's only input, `anthropic_api_key`. The file header names `juniper-ml/.github/workflows/claude.yml` as the fleet source of truth. The behavior below is this repo's file.
 
 ### What starts the job
 
