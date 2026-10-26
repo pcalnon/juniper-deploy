@@ -47,8 +47,17 @@
 #    that diagnosis. `docker compose build` gives a local build the pinned tag whatever it was
 #    built from, which is why the labels are printed.
 #
-#    Offline apart from the local daemon: the dataset is juniper-data's closed-form
-#    irregular_sine generator.
+#    NOTHING IS BUILT. Both services carry a `build:` block whose context is a sibling checkout
+#    (../juniper-data, ../juniper-recurrence/juniper-recurrence), so a plain `up` with an image
+#    missing from the local store tried to BUILD it from there, and beside a worktree, where no
+#    such checkout exists, failed before step 2 with `unable to prepare context`
+#    (juniper-deploy#250). Step 2 resolves the two images the bring-up needs and prints them; an
+#    image that is not in the local store is pulled (three attempts, since a pull through a VPN
+#    tunnel has been seen to fail with `unexpected EOF`), and one that is neither local nor
+#    pullable stops the run before anything starts. Every `up` passes --no-build.
+#
+#    Offline apart from the local daemon and, for an image not in the local store, its registry:
+#    the dataset is juniper-data's closed-form irregular_sine generator.
 #
 # Usage:
 #    bash scripts/test_recurrence_snapshots.sh [--timeout SECONDS] [--keep]
@@ -62,7 +71,8 @@
 # Exit status:
 #    0  every step passed
 #    1  at least one step failed
-#    2  usage error, or an unmet precondition (no docker or python3, a Juniper stack already up)
+#    2  usage error, or an unmet precondition (no docker or python3, a Juniper stack already up,
+#       an image that is neither local nor pullable)
 #####################################################################################################################################################################################################
 
 set -euo pipefail
@@ -89,6 +99,8 @@ fi
 
 TIMEOUT="${RECURRENCE_SMOKE_TIMEOUT}"
 HTTP_TIMEOUT="${RECURRENCE_SMOKE_HTTP_TIMEOUT}"
+PULL_RETRY_DELAY="${RECURRENCE_SMOKE_PULL_RETRY_DELAY}"
+readonly PULL_ATTEMPTS=3
 KEEP=0
 
 # A tiny closed-form fit: no network, a second or two of compute.
@@ -127,7 +139,7 @@ done
 
 # Numeric guards. These values reach python3 argv and `sleep`, never a code string, but a
 # non-number is still an operator error worth naming before anything starts.
-for varname in TIMEOUT HTTP_TIMEOUT POLL_INTERVAL_DEFAULT CURL_TIMEOUT; do
+for varname in TIMEOUT HTTP_TIMEOUT PULL_RETRY_DELAY POLL_INTERVAL_DEFAULT CURL_TIMEOUT; do
     val="${!varname}"
     if ! [[ "$val" =~ ^[0-9]+$ ]]; then
         echo "test_recurrence_snapshots: ${varname} must be a whole number of seconds, got: ${val}" >&2
@@ -165,6 +177,23 @@ compose() {
     JUNIPER_DATA_API_KEYS_FILE="$DATA_KEY_FILE" \
     JUNIPER_RECURRENCE_API_KEYS_SOURCE="$RECURRENCE_KEY_FILE" \
         docker compose -p "$PROJECT" --project-directory "$REPO_ROOT" -f "$COMPOSE_PATH" --profile full "$@"
+}
+
+# pull_image REF: `docker pull`, up to PULL_ATTEMPTS times, PULL_RETRY_DELAY seconds apart. On
+# failure PULL_LOG holds the last attempt's output, for the refusal to quote.
+PULL_LOG=""
+pull_image() {
+    local attempt
+    for ((attempt = 1; attempt <= PULL_ATTEMPTS; attempt++)); do
+        if PULL_LOG="$(docker pull --quiet "$1" 2>&1)"; then
+            return 0
+        fi
+        if [[ "$attempt" -lt "$PULL_ATTEMPTS" ]]; then
+            info "pulling $1 failed (attempt ${attempt} of ${PULL_ATTEMPTS}); retrying in ${PULL_RETRY_DELAY}s"
+            sleep "$PULL_RETRY_DELAY"
+        fi
+    done
+    return 1
 }
 
 container_id() {
@@ -403,8 +432,28 @@ else
 fi
 
 # ── 2. Bring-up ─────────────────────────────────────────────────────────────────
-step 2 "Bring up ${SERVICE} (and juniper-data, its dependency) as compose project ${PROJECT}"
-if ! up_log="$(compose up -d "$SERVICE" 2>&1)"; then
+step 2 "Bring up ${SERVICE} (and juniper-data, its dependency) as compose project ${PROJECT}, from local or pulled images"
+# Never a build (see NOTHING IS BUILT above): every image the bring-up needs is local or pulled
+# first, and `up` runs with --no-build.
+mapfile -t images < <(compose config --images "$SERVICE" juniper-data 2>/dev/null | sort -u)
+if [[ "${#images[@]}" -eq 0 ]]; then
+    fail "docker compose config --images named no image for ${SERVICE} or juniper-data"
+    exit 1
+fi
+info "images resolved by compose: ${images[*]}"
+for image in "${images[@]}"; do
+    if docker image inspect "$image" >/dev/null 2>&1; then
+        continue
+    fi
+    info "${image} is not in the local store; pulling it"
+    if ! pull_image "$image"; then
+        printf '%s\n' "$PULL_LOG" | tail -n 5 >&2
+        echo "test_recurrence_snapshots: ${image} is neither local nor pullable (${PULL_ATTEMPTS} attempts), and this smoke never builds an image from a sibling checkout. Pull or load it, then re-run. Nothing was started." >&2
+        exit 2
+    fi
+done
+pass "every image is local or pulled: ${images[*]}"
+if ! up_log="$(compose up -d --no-build "$SERVICE" 2>&1)"; then
     fail "docker compose up failed:"
     printf '%s\n' "$up_log" | tail -n 20
     exit 1
@@ -482,7 +531,7 @@ expect_listed "after the restart"
 
 # ── 7. Recreate ─────────────────────────────────────────────────────────────────
 step 7 "Recreate ${SERVICE} (up --force-recreate): a NEW container, idle, the snapshot still listed"
-if ! compose up -d --force-recreate --no-deps "$SERVICE" >/dev/null 2>&1; then
+if ! compose up -d --force-recreate --no-deps --no-build "$SERVICE" >/dev/null 2>&1; then
     fail "docker compose up --force-recreate ${SERVICE} failed"
     exit 1
 fi

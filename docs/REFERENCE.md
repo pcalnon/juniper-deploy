@@ -956,7 +956,7 @@ pytest tests/ -v -m full_stack       # Cross-service tests only
 |--------|---------|
 | `scripts/test_demo_profile.sh` | 7-step demo profile validation (config, start, wait, seed check, training, canopy, shutdown) |
 | `scripts/test_health_enhanced.sh` | 8-step health check validation (config, start, liveness, readiness, schema, dependencies, Docker healthcheck) |
-| `scripts/test_recurrence_snapshots.sh` | 8-step recurrence snapshot persistence smoke (render, bring-up, routes, train, save, restart, recreate, restore) under its own compose project, with a scratch snapshot root and throwaway keys |
+| `scripts/test_recurrence_snapshots.sh` | 8-step recurrence snapshot persistence smoke (render, bring-up, routes, train, save, restart, recreate, restore) under its own compose project, with a scratch snapshot root and throwaway keys. It never builds: an image missing from the local store is pulled, and `up` runs with `--no-build` |
 | `scripts/test_canopy_recurrence_smoke.sh` | 5-step W1.11 smoke (render check, images, bring-up, images under test, the pytest module in the test-runner). Its own compose project, with every container renamed, no host port published, subnets unpinned, scratch snapshot roots and throwaway keys, so it runs beside a live stack. `--published` runs each pin by the digest GHCR serves for its tag, because a local tag can be a dev build. `--data-image` is the slip rule's "juniper-data `main`" run |
 
 ---

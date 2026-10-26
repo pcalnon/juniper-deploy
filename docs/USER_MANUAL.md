@@ -502,7 +502,7 @@ bash scripts/test_health_enhanced.sh
 
 ### test_recurrence_snapshots.sh
 
-Proves a `juniper-recurrence` model snapshot outlives its container (8 steps): train a tiny closed-form fit, save a snapshot, restart the container, recreate it, then list and restore. It asserts the service reports `idle` after the restart and after the recreate (nothing restores a model on boot), and `restored` only after the explicit restore. It runs under its own compose project with a scratch snapshot root and throwaway API keys, refuses to start while a Juniper stack is up, and tears itself down. The published `juniper-recurrence:0.5.0` predates the snapshot routes, so it needs an image that carries them.
+Proves a `juniper-recurrence` model snapshot outlives its container (8 steps): train a tiny closed-form fit, save a snapshot, restart the container, recreate it, then list and restore. It asserts the service reports `idle` after the restart and after the recreate (nothing restores a model on boot), and `restored` only after the explicit restore. It runs under its own compose project with a scratch snapshot root and throwaway API keys, refuses to start while a Juniper stack is up, and tears itself down. It never builds an image: one missing from the local store is pulled (three attempts, `RECURRENCE_SMOKE_PULL_RETRY_DELAY` seconds apart), and one that is neither local nor pullable stops the run with exit 2 before anything starts. Images through `juniper-recurrence:0.5.0` predate the snapshot routes, so it needs 0.6.0 or later; the pinned 0.8.0 carries them.
 
 ```bash
 bash scripts/test_recurrence_snapshots.sh

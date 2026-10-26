@@ -416,6 +416,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **`scripts/test_recurrence_snapshots.sh` pulls a missing image instead of building it from a
+  sibling checkout (#250).** Its `compose up` passed no `--no-build`. Both services it brings up
+  carry a `build:` block whose context is a sibling checkout, so with an image missing from the
+  local store, Compose tried to build juniper-data from `../juniper-data`. Beside a worktree, where
+  that path does not exist, the smoke failed before step 2 with `unable to prepare context`
+  (measured on turing, 2026-10-18).
+  - **Step 2 now resolves the two images the bring-up needs and prints them.** It uses each one if
+    it is in the local store and pulls it if not, with three attempts `RECURRENCE_SMOKE_PULL_RETRY_DELAY`
+    seconds apart (default 5, in `scripts/config.sh`), because a pull through a VPN tunnel has been
+    seen to fail with `unexpected EOF`. An image that is neither local nor pullable stops the run
+    with exit 2, before anything starts.
+  - **Both `up` calls pass `--no-build`**: the bring-up in step 2 and the recreate in step 7.
+  - **Tests**: `tests/test_recurrence_snapshot_smoke_images.py` runs the script against a stub
+    `docker`. It pins the refusal (three pull attempts, then exit 2, and no `up`), the pull of a
+    missing image, the reuse of a local one, and `--no-build` on every `compose up` in both
+    recurrence smokes. All four fail against the previous script.
+
 - **The stack can generate `equities` / `equities_seq`: `juniper-data` gets an outbound-only
   network, `data-egress`** (owner ruling 2026-09-24).
   - **Before this change.** Since the `0.16.0` pin above, the image carries the equities
