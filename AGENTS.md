@@ -89,50 +89,7 @@ bash scripts/test_health_enhanced.sh    # Enhanced health check validation
 
 ### Key Files
 
-| File | Purpose |
-|------|---------|
-| **Core Configuration** | |
-| `docker-compose.yml` | Service orchestration with profiles (`full`, `demo`, `dev`, `observability`) |
-| `Makefile` | Developer CLI — 23 targets wrapping Docker Compose commands |
-| `.env.example` | All configurable environment variables (copy to `.env`) |
-| `.env.demo` | Demo profile environment overrides |
-| `.env.observability` | Observability profile overrides (auto-enables metrics) |
-| `pyproject.toml` | Pytest configuration (test paths, markers, pythonpath) |
-| `requirements-test.txt` | Test dependencies (requests, pytest) |
-| `.pre-commit-config.yaml` | Pre-commit hooks (YAML, shell, markdown, Python, Docker Compose) |
-| **Scripts** | |
-| `scripts/health_check.sh` | Health report formatter — queries `/v1/health/ready` with colored output |
-| `scripts/wait_for_services.sh` | Polls health endpoints until ready (default 90s timeout) |
-| `scripts/test_demo_profile.sh` | Demo profile integration test (7-step validation) |
-| `scripts/test_health_enhanced.sh` | Enhanced health check validation (8-step schema checks) |
-| **Tests** | |
-| `tests/conftest.py` | Shared fixtures (configurable via `JUNIPER_TEST_*` env vars) |
-| `tests/constants.py` | Shared test constants (`DEFAULT_TIMEOUT = 10`) |
-| `tests/test_health.py` | Health endpoint + schema validation tests |
-| `tests/test_data_service.py` | Dataset lifecycle integration tests |
-| `tests/test_full_stack.py` | Cross-service end-to-end tests |
-| `tests/test_availability.py` | Availability checking fixtures and skip logic |
-| `tests/test_compose_security_config.py` | Docker security regression tests (secrets, networks, hardening) |
-| **Observability Infrastructure** | |
-| `prometheus/prometheus.yml` | Prometheus scrape configuration (3 services + self) |
-| `prometheus/alert_rules.yml` | Prometheus alert rules |
-| `prometheus/recording_rules.yml` | Prometheus recording rules |
-| `grafana/provisioning/dashboards/` | 4 auto-provisioned Grafana dashboards (overview, data, cascor, canopy) |
-| `grafana/provisioning/datasources/prometheus.yml` | Grafana datasource (Prometheus, stable UID) |
-| `alertmanager/alertmanager.yml` | AlertManager alert routing configuration |
-| **Secrets** | |
-| `secrets/` | Docker secret files (git-ignored, created by `make prepare-secrets`) |
-| `secrets.example/` | Secret file templates (copy to `secrets/`) |
-| **Documentation** | |
-| `README.md` | Quickstart, profiles, service discovery |
-| `CHANGELOG.md` | Release history (Keep a Changelog format) |
-| `docs/` | 8 documentation files (see Documentation section) |
-| **CI/CD** | |
-| `.github/workflows/ci.yml` | GitHub Actions pipeline (pre-commit, compose validation, Docker integration) |
-| `.github/workflows/sequence-safety.yml` | Per-PR REQUIRED sequence-safety screens (symbol-loss + docs deletion-magnitude via `juniper-ci-tools`) |
-| `.github/workflows/main-verify.yml` | Post-merge bypass-proof sequence-safety net (screens-only; stable-title tracking issue) |
-| `.github/CODEOWNERS` | Code ownership rules |
-| `.github/dependabot.yml` | Dependabot configuration |
+What each core configuration file, script, test module, observability config, secrets directory, doc and CI workflow is for. Moved to [`docs/REFERENCE.md` § Key Files Reference](docs/REFERENCE.md#key-files-reference) — read it when working on this area.
 
 ---
 
@@ -169,6 +126,13 @@ ages `/tmp` too.
   derived from `TMPDIR`.
 - Out of scope: GitHub-hosted CI runners and a container's own `/tmp` (the Helm charts' `emptyDir` mounts).
 - Ecosystem rule and rationale: `juniper-ml/notes/JUNIPER_2026-10-26_JUNIPER-ECOSYSTEM_REPO-TMP-DIRECTORY-CONVENTION.md`.
+- **Owner rulings, 2026-10-26** (canonical: the note above): `juniper-check-doc-links` passes `--exclude tmp` and a
+  local Docker build's `.dockerignore` lists `tmp/`; pytest does not ignore it (no `norecursedirs`, `--ignore` or
+  `collect_ignore` names it), and a `grep`/`find` match count includes it. Full-tree repo copies and log-file copies
+  may live there.
+  - **Retention.** A file a work arc writes to `tmp/` is kept until it is no longer needed, no work arc (its own
+    included) uses it, and it is no longer needed for documentation or reference, and, where needed, until it has
+    been archived in an appropriate non-temporary directory. Only then may it be deleted.
 
 ---
 

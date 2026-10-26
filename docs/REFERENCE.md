@@ -4,7 +4,7 @@
 
 **Version:** 0.2.2
 **Status:** Active
-**Last Updated:** October 8, 2026
+**Last Updated:** October 26, 2026
 **Project:** Juniper - Docker Compose & Kubernetes Orchestration
 
 ---
@@ -24,6 +24,7 @@
 - [Grafana Configuration](#grafana-configuration)
 - [Environment Variable Reference](#environment-variable-reference)
 - [Directory Layout Reference](#directory-layout-reference)
+- [Key Files Reference](#key-files-reference)
 - [Claude Code Workflow](#claude-code-workflow)
 - [Security Architecture Reference](#security-architecture-reference)
 - [Testing Reference](#testing-reference)
@@ -780,6 +781,57 @@ juniper-deploy/
 
 ---
 
+## Key Files Reference
+
+Relocated verbatim from `AGENTS.md` § Quick Reference → Key Files (2026-10-26, to keep the always-loaded file under its memory budget when the owner's `tmp/` rulings landed) so it is read on demand rather than loaded into every session.
+
+| File | Purpose |
+|------|---------|
+| **Core Configuration** | |
+| `docker-compose.yml` | Service orchestration with profiles (`full`, `demo`, `dev`, `observability`) |
+| `Makefile` | Developer CLI — 23 targets wrapping Docker Compose commands |
+| `.env.example` | All configurable environment variables (copy to `.env`) |
+| `.env.demo` | Demo profile environment overrides |
+| `.env.observability` | Observability profile overrides (auto-enables metrics) |
+| `pyproject.toml` | Pytest configuration (test paths, markers, pythonpath) |
+| `requirements-test.txt` | Test dependencies (requests, pytest) |
+| `.pre-commit-config.yaml` | Pre-commit hooks (YAML, shell, markdown, Python, Docker Compose) |
+| **Scripts** | |
+| `scripts/health_check.sh` | Health report formatter — queries `/v1/health/ready` with colored output |
+| `scripts/wait_for_services.sh` | Polls health endpoints until ready (default 90s timeout) |
+| `scripts/test_demo_profile.sh` | Demo profile integration test (7-step validation) |
+| `scripts/test_health_enhanced.sh` | Enhanced health check validation (8-step schema checks) |
+| **Tests** | |
+| `tests/conftest.py` | Shared fixtures (configurable via `JUNIPER_TEST_*` env vars) |
+| `tests/constants.py` | Shared test constants (`DEFAULT_TIMEOUT = 10`) |
+| `tests/test_health.py` | Health endpoint + schema validation tests |
+| `tests/test_data_service.py` | Dataset lifecycle integration tests |
+| `tests/test_full_stack.py` | Cross-service end-to-end tests |
+| `tests/test_availability.py` | Availability checking fixtures and skip logic |
+| `tests/test_compose_security_config.py` | Docker security regression tests (secrets, networks, hardening) |
+| **Observability Infrastructure** | |
+| `prometheus/prometheus.yml` | Prometheus scrape configuration (3 services + self) |
+| `prometheus/alert_rules.yml` | Prometheus alert rules |
+| `prometheus/recording_rules.yml` | Prometheus recording rules |
+| `grafana/provisioning/dashboards/` | 4 auto-provisioned Grafana dashboards (overview, data, cascor, canopy) |
+| `grafana/provisioning/datasources/prometheus.yml` | Grafana datasource (Prometheus, stable UID) |
+| `alertmanager/alertmanager.yml` | AlertManager alert routing configuration |
+| **Secrets** | |
+| `secrets/` | Docker secret files (git-ignored, created by `make prepare-secrets`) |
+| `secrets.example/` | Secret file templates (copy to `secrets/`) |
+| **Documentation** | |
+| `README.md` | Quickstart, profiles, service discovery |
+| `CHANGELOG.md` | Release history (Keep a Changelog format) |
+| `docs/` | 8 documentation files (see Documentation section) |
+| **CI/CD** | |
+| `.github/workflows/ci.yml` | GitHub Actions pipeline (pre-commit, compose validation, Docker integration) |
+| `.github/workflows/sequence-safety.yml` | Per-PR REQUIRED sequence-safety screens (symbol-loss + docs deletion-magnitude via `juniper-ci-tools`) |
+| `.github/workflows/main-verify.yml` | Post-merge bypass-proof sequence-safety net (screens-only; stable-title tracking issue) |
+| `.github/CODEOWNERS` | Code ownership rules |
+| `.github/dependabot.yml` | Dependabot configuration |
+
+---
+
 ## Claude Code Workflow
 
 `.github/workflows/claude.yml` is the `@claude` assistant for this repo. The version in force is the `# vX.Y.Z` comment on the action's `uses:` line. Dependabot's `github-actions` updates group only `github/codeql-action` (`.github/dependabot.yml`), so a bump of `anthropics/claude-code-action` arrives as its own pull request. The second gate below lives in the action's own source, so any SHA bump can change it (defaults, matcher, check order, messages, branch naming) even when the events, the job `if`, the permissions, and the `with:` inputs stay the same; re-check it at the new SHA. Verified at `v1.0.240`; `v1.0.237` behaves the same.
@@ -1022,6 +1074,6 @@ numpy>=1.24
 
 ---
 
-**Last Updated:** October 8, 2026
+**Last Updated:** October 26, 2026
 **Version:** 0.2.2
 **Maintainer:** Paul Calnon
