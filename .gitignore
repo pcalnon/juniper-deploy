@@ -287,6 +287,10 @@ Thumbs.db
 *.temp
 .~lock.*
 
+# Repo-local temp root: every temp file goes here, never the host's /tmp
+# (Juniper rule, 2026-10-26). Root-anchored so it cannot ignore a nested tmp/.
+/tmp/
+
 # Applications
 *.app
 *.exe

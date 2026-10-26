@@ -33,6 +33,9 @@ backups/
 backup/
 reports/
 temp/
+# The repo's temp root (Juniper rule, 2026-10-26): TMPDIR points here, so a kept
+# smoke-test WORK_DIR -- API key files included -- can sit under it.
+tmp/
 resources/
 images/
 

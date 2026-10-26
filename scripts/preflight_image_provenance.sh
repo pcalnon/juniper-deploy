@@ -189,7 +189,10 @@ fi
 # ── Extract image<TAB>context pairs for every built service ────────────────
 # python3 owns the JSON parse (stdlib only, no jq — mirrors the sibling
 # preflights); bash owns the git/docker orchestration and the verdict.
-render_file="$(mktemp "${TMPDIR:-/tmp}/preflight_image_provenance.XXXXXX")"
+# TMPDIR, else the repo's gitignored tmp/ -- never the system temp dir (Juniper rule, 2026-10-26).
+tmp_root="${TMPDIR:-${REPO_ROOT}/tmp}"
+mkdir -p "$tmp_root"
+render_file="$(mktemp "${tmp_root}/preflight_image_provenance.XXXXXX")"
 trap 'rm -f "$render_file"' EXIT
 printf '%s' "$render_json" > "$render_file"
 

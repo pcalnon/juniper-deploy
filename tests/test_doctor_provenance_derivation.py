@@ -84,6 +84,10 @@ def _git_env(tmp_path: Path) -> dict[str, str]:
         {
             "GIT_CONFIG_GLOBAL": "/dev/null",
             "GIT_CONFIG_SYSTEM": "/dev/null",
+            # Repo discovery stops at tmp_path. pytest's base temp follows TMPDIR, which the
+            # Juniper convention points at a repo's gitignored tmp/ -- inside a working tree --
+            # so without this a "not a repo" directory would resolve to the enclosing checkout.
+            "GIT_CEILING_DIRECTORIES": str(tmp_path),
             "GIT_TERMINAL_PROMPT": "0",
             "HOME": str(tmp_path),
             "NO_COLOR": "1",
