@@ -124,9 +124,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Temporary files go in the repo's gitignored `tmp/`, never `/tmp` (owner directive, 2026-10-26), and the
   owner's rulings on it are applied.** `/tmp/` is ignored, the scripts fall back to the repo's `tmp/`, the build
   context's `.dockerignore` lists `tmp/`, and `AGENTS.md` § Temporary files carries the rule and the rulings,
-  retention included. `juniper-check-doc-links` passes `--exclude tmp` in CI; nothing keeps pytest or a
-  `grep`/`find` match count out of it. To stay under the memory budget, `AGENTS.md` § Quick Reference → Key Files
-  moved verbatim to `docs/REFERENCE.md`.
+  retention included. `juniper-check-doc-links` passes `--exclude tmp` in CI; nothing keeps pytest out of it, and
+  counting scripts are to choose their scope as to `tmp/` deliberately (the owner's revised ruling). To stay
+  under the memory budget, `AGENTS.md` § Quick Reference → Key Files moved verbatim to `docs/REFERENCE.md`.
 - **`juniper-data` pinned to `0.17.1` and `juniper-cascor` to `0.12.0`**, in `docker-compose.yml`
   (the `juniper-data` and `demo-seed` services; `juniper-cascor` and `juniper-cascor-demo`) and in
   `k8s/helm/juniper/values.yaml`. Both are the releases that put the shared security patches into
