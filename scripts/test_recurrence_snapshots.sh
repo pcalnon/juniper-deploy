@@ -379,7 +379,10 @@ for name in juniper-data "$SERVICE"; do
 done
 
 # ── Scratch workspace: snapshot root + throwaway keys ──────────────────────────
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/recurrence-snapshot-smoke.XXXXXX")"
+# TMPDIR, else the repo's gitignored tmp/ -- never the system temp dir (Juniper rule, 2026-10-26).
+TMP_ROOT="${TMPDIR:-${REPO_ROOT}/tmp}"
+mkdir -p "$TMP_ROOT"
+WORK_DIR="$(mktemp -d "${TMP_ROOT}/recurrence-snapshot-smoke.XXXXXX")"
 SNAP_DIR="${WORK_DIR}/snapshots"
 DATA_KEY_FILE="${WORK_DIR}/juniper_data_api_keys.txt"
 RECURRENCE_KEY_FILE="${WORK_DIR}/juniper_recurrence_api_keys.txt"

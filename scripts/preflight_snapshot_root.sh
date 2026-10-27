@@ -153,7 +153,10 @@ fi
 
 # ── Extract the unique (target, source) bind-mount pairs for the snapshot roots ──
 # python3 owns the JSON parse (no jq dependency), matching the sibling preflights.
-render_file="$(mktemp "${TMPDIR:-/tmp}/preflight_snapshot_root.XXXXXX")"
+# TMPDIR, else the repo's gitignored tmp/ -- never the system temp dir (Juniper rule, 2026-10-26).
+tmp_root="${TMPDIR:-${REPO_ROOT}/tmp}"
+mkdir -p "$tmp_root"
+render_file="$(mktemp "${tmp_root}/preflight_snapshot_root.XXXXXX")"
 trap 'rm -f "$render_file"' EXIT
 printf '%s' "$render_json" > "$render_file"
 

@@ -159,7 +159,10 @@ fi
 # python3 owns the JSON parse (guaranteed present — the repo's tests are
 # python; mirrors preflight_bind_posture.sh, no jq dependency). bash owns the
 # git orchestration and the verdict.
-render_file="$(mktemp "${TMPDIR:-/tmp}/preflight_build_freshness.XXXXXX")"
+# TMPDIR, else the repo's gitignored tmp/ -- never the system temp dir (Juniper rule, 2026-10-26).
+tmp_root="${TMPDIR:-${REPO_ROOT}/tmp}"
+mkdir -p "$tmp_root"
+render_file="$(mktemp "${tmp_root}/preflight_build_freshness.XXXXXX")"
 trap 'rm -f "$render_file"' EXIT
 printf '%s' "$render_json" > "$render_file"
 

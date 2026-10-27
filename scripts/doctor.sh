@@ -158,7 +158,10 @@ fi
 # container, and e.g. juniper-cascor / juniper-cascor-demo can be up with
 # different container states while sharing juniper-cascor:latest. python3
 # owns the JSON parse (stdlib only, no jq — mirrors the preflights).
-render_file="$(mktemp "${TMPDIR:-/tmp}/doctor_render.XXXXXX")"
+# TMPDIR, else the repo's gitignored tmp/ -- never the system temp dir (Juniper rule, 2026-10-26).
+tmp_root="${TMPDIR:-${REPO_ROOT}/tmp}"
+mkdir -p "$tmp_root"
+render_file="$(mktemp "${tmp_root}/doctor_render.XXXXXX")"
 trap 'rm -f "$render_file"' EXIT
 printf '%s' "$render_json" > "$render_file"
 
