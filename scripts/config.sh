@@ -98,6 +98,11 @@ RECURRENCE_SMOKE_TIMEOUT="${RECURRENCE_SMOKE_TIMEOUT:-120}"
 # juniper-data generate the dataset and fits inline, so it is the slow one.
 RECURRENCE_SMOKE_HTTP_TIMEOUT="${RECURRENCE_SMOKE_HTTP_TIMEOUT:-60}"
 
+# Pause (seconds) between the smoke's attempts to pull an image that is not in
+# the local store (juniper-deploy#250). A pull from GHCR through a VPN tunnel has
+# been seen to fail intermittently with `unexpected EOF`.
+RECURRENCE_SMOKE_PULL_RETRY_DELAY="${RECURRENCE_SMOKE_PULL_RETRY_DELAY:-5}"
+
 # ─────────────────────────────────────────────────────────────────────────
 # test_canopy_recurrence_smoke.sh — W1.11 canopy -> recurrence -> juniper-data smoke
 # ─────────────────────────────────────────────────────────────────────────

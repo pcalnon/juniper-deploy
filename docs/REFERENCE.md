@@ -836,7 +836,7 @@ Relocated verbatim from `AGENTS.md` § Quick Reference → Key Files (2026-10-26
 
 `.github/workflows/claude.yml` is the `@claude` assistant for this repo. The version in force is the `# vX.Y.Z` comment on the action's `uses:` line. Dependabot's `github-actions` updates group only `github/codeql-action` (`.github/dependabot.yml`), so a bump of `anthropics/claude-code-action` arrives as its own pull request. The second gate below lives in the action's own source, so any SHA bump can change it (defaults, matcher, check order, messages, branch naming) even when the events, the job `if`, the permissions, and the `with:` inputs stay the same; re-check it at the new SHA. Verified at `v1.0.240`; `v1.0.237` behaves the same.
 
-The file header says `ANTHROPIC_API_KEY` is an org-level secret and that this repo must be able to read it. The job passes `secrets.ANTHROPIC_API_KEY` as the action's only input, `anthropic_api_key`. The header also names `juniper-ml/.github/workflows/claude.yml` as the fleet source of truth. The behavior below is this repo's file.
+`ANTHROPIC_API_KEY` is a repository secret: Juniper repos are user-owned, so no organization secret can reach them. The job passes `secrets.ANTHROPIC_API_KEY` as the action's only input, `anthropic_api_key`. The file header names `juniper-ml/.github/workflows/claude.yml` as the fleet source of truth. The behavior below is this repo's file.
 
 ### What starts the job
 
@@ -1008,7 +1008,7 @@ pytest tests/ -v -m full_stack       # Cross-service tests only
 |--------|---------|
 | `scripts/test_demo_profile.sh` | 7-step demo profile validation (config, start, wait, seed check, training, canopy, shutdown) |
 | `scripts/test_health_enhanced.sh` | 8-step health check validation (config, start, liveness, readiness, schema, dependencies, Docker healthcheck) |
-| `scripts/test_recurrence_snapshots.sh` | 8-step recurrence snapshot persistence smoke (render, bring-up, routes, train, save, restart, recreate, restore) under its own compose project, with a scratch snapshot root and throwaway keys |
+| `scripts/test_recurrence_snapshots.sh` | 8-step recurrence snapshot persistence smoke (render, bring-up, routes, train, save, restart, recreate, restore) under its own compose project, with a scratch snapshot root and throwaway keys. It never builds: an image missing from the local store is pulled, and `up` runs with `--no-build` |
 | `scripts/test_canopy_recurrence_smoke.sh` | 5-step W1.11 smoke (render check, images, bring-up, images under test, the pytest module in the test-runner). Its own compose project, with every container renamed, no host port published, subnets unpinned, scratch snapshot roots and throwaway keys, so it runs beside a live stack. `--published` runs each pin by the digest GHCR serves for its tag, because a local tag can be a dev build. `--data-image` is the slip rule's "juniper-data `main`" run |
 
 ---
