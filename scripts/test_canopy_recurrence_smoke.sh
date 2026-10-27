@@ -321,7 +321,10 @@ if [[ -n "$(docker ps -a -q --filter "label=com.docker.compose.project=${PROJECT
 fi
 
 # ── Scratch workspace: env file, override, snapshot roots, throwaway keys ──────
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/canopy-recurrence-smoke.XXXXXX")"
+# TMPDIR, else the repo's gitignored tmp/ -- never the system temp dir (Juniper rule, 2026-10-26).
+TMP_ROOT="${TMPDIR:-${REPO_ROOT}/tmp}"
+mkdir -p "$TMP_ROOT"
+WORK_DIR="$(mktemp -d "${TMP_ROOT}/canopy-recurrence-smoke.XXXXXX")"
 ENV_FILE="${WORK_DIR}/smoke.env"
 OVERRIDE_FILE="${WORK_DIR}/smoke.override.yml"
 trap finish EXIT

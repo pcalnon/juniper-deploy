@@ -373,6 +373,7 @@ jobs:
             --exclude history \
             --exclude legacy \
             --exclude CHANGELOG.md \
+            --exclude tmp \
             --cross-repo skip
 
   # ═══════════════════════════════════════════════════════════════════════════

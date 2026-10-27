@@ -5,7 +5,7 @@
 **Author**: Paul Calnon
 **License**: MIT License
 **Version**: 0.3.0
-**Last Updated**: 2026-10-08
+**Last Updated**: 2026-10-26
 
 ---
 
@@ -16,10 +16,10 @@ Directives whose **non-application destroys work**. Everything else in this file
 that already knows to look. Adding a new hazard here is legitimate — ratchet space out of a
 reference section in the same PR rather than waiving the budget gate.
 
-- **`/tmp/` is prohibited** as the home for any script that produces, modifies or analyzes
-  repository content — it is reaped when sessions, sandboxes or containers end, and the scripts are
-  irrecoverable. Scratch *data* there is fine; source files are not. Permanent utilities live in
-  `util/`, single-use ones in `util/ad-hoc/`. Full rule: § Script Placement.
+- **Nothing is written under `/tmp`** — no script, scratch data, test output or pid file: it is a
+  tmpfs aged daily, so a file untouched for ten days is deleted in use or not. Temp files go in the
+  repo's gitignored `tmp/`; permanent utilities live in `util/`, single-use ones in `util/ad-hoc/`.
+  Full rule: § Script Placement.
 
 ## Quick Reference
 
@@ -89,50 +89,7 @@ bash scripts/test_health_enhanced.sh    # Enhanced health check validation
 
 ### Key Files
 
-| File | Purpose |
-|------|---------|
-| **Core Configuration** | |
-| `docker-compose.yml` | Service orchestration with profiles (`full`, `demo`, `dev`, `observability`) |
-| `Makefile` | Developer CLI — 23 targets wrapping Docker Compose commands |
-| `.env.example` | All configurable environment variables (copy to `.env`) |
-| `.env.demo` | Demo profile environment overrides |
-| `.env.observability` | Observability profile overrides (auto-enables metrics) |
-| `pyproject.toml` | Pytest configuration (test paths, markers, pythonpath) |
-| `requirements-test.txt` | Test dependencies (requests, pytest) |
-| `.pre-commit-config.yaml` | Pre-commit hooks (YAML, shell, markdown, Python, Docker Compose) |
-| **Scripts** | |
-| `scripts/health_check.sh` | Health report formatter — queries `/v1/health/ready` with colored output |
-| `scripts/wait_for_services.sh` | Polls health endpoints until ready (default 90s timeout) |
-| `scripts/test_demo_profile.sh` | Demo profile integration test (7-step validation) |
-| `scripts/test_health_enhanced.sh` | Enhanced health check validation (8-step schema checks) |
-| **Tests** | |
-| `tests/conftest.py` | Shared fixtures (configurable via `JUNIPER_TEST_*` env vars) |
-| `tests/constants.py` | Shared test constants (`DEFAULT_TIMEOUT = 10`) |
-| `tests/test_health.py` | Health endpoint + schema validation tests |
-| `tests/test_data_service.py` | Dataset lifecycle integration tests |
-| `tests/test_full_stack.py` | Cross-service end-to-end tests |
-| `tests/test_availability.py` | Availability checking fixtures and skip logic |
-| `tests/test_compose_security_config.py` | Docker security regression tests (secrets, networks, hardening) |
-| **Observability Infrastructure** | |
-| `prometheus/prometheus.yml` | Prometheus scrape configuration (3 services + self) |
-| `prometheus/alert_rules.yml` | Prometheus alert rules |
-| `prometheus/recording_rules.yml` | Prometheus recording rules |
-| `grafana/provisioning/dashboards/` | 4 auto-provisioned Grafana dashboards (overview, data, cascor, canopy) |
-| `grafana/provisioning/datasources/prometheus.yml` | Grafana datasource (Prometheus, stable UID) |
-| `alertmanager/alertmanager.yml` | AlertManager alert routing configuration |
-| **Secrets** | |
-| `secrets/` | Docker secret files (git-ignored, created by `make prepare-secrets`) |
-| `secrets.example/` | Secret file templates (copy to `secrets/`) |
-| **Documentation** | |
-| `README.md` | Quickstart, profiles, service discovery |
-| `CHANGELOG.md` | Release history (Keep a Changelog format) |
-| `docs/` | 8 documentation files (see Documentation section) |
-| **CI/CD** | |
-| `.github/workflows/ci.yml` | GitHub Actions pipeline (pre-commit, compose validation, Docker integration) |
-| `.github/workflows/sequence-safety.yml` | Per-PR REQUIRED sequence-safety screens (symbol-loss + docs deletion-magnitude via `juniper-ci-tools`) |
-| `.github/workflows/main-verify.yml` | Post-merge bypass-proof sequence-safety net (screens-only; stable-title tracking issue) |
-| `.github/CODEOWNERS` | Code ownership rules |
-| `.github/dependabot.yml` | Dependabot configuration |
+What each core configuration file, script, test module, observability config, secrets directory, doc and CI workflow is for. Moved to [`docs/REFERENCE.md` § Key Files Reference](docs/REFERENCE.md#key-files-reference) — read it when working on this area.
 
 ---
 
@@ -148,9 +105,36 @@ The annotated repository tree, with the purpose of every directory and key file.
 
 **Permanent utilities** live in `util/`. **Single-use / temporary / unfinished scripts** go in `util/ad-hoc/` (create on first use). See [`util/ad-hoc/README.md`](util/ad-hoc/README.md) for the per-script header / lifecycle conventions.
 
-`/tmp/` is **prohibited** as the home for any script that produces, modifies, or analyzes repository content. `/tmp/` is reaped when sessions / sandboxes / containers end, and scripts placed there are lost (irrecoverable). `/tmp/` remains fine as a scratch *workspace* for intermediate artifacts the script itself creates and reads — the prohibition is on script *source files*.
+`/tmp/` is **prohibited** as the home for any script that produces, modifies, or analyzes repository content: `/tmp/` is reaped, and scripts placed there are lost (irrecoverable). Its old exception for scratch data was withdrawn on 2026-10-26 (§ Temporary files, below).
 
 This is an ecosystem-wide rule restated in the parent `Juniper/AGENTS.md` "Cross-Project Conventions" section. Motivating incident: irrecoverable loss of `phase4_consolidate.py` and `v2_citation_validate.py` from the juniper-ml requirements-snapshot effort.
+
+### Temporary files: `tmp/`, never `/tmp` (mandatory)
+
+**No file is ever written under `/tmp`** (nor `/var/tmp`) by this repo's scripts, tests, tools, services, sessions
+or agents (owner directive, 2026-10-26). On the Linux host `/tmp` is a tmpfs that `systemd-tmpfiles-clean` ages
+daily (`q /tmp 1777 root root 10d`): a file untouched for ten days is deleted while still in use, and a reboot
+erases the rest. In the week to 2026-10-26 it emptied a live test stack's pid files and venv three times. macOS
+ages `/tmp` too.
+
+- This repo's temp root is its gitignored `tmp/`. `TMPDIR` points at the **primary** checkout's (it outlives any
+  worktree); a worktree-isolated session writes its own scratch files into its worktree's `tmp/`.
+- Sessions get `TMPDIR` from the juniper-ml launcher and a user-level SessionStart hook, so `tempfile`, `mktemp` and
+  pytest's `tmp_path` follow it.
+- In code: never a `/tmp/...` literal and never `${TMPDIR:-/tmp}`; tests use `tmp_path`; state another process must
+  find (pid files, run directories) lives at a fixed path under the primary's `tmp/` or `~/.local/state/`, never one
+  derived from `TMPDIR`.
+- Out of scope: GitHub-hosted CI runners and a container's own `/tmp` (the Helm charts' `emptyDir` mounts).
+- Ecosystem rule and rationale: `juniper-ml/notes/JUNIPER_2026-10-26_JUNIPER-ECOSYSTEM_REPO-TMP-DIRECTORY-CONVENTION.md`.
+- **Owner rulings, 2026-10-26** (canonical: the note above): `juniper-check-doc-links` passes `--exclude tmp` and a
+  local Docker build's `.dockerignore` lists `tmp/`; pytest does not ignore it (no `norecursedirs`, `--ignore` or
+  `collect_ignore` names it). Full-tree repo copies and log-file copies may live there.
+  - A script that counts matches with `grep` or `find` chooses its scope deliberately: the repo with its `tmp/`
+    excluded, or `tmp/` alone; it searches both only for a stated edge case that needs both. Existing counting
+    scripts are to be modified to make that choice explicit, not left to `.gitignore` or a tool's defaults.
+  - **Retention.** A file a work arc writes to `tmp/` is kept until it is no longer needed, no work arc (its own
+    included) uses it, and it is no longer needed for documentation or reference, and, where needed, until it has
+    been archived in an appropriate non-temporary directory. Only then may it be deleted.
 
 ---
 
