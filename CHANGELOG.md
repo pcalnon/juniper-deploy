@@ -121,6 +121,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`juniper-cascor` pinned to `0.13.0`**, in `docker-compose.yml` (the `juniper-cascor` and `juniper-cascor-demo`
+  services) and in `k8s/helm/juniper/values.yaml`. Its final evaluation reports `accuracy` (cascor#731), which
+  juniper-ml's experiment suites record as `test_accuracy` (juniper-ml#2381; register row APD-ML-002). The owner
+  asked for the pin on 2026-10-30, under the recurrence × equities arc (juniper-ml
+  `notes/JUNIPER_2026-10-04_JUNIPER-ECOSYSTEM_CONSOLIDATED-DEVELOPMENT-PLAN.md`, R-CASCOR).
+  - **juniper-cascor 0.13.0** is a minor release: Release `v0.13.0` (2026-10-28, commit `61a67c53`), PyPI
+    2026-10-28 11:43Z. Besides #731, the lock its image installs moved: `juniper-data-client` 0.5.0 -> 0.6.0,
+    `fastapi` 0.142.2 -> 0.162.0 with `starlette` 1.7.0 -> 1.10.0, `pydantic` 2.13.5 -> 2.14.1,
+    `python-dateutil` 2.9.0.post0 -> 3.0.0 and `pillow` 12.3.0 -> 13.0.0, among others. The wheel's declared
+    requirements are unchanged from 0.12.0.
+  - **Verified on GHCR before pinning**, with `docker buildx imagetools inspect`. The index carries
+    `linux/amd64` and `linux/arm64`, and both revision labels are the release tag's commit:
+
+    | Image | Index digest | Revision |
+    | --- | --- | --- |
+    | `juniper-cascor:0.13.0` | `sha256:721417527c4f429c43c314e6acda15a12b048e166ab781e4f3ef3463baef5913` | `61a67c53` (`v0.13.0`) |
+
+    Running the published image reports `juniper-cascor` 0.13.0 with `juniper-observability` 0.4.1,
+    `juniper-service-core` 0.7.1 and `juniper-data-client` 0.6.0, on Python 3.14.10.
+    `scripts/verify_published_images.py --fail-on-stale` passes: all 6 refs resolve on both arches, none
+    behind its latest release. On the previous pins it exits 1 with `juniper-cascor:0.12.0 -> 0.13.0 available`.
 - **Temporary files go in the repo's gitignored `tmp/`, never `/tmp` (owner directive, 2026-10-26), and the
   owner's rulings on it are applied.** `/tmp/` is ignored, the scripts fall back to the repo's `tmp/`, the build
   context's `.dockerignore` lists `tmp/`, and `AGENTS.md` § Temporary files carries the rule and the rulings,
