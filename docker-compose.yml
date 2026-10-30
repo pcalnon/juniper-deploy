@@ -230,7 +230,7 @@ services:
         GIT_SHA: "${GIT_SHA_CASCOR:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_CASCOR:-}"
-    image: ghcr.io/pcalnon/juniper-cascor:0.12.0
+    image: ghcr.io/pcalnon/juniper-cascor:0.13.0
     container_name: juniper-cascor
     ports:
       - "${BIND_HOST:-127.0.0.1}:${CASCOR_HOST_PORT:-8201}:${CASCOR_PORT:-8200}"
@@ -424,7 +424,7 @@ services:
         GIT_SHA: "${GIT_SHA_CASCOR:-}"
         BUILD_DATE: "${BUILD_DATE:-}"
         APP_VERSION: "${APP_VERSION_CASCOR:-}"
-    image: ghcr.io/pcalnon/juniper-cascor:0.12.0
+    image: ghcr.io/pcalnon/juniper-cascor:0.13.0
     container_name: juniper-cascor-demo
     ports:
       - "${BIND_HOST:-127.0.0.1}:${CASCOR_HOST_PORT:-8201}:${CASCOR_PORT:-8200}"
