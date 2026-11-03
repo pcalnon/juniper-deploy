@@ -121,6 +121,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`agents-md-touch-up.yml` pins `actions/checkout` to a commit SHA (owner ruling 2026-11-03).** It checked out with
+  the `v7.0.1` tag, the only tag-only `actions/checkout` in `.github/workflows/`. It now uses
+  `3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1`, the commit that tag resolves to and the pin every other
+  workflow here uses, so behaviour is unchanged. A census of the nine Juniper repositories' `main` on 2026-11-01 found
+  249 `actions/checkout` uses, 242 pinned to that SHA; the seven tag-only ones were this workflow's copies, one per
+  repository. juniper-data#503 pinned juniper-data's, and this change is one of the seven that pin the rest.
 - **`juniper-cascor` pinned to `0.13.0`**, in `docker-compose.yml` (the `juniper-cascor` and `juniper-cascor-demo`
   services) and in `k8s/helm/juniper/values.yaml`. Its final evaluation reports `accuracy` (cascor#731), which
   juniper-ml's experiment suites record as `test_accuracy` (juniper-ml#2381; register row APD-ML-002). The owner
