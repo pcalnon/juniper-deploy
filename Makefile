@@ -67,6 +67,15 @@ IMAGE_PREFLIGHT := bash scripts/preflight_image_provenance.sh
 # Bypass: JUNIPER_SNAPSHOT_ROOT_OK=1
 SNAPSHOT_PREFLIGHT := bash scripts/preflight_snapshot_root.sh
 
+# AppArmor-interface preflight (incident of record 2026-10-27 / 2026-11-07, yamaguchi):
+# dockerd decides once, at start, that the host supports AppArmor, and from then on
+# checks /sys/kernel/security/apparmor/profiles before every container start. When
+# securityfs is unmounted (a root `umount -a` took it; PID 1 mounts it and nothing
+# remounts it), every start fails with "Could not check if docker-default AppArmor
+# profile was loaded". This names the missing mount before `docker compose up`.
+# Read-only, no compose render. Bypass: JUNIPER_APPARMOR_OK=1
+APPARMOR_PREFLIGHT := bash scripts/preflight_apparmor.sh
+
 SECRETS_DIR := secrets
 SECRETS_FILES := $(SECRETS_DIR)/juniper_data_api_keys.txt \
     $(SECRETS_DIR)/juniper_recurrence_api_keys.txt \
@@ -96,7 +105,7 @@ endif
         status build build-no-cache build-preflight clean \
         shell-data shell-cascor shell-canopy \
         health doctor wait ps demo dev test monitor obs obs-demo preflight image-preflight \
-        snapshot-preflight
+        snapshot-preflight apparmor-preflight
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Help
@@ -127,10 +136,14 @@ image-preflight:  ## Verify built images match their source checkouts (provenanc
 snapshot-preflight:  ## Verify the cascor + recurrence snapshot roots exist and are writable (JUNIPER_SNAPSHOT_ROOT_OK=1 to bypass)
 	@$(SNAPSHOT_PREFLIGHT) --profile full --profile demo --profile dev --profile test --profile observability
 
+apparmor-preflight:  ## Verify dockerd can load its AppArmor profile: securityfs mounted (JUNIPER_APPARMOR_OK=1 to bypass)
+	@$(APPARMOR_PREFLIGHT)
+
 up: prepare-secrets ## Start all services (--profile full, detached)
 	@$(PREFLIGHT) --profile full
 	@$(IMAGE_PREFLIGHT) --profile full
 	@$(SNAPSHOT_PREFLIGHT) --profile full
+	@$(APPARMOR_PREFLIGHT)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile full up -d
 	@echo -e "$(GREEN)Services starting. Run 'make logs' to follow output.$(RESET)"
 
@@ -144,6 +157,7 @@ demo: prepare-secrets ## Start demo stack (auto-configured CasCor training)
 	@$(PREFLIGHT) --profile demo
 	@$(IMAGE_PREFLIGHT) --profile demo
 	@$(SNAPSHOT_PREFLIGHT) --profile demo
+	@$(APPARMOR_PREFLIGHT)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile demo up -d
 	@echo -e "$(GREEN)Demo stack starting. Run 'make logs' to follow output.$(RESET)"
 
@@ -151,6 +165,7 @@ dev: prepare-secrets ## Start dev stack (real data + cascor, canopy in demo mode
 	@$(PREFLIGHT) --profile dev
 	@$(IMAGE_PREFLIGHT) --profile dev
 	@$(SNAPSHOT_PREFLIGHT) --profile dev
+	@$(APPARMOR_PREFLIGHT)
 	@$(COMPOSE) -f $(COMPOSE_FILE) --profile dev up -d
 	@echo -e "$(GREEN)Dev stack starting. Run 'make logs' to follow output.$(RESET)"
 
@@ -161,6 +176,7 @@ monitor: prepare-secrets ## Start full stack with observability (Prometheus + Gr
 	@$(PREFLIGHT) --env-file .env.observability --profile full --profile observability
 	@$(IMAGE_PREFLIGHT) --env-file .env.observability --profile full --profile observability
 	@$(SNAPSHOT_PREFLIGHT) --env-file .env.observability --profile full --profile observability
+	@$(APPARMOR_PREFLIGHT)
 	@$(COMPOSE) -f $(COMPOSE_FILE) \
 		--env-file .env.observability \
 		--profile full --profile observability up -d
@@ -175,6 +191,7 @@ obs-demo: prepare-secrets  ## Start demo stack with observability (scrapes junip
 		$(IMAGE_PREFLIGHT) --env-file .env.observability --profile demo --profile observability
 	@PROMETHEUS_CONFIG_FILE=prometheus.demo.yml \
 		$(SNAPSHOT_PREFLIGHT) --env-file .env.observability --profile demo --profile observability
+	@$(APPARMOR_PREFLIGHT)
 	@PROMETHEUS_CONFIG_FILE=prometheus.demo.yml \
 		$(COMPOSE) -f $(COMPOSE_FILE) \
 		--env-file .env.observability \

@@ -8,6 +8,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **An AppArmor-interface preflight runs before every bring-up (`scripts/preflight_apparmor.sh`;
+  `make apparmor-preflight`).** On yamaguchi, `make up` created every container and started none:
+  *"Could not check if docker-default AppArmor profile was loaded: open
+  /sys/kernel/security/apparmor/profiles: no such file or directory"*. The cause was a missing mount,
+  not a missing profile. A root `umount -a`-like event on 2026-10-27 took securityfs off
+  `/sys/kernel/security`. PID 1 mounts it at boot and nothing remounts it. dockerd decides once, at
+  start, that the host supports AppArmor, so it kept checking the absent interface before every
+  start. Analysis and remedy are in juniper-ml:
+  `notes/JUNIPER_2026-11-07_JUNIPER-ECOSYSTEM_YAMAGUCHI-SECURITYFS-UNMOUNT-ROOT-CAUSE-ANALYSIS.md` and
+  `…-API-FILESYSTEM-REMOUNT-RUNBOOK.md`.
+  - `make up`, `demo`, `dev`, `monitor` and `obs-demo` run the preflight after the existing three and
+    before `docker compose up`.
+  - It reads the AppArmor module parameter, the mount table, the interface file, and
+    `docker info`'s SecurityOptions. It needs no root and changes nothing.
+  - It **fails** when AppArmor is enabled and the interface is missing, whether dockerd still uses
+    AppArmor (every start fails) or no longer does (containers would run unconfined).
+  - It **warns** when the interface is back but dockerd never re-detected it.
+  - It **skips** when the kernel has no AppArmor. Bypass: `JUNIPER_APPARMOR_OK=1`.
+  - Gate: `tests/test_apparmor_preflight.py` (18 tests, hermetic). Fixtures are yamaguchi's real
+    mount lines and SecurityOptions.
+  - `util/ad-hoc/2026-11-07_apparmor_preflight_mutation_check.py` kills 14 of 14 seeded defects. The
+    first run killed 13: its survivor, reading the mount's source field instead of its type, passed
+    because every fixture named both `securityfs`. A `securityfs none` case closed it.
+  - On yamaguchi in the incident state, `pytest tests/` fails the same 17 tests with and without this
+    change: helm is a snap there, and snap-confine fails for the same missing mount.
+
 - **The test-runner image carries an authenticated canopy → juniper-recurrence → juniper-data smoke
   (W1.11; F-P4 / F-DEP1 of juniper-ml
   `notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-END-AUDIT-AND-DEVELOPMENT-PLAN.md`).**
