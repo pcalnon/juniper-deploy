@@ -258,8 +258,16 @@ Demo auto-start parameters (dataset, network config, epochs) are tuned in `.env.
 | `make shell-{data,cascor,canopy}` | Shell into a container |
 | `make prepare-secrets` | Scaffold `secrets/` from `secrets.example/` |
 | `make clean` | Remove containers, volumes, and local images |
+| `make apparmor-preflight` | Check that dockerd can load its `docker-default` AppArmor profile (securityfs mounted). `make up`, `demo`, `dev`, `monitor` and `obs-demo` run it before starting anything. |
 
 You can also use `docker compose` commands directly — the Makefile is a convenience wrapper.
+
+**If a bring-up reports `[FAIL] AppArmor is enabled but its interface is gone`**, or Docker says
+*"Could not check if docker-default AppArmor profile was loaded"*, securityfs is not mounted on
+`/sys/kernel/security`. Restore it as juniper-ml's
+`notes/JUNIPER_2026-11-07_JUNIPER-ECOSYSTEM_YAMAGUCHI-API-FILESYSTEM-REMOUNT-RUNBOOK.md` describes.
+**Do not restart dockerd to clear it**: a dockerd started without the interface runs every container
+without AppArmor confinement.
 
 ### Service Discovery and Health Endpoints
 
