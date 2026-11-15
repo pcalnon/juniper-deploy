@@ -25,8 +25,9 @@
 #    ``gitleaks`` on PATH) on a token ASSEMBLED AT RUNTIME, so this file holds no
 #    literal that gitleaks or GitHub push protection would flag. They skip
 #    without a binary, except in the Gitleaks job, which runs this file with
-#    ``GITLEAKS_PARITY_REQUIRED=1`` after gitleaks-action has put the binary on
-#    PATH: a check that could not run is not a pass.
+#    ``GITLEAKS_PARITY_REQUIRED=1`` after gitleaks-action, or on a pull request
+#    the ``Install Gitleaks (pull request)`` step, has put the binary on PATH:
+#    a check that could not run is not a pass.
 #
 #####################################################################################################################################################################################################
 
