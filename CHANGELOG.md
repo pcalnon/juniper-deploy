@@ -495,6 +495,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The informational Python 3.15 leg no longer shows as a failed check when it fails** (the
+  owner's report of 2026-11-15: the 3.15 checks "are supposed to produce an informational message
+  without affecting the ability of code to commit, push, PR, or merge"). #274's job-level
+  `continue-on-error` keeps the Quality Gate green, but a failing `Unit Tests (Python 3.15)` check
+  still concluded `failure`: a red X and "Some checks were not successful" on the pull request, a
+  merge state of `UNSTABLE`, and a failure for `gh pr checks` and any tool that reads every check.
+  The 3.15 leg passed on #274 and passes on `main`, so the symptom is latent here.
+  - Every step of `ci.yml`'s `tests` job now carries an `id` and
+    `continue-on-error: ${{ matrix.experimental == true }}`, so on the 3.15 leg a failing step
+    neither stops the job nor turns its check red. A last step,
+    `Report the informational Python 3.15 result`, reports each failed step as a `::warning`
+    annotation and as a table in the job summary, and emits a `::notice` when every step passed.
+  - The three lint steps still run on the 3.12 leg alone. On the 3.15 leg they are `skipped`,
+    which the report does not count as a failure.
+  - The 3.12, 3.13 and 3.14 legs are unchanged, because the expression is false on them: the 3.12
+    leg still posts the required `Unit Tests`, and no check changes its name.
+  - Measured on juniper-ml#2578 (head `91591864`): its `Regression Tests (Python 3.15)` check
+    concluded `success` while two of its steps failed, and carried a warning annotation naming
+    them.
+  - Applied with the script juniper-ml#2578 adds,
+    `util/ad-hoc/2026-11-15_py315_informational_green_legs.py`. It edits the workflow as text and
+    re-parses it, and refuses unless the job keeps the same steps in the same order plus the report
+    step, every step carries the expression, the ids are unique and no other job changed.
+
 - **`scripts/test_recurrence_snapshots.sh` pulls a missing image instead of building it from a
   sibling checkout (#250).** Its `compose up` passed no `--no-build`. Both services it brings up
   carry a `build:` block whose context is a sibling checkout, so with an image missing from the
