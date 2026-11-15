@@ -16,7 +16,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - **The 3.12 leg still posts `Unit Tests`**, the version-less context ruleset 14715370 requires.
     The job name is an expression on `matrix.python-version`, which GitHub uses verbatim instead of
     appending the leg's values. The other legs post `Unit Tests (Python 3.13)`, `(Python 3.14)` and
-    `(Python 3.15)`. The ruleset is unchanged and requires none of them.
+    `(Python 3.15)`. The ruleset required none of them at first. Since 2026-11-15 it also requires
+    `Unit Tests (Python 3.13)` and `(Python 3.14)` (the owner's ruling, "Require both"), and
+    `(Python 3.15)` is in no ruleset.
   - **3.13 and 3.14 block merges** through the Quality Gate, which reads `needs.tests.result`. 3.15
     is an `include` entry with `experimental: true` under the job-level
     `continue-on-error: ${{ matrix.experimental == true }}`, so a red 3.15 leg leaves the job's
@@ -35,7 +37,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   three-leg matrix:
   - **The 3.12 leg still posts `Pre-commit`**, the version-less context ruleset 14715370 requires.
     The job name is an expression on `matrix.python-version`, as the `tests` job's is. The other legs
-    post `Pre-commit (Python 3.13)` and `Pre-commit (Python 3.14)`.
+    post `Pre-commit (Python 3.13)` and `Pre-commit (Python 3.14)`, which the ruleset has also
+    required since 2026-11-15, after this change merged.
   - **All three legs block**, through the Quality Gate's hard check of `needs.pre-commit.result`:
     no leg is `experimental`, and the job has no `continue-on-error`.
   - Each leg sets up its own Python and keys its hook cache on that version, because pre-commit
