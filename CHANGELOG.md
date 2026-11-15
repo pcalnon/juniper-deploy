@@ -23,10 +23,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     result at `success`: the pattern juniper-data#538 measured (run 43655144734).
   - The workflow script-path lint, the juniper-ci-tools install and the AGENTS.md header lint check
     the repository, not the interpreter, so they run on the 3.12 leg only.
-  - Unchanged: `Pre-commit` and every other job, which still run on `env.PYTHON_VERSION` (3.12; no
-    3.15 pre-commit in phase 1, by the owner's ruling), `Dockerfile.test` (`python:3.12-slim`, what
-    `make test` runs) and every image.
+  - Unchanged: every other job, which still runs on `env.PYTHON_VERSION` (3.12), `Dockerfile.test`
+    (`python:3.12-slim`, what `make test` runs) and every image. `Pre-commit` has since gained 3.13
+    and 3.14 legs (the next entry); no pre-commit leg runs 3.15 in phase 1, by the owner's ruling.
   - `docs/testing/TESTING_QUICK_START.md` describes the matrix.
+
+- **CI's `Pre-commit` job runs on Python 3.12, 3.13 and 3.14, and every leg blocks merges.** The
+  owner asked on 2026-11-15 that it "also run on 3.13 and 3.14, with these checks treated the same
+  as the existing 3.12 check"; every other Juniper repository already runs its pre-commit on
+  3.12-3.14. `ci.yml`'s `pre-commit` job, which ran on `env.PYTHON_VERSION` (3.12) alone, becomes a
+  three-leg matrix:
+  - **The 3.12 leg still posts `Pre-commit`**, the version-less context ruleset 14715370 requires.
+    The job name is an expression on `matrix.python-version`, as the `tests` job's is. The other legs
+    post `Pre-commit (Python 3.13)` and `Pre-commit (Python 3.14)`.
+  - **All three legs block**, through the Quality Gate's hard check of `needs.pre-commit.result`:
+    no leg is `experimental`, and the job has no `continue-on-error`.
+  - Each leg sets up its own Python and keys its hook cache on that version, because pre-commit
+    builds the Python hook environments (pre-commit-hooks, shellcheck-py, yamllint) with the
+    interpreter it runs under.
+  - No pre-commit leg runs 3.15 (the owner's phase-1 ruling of 2026-11-14). `AGENTS.md` § CI/CD
+    Pipeline names the three contexts.
 
 - **An AppArmor-interface preflight runs before every bring-up (`scripts/preflight_apparmor.sh`;
   `make apparmor-preflight`).** On yamaguchi, `make up` created every container and started none:
