@@ -5,7 +5,7 @@
 **Author**: Paul Calnon
 **License**: MIT License
 **Version**: 0.3.0
-**Last Updated**: 2026-10-26
+**Last Updated**: 2026-11-15
 
 ---
 
@@ -162,7 +162,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`, v0.2.0):
 
 | Job | Purpose | Dependencies |
 |-----|---------|-------------|
-| `pre-commit` | YAML, shell, markdown, Python validation | — |
+| `pre-commit` | YAML, shell, markdown, Python validation, on Python 3.12, 3.13 and 3.14: one blocking leg each, posting `Pre-commit`, `Pre-commit (Python 3.13)` and `Pre-commit (Python 3.14)` | — |
 | `validate-compose` | Compose config validation (full, demo, dev profiles) | pre-commit |
 | `docker-integration` | Build dev profile, start services, verify health endpoints (15min timeout) | validate-compose |
 | `required-checks` | Quality gate enforcement (all jobs must pass) | all |
