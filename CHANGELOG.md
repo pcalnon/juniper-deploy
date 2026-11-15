@@ -734,6 +734,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     this file. Its real-engine cases skip in the Unit Tests job (no binary) and run in the
     Gitleaks job, after the action, with `GITLEAKS_PARITY_REQUIRED=1`, which turns a missing binary
     into a failure.
+- **A pull request's Gitleaks scan covers its whole `base..head`, merge commits included.** Ruling
+  10 in section 8 of juniper-ml's `notes/JUNIPER_2026-11-06_JUNIPER-ECOSYSTEM_CURSOR-FLOOD-4-DISPOSITION.md`
+  ports juniper-data#530 here, as juniper-data-client#260 and juniper-cascor-client#196 ported it.
+  On `pull_request`, gitleaks-action v3.0.0 lists the pull request's commits with one unpaginated
+  request (30 per page) and scans `--no-merges --first-parent` across that page: it never reaches
+  commit 31, it drops every commit a merge brought into the branch, and no pull-request scan saw
+  what a merge commit changed itself. The `Gitleaks` job (a required check; its name, permissions
+  and checkout are unchanged) now skips the action on `pull_request` and runs two steps instead:
+  an install of the same gitleaks 8.24.3, checked against the release's SHA-256, and a scan of
+  every commit in the event's `base..head` with `--remerge-diff`, behind a `git` filter that
+  deletes git's `remerge` notes, refusing octopus merges and SHAs the checkout does not hold. Both
+  shell blocks are juniper-data's, unchanged. `push` and `workflow_dispatch` still run the action.
+  - **Latent here while the job existed.** Of the 271 pull requests before this change (#1 to
+    #275, read on 2026-11-15), the largest had 9 commits. The action's window misses one commit
+    each of #14, #19 and #24 (2026-04-05, each brought in by a merged stacked pull request), all
+    three before #63 added this job (2026-05-10). Since then every merge in a pull request merges
+    `main`, so no commit was lost; what no scan saw is what those 41 merge commits changed
+    themselves (#263, three commits and a merge of `main`, logged `3 commits scanned.`).
+  - **Reports.** On a pull request the redacted report is `gitleaks.sarif` in a new
+    `gitleaks-report` artifact, which a new `Upload Gitleaks Report` step uploads under
+    `if: always()`, so a failed scan still leaves it. The action's `gitleaks-results.sarif`
+    artifact is no longer produced on a pull request; `push` and `workflow_dispatch` still upload
+    it, and there the new step finds no file and uploads nothing (`if-no-files-found: ignore`).
+  - **Pins.** `tests/test_gitleaks_pr_scan.py` (new, 25 cases, started from juniper-data-client's
+    final file): six static cases, including what keeps a leak blocking (the job's name with no
+    `if` or `continue-on-error`, none on the install, the scan or the self-test, the self-test's
+    whole command, and the upload's `if: always()`, path, artifact name and place after the scan);
+    eleven that run the scan step's own shell with a stand-in engine; and eight with the real
+    engine, in scratch repositories that carry this repository's `.gitleaks.toml` and
+    `.gitleaksignore`. A new `Gitleaks pull-request scan self-test (real engine)` step runs the file
+    with `GITLEAKS_PARITY_REQUIRED=1`; the Unit Tests job collects it on every leg, where the eight
+    skip. `util/ad-hoc/2026-11-14_verify_gitleaks_pr_scan_tests_are_not_vacuous.py` is its
+    mutation check (65 mutations); CI does not call it.
+  - The action step's comments said v2.3.9 and Node 20; they now describe the pinned v3.0.0.
+    `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` stays. `docs/REFERENCE.md` gains § Secret Scan (Gitleaks).
+  - Unchanged: a commit a force-push removed before any run scanned it is still never scanned
+    (juniper-data#536 tracks that gap), and a pull request's own `.gitleaks.toml` or
+    `.gitleaksignore` still governs its scan.
 
 ## [0.3.0] - 2026-09-17
 
