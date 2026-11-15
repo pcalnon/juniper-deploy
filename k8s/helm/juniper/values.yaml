@@ -117,7 +117,7 @@ cascor:
     registry: "ghcr.io/pcalnon"
     repository: juniper-cascor
     # DEPLOY-15: pinned; bump with juniper-cascor releases.
-    tag: "0.13.0"
+    tag: "0.14.0"
     pullPolicy: IfNotPresent
 
   service:
@@ -217,7 +217,7 @@ canopy:
     registry: "ghcr.io/pcalnon"
     repository: juniper-canopy
     # DEPLOY-15: pinned; bump with juniper-canopy releases.
-    tag: "0.9.0"
+    tag: "0.10.0"
     pullPolicy: IfNotPresent
 
   service:

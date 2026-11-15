@@ -183,6 +183,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`juniper-cascor` pinned to `0.14.0` and `juniper-canopy` to `0.10.0`**, in `docker-compose.yml` (the
+  `juniper-cascor` and `juniper-cascor-demo` services, and `juniper-canopy`, `juniper-canopy-demo` and
+  `juniper-canopy-dev`) and in `k8s/helm/juniper/values.yaml`. They are the first cascor and canopy releases whose
+  images lock `juniper-observability` 0.4.2 and `juniper-service-core` 0.7.2, so with these pins the stack's cascor and
+  canopy images carry R-OBS-SC-2: 0.4.2's `configure_sentry` scrubs transactions as well as error events and filters
+  four more credential headers. Each release also carries its own `Retry-After` round-up (cascor#757, canopy#817) and
+  its FastAPI telemetry opt-out (cascor#755, canopy#816). The owner ruled both cuts, with this pin after them, on
+  2026-11-13, and their versions on 2026-11-14 (juniper-ml
+  `notes/JUNIPER_2026-10-04_JUNIPER-ECOSYSTEM_CONSOLIDATED-DEVELOPMENT-PLAN.md`, R-OBS-SC-2).
+  - **juniper-cascor 0.14.0** is a minor release: Release `v0.14.0` (2026-11-15, commit `bf6f0108`), PyPI
+    2026-11-15 05:24Z. Its PyPI files are a second build of that commit: they differ from TestPyPI's as archives,
+    but every file in them is identical (cascor's publish run builds once per publish job; a fix is in progress).
+    Besides the two pins, the CPU lock its image installs moved 15 more packages, among them `fastapi`
+    0.162.0 -> 0.162.2, `pydantic` 2.14.1 -> 2.14.3, `sentry-sdk` 2.73.0 -> 2.74.0, `python-dateutil` 3.0.0 -> 4.0.0
+    and `cachetools` 7.2.5 -> 8.0.0, and it dropped `six`.
+  - **juniper-canopy 0.10.0** is a minor release: Release `v0.10.0` (2026-11-15, commit `57d90dec`), PyPI
+    2026-11-15 05:17Z, the same files TestPyPI took. Its lock moved 19 more packages, among them `fastapi` 0.143.3 ->
+    0.162.5 with `starlette` 1.8.0 -> 1.10.0, `dash` 4.4.1 -> 4.5.0, `sentry-sdk` 2.72.0 -> 2.74.0 and
+    `importlib-metadata` 9.0.1 -> 10.2.0, and it added `lazy-importer`.
+  - **Verified on GHCR before pinning**, with `docker buildx imagetools inspect`. Each index carries `linux/amd64` and
+    `linux/arm64`, and every revision label is its Release's commit:
+
+    | Image | Index digest | Revision |
+    | --- | --- | --- |
+    | `juniper-cascor:0.14.0` | `sha256:6b3e64bd76ef3db9be14c3c62f3af43ce145f3013fd723c2084a21afb006fafb` | `bf6f0108` (`v0.14.0`) |
+    | `juniper-canopy:0.10.0` | `sha256:d9a966ff7d4f34c9eb793942a9739c3bfe7ad1923717d4c2d84247ae0295ae28` | `57d90dec` (`v0.10.0`) |
+
+    Each published image, pulled by that digest and run with no network, reports `juniper-observability` 0.4.2,
+    `juniper-service-core` 0.7.2, `juniper-data-client` 0.6.0 and `sentry-sdk` 2.74.0 on Python 3.14.10 (canopy's
+    also `juniper-cascor-client` 0.8.0). `scripts/verify_published_images.py --fail-on-stale` finds all 6 refs on
+    both arches and these two current. It still exits 1 for `juniper-recurrence:0.8.0` (0.8.1 is published), a pin
+    this change does not touch. On the previous pins it also names `juniper-cascor:0.13.0 -> 0.14.0` and
+    `juniper-canopy:0.9.0 -> 0.10.0`.
 - **`agents-md-touch-up.yml` pins `actions/checkout` to a commit SHA (owner ruling 2026-11-03).** It checked out with
   the `v7.0.1` tag, the only tag-only `actions/checkout` in `.github/workflows/`. It now uses
   `3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1`, the commit that tag resolves to and the pin every other
