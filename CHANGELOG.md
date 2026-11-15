@@ -8,6 +8,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **CI runs the unit tests on Python 3.12, 3.13, 3.14 and 3.15, and the 3.15 leg blocks nothing.**
+  Phase 1 of the ecosystem's Python 3.15 migration: the owner's request of 2026-11-14 that 3.15
+  checks report results without blocking commits, merges or deployments, and the ruling the same
+  day that juniper-deploy gets a 3.12-3.15 matrix. `ci.yml`'s `tests` job, which ran on 3.12 alone,
+  becomes a matrix:
+  - **The 3.12 leg still posts `Unit Tests`**, the version-less context ruleset 14715370 requires.
+    The job name is an expression on `matrix.python-version`, which GitHub uses verbatim instead of
+    appending the leg's values. The other legs post `Unit Tests (Python 3.13)`, `(Python 3.14)` and
+    `(Python 3.15)`. The ruleset is unchanged and requires none of them.
+  - **3.13 and 3.14 block merges** through the Quality Gate, which reads `needs.tests.result`. 3.15
+    is an `include` entry with `experimental: true` under the job-level
+    `continue-on-error: ${{ matrix.experimental == true }}`, so a red 3.15 leg leaves the job's
+    result at `success`: the pattern juniper-data#538 measured (run 43655144734).
+  - The workflow script-path lint, the juniper-ci-tools install and the AGENTS.md header lint check
+    the repository, not the interpreter, so they run on the 3.12 leg only.
+  - Unchanged: `Pre-commit` and every other job, which still run on `env.PYTHON_VERSION` (3.12; no
+    3.15 pre-commit in phase 1, by the owner's ruling), `Dockerfile.test` (`python:3.12-slim`, what
+    `make test` runs) and every image.
+  - `docs/testing/TESTING_QUICK_START.md` describes the matrix.
+
 - **An AppArmor-interface preflight runs before every bring-up (`scripts/preflight_apparmor.sh`;
   `make apparmor-preflight`).** On yamaguchi, `make up` created every container and started none:
   *"Could not check if docker-default AppArmor profile was loaded: open

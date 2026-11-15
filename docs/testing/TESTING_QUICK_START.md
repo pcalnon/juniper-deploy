@@ -2,9 +2,9 @@
 
 ## Run juniper-deploy Integration Tests in 5 Minutes
 
-**Version:** 0.1.0
+**Version:** 0.1.1
 **Status:** Active
-**Last Updated:** May 4, 2026
+**Last Updated:** November 14, 2026
 **Project:** Juniper - Docker Compose Orchestration
 
 ---
@@ -44,7 +44,7 @@ This installs the host-side test dependencies:
 | `numpy` | Dataset payload and response validation |
 | `PyYAML` | Parsing rendered Helm YAML in chart snapshot tests |
 
-Keep this list aligned with `requirements-test.txt`; CI installs that file before running `pytest tests/ -v --tb=short`.
+Keep this list aligned with `requirements-test.txt`; CI installs that file before running `pytest tests/ -v --tb=short`. CI runs the suite on Python 3.12, 3.13 and 3.14, and on 3.15 as an informational leg whose failure blocks nothing (phase 1 of the Python 3.15 migration). The 3.12 leg is the required `Unit Tests` check; the others post `Unit Tests (Python 3.13)` and so on.
 
 ---
 
@@ -128,6 +128,6 @@ bash scripts/test_health_enhanced.sh
 
 ---
 
-**Last Updated:** May 4, 2026
-**Version:** 0.1.0
+**Last Updated:** November 14, 2026
+**Version:** 0.1.1
 **Status:** Active
