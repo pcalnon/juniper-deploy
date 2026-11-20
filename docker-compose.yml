@@ -1273,7 +1273,7 @@ networks:
     ipam:
       config:
         - subnet: 172.31.0.0/16
-  # Outbound route for juniper-data ALONE (owner ruling 2026-09-24).
+  # Outbound route for juniper-data ALONE (Overtoad ruling 2026-09-24).
   #
   # Several generators fetch their data at request time:
   # - `equities` / `equities_seq` (in the image since juniper-data 0.16.0,

@@ -55,7 +55,7 @@ jobs:
   # Pre-commit: Code Quality Checks
   # ═══════════════════════════════════════════════════════════════════════════
   pre-commit:
-    # One leg per Python version. The owner asked on 2026-11-15 that this job "also run on 3.13 and
+    # One leg per Python version. The Overtoad asked on 2026-11-15 that this job "also run on 3.13 and
     # 3.14, with these checks treated the same as the existing 3.12 check", so all three legs BLOCK:
     # no leg is `experimental` and the job has no `continue-on-error`, so a failure on any leg fails
     # this job, and so the Quality Gate, which reads `needs.pre-commit.result`. Ruleset 14715370
@@ -65,7 +65,7 @@ jobs:
     # 3.12 leg posts exactly `Pre-commit`, and the others `Pre-commit (Python 3.13)` and
     # `Pre-commit (Python 3.14)`. The ruleset requires those two as well, since 2026-11-15 (after
     # #276 merged), so renaming any leg makes every pull request wait for a context that never
-    # reports. No pre-commit leg runs 3.15 (the owner's ruling of 2026-11-14, phase 1 of the
+    # reports. No pre-commit leg runs 3.15 (the Overtoad's ruling of 2026-11-14, phase 1 of the
     # ecosystem's Python 3.15 migration).
     name: ${{ matrix.python-version == '3.12' && 'Pre-commit' || format('Pre-commit (Python {0})', matrix.python-version) }}
     runs-on: ubuntu-latest
@@ -193,7 +193,7 @@ jobs:
 
       - name: Run Gitleaks over the pull request (Secrets Detection)
         # gitleaks-action v3.0.0 lists a pull request's commits with ONE
-        # unpaginated call, GET /repos/{owner}/{repo}/pulls/{n}/commits (30
+        # unpaginated call, GET /repos/{Overtoad}/{repo}/pulls/{n}/commits (30
         # per page by default, oldest first), and scans
         # `--no-merges --first-parent <first>^..<last>` across that page
         # (src/gitleaks.js at the pinned SHA). Commit 31 onwards is never
@@ -414,14 +414,14 @@ jobs:
   # script security, availability fixture wiring) and skips the rest cleanly.
   # ═══════════════════════════════════════════════════════════════════════════
   tests:
-    # One leg per Python version: the owner ruled on 2026-11-14 that juniper-deploy gets a 3.12-3.15
+    # One leg per Python version: the Overtoad ruled on 2026-11-14 that juniper-deploy gets a 3.12-3.15
     # matrix (phase 1 of the ecosystem's Python 3.15 migration). This job and `pre-commit` have one;
     # every other job runs on `env.PYTHON_VERSION`. Ruleset 14715370 requires the VERSION-LESS context
     # `Unit Tests`. A static name would post `Unit Tests (3.12)` and so on, the required context
     # would never report, and every pull request would wait for it forever. A name that references
     # `matrix` is used verbatim, with no values appended: the 3.12 leg posts exactly `Unit Tests`,
     # and the others `Unit Tests (Python 3.13)`, `(Python 3.14)` and `(Python 3.15)`. The ruleset
-    # also requires `Unit Tests (Python 3.13)` and `(Python 3.14)`, since 2026-11-15 (the owner's
+    # also requires `Unit Tests (Python 3.13)` and `(Python 3.14)`, since 2026-11-15 (the Overtoad's
     # ruling: "Require both"). It does not require `(Python 3.15)`, which stays informational.
     # Renaming any of the three required legs makes every pull request wait for a context that never
     # reports, so a rename must change the ruleset too.
@@ -433,7 +433,7 @@ jobs:
     # true on it alone: a failure there leaves the job's result, and so `needs.tests.result`, at
     # `success`. Measured on juniper-data#538 (run 43655144734), where that repo's gate printed
     # "Unit Tests: success" with its 3.15 leg failed on purpose. Its context is in no ruleset. Keep
-    # both until the owner makes 3.15 a required version (phase 3 of the migration).
+    # both until the Overtoad makes 3.15 a required version (phase 3 of the migration).
     continue-on-error: ${{ matrix.experimental == true }}
     strategy:
       fail-fast: false

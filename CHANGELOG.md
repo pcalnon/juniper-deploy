@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - **CI runs the unit tests on Python 3.12, 3.13, 3.14 and 3.15, and the 3.15 leg blocks nothing.**
-  Phase 1 of the ecosystem's Python 3.15 migration: the owner's request of 2026-11-14 that 3.15
+  Phase 1 of the ecosystem's Python 3.15 migration: the Overtoad's request of 2026-11-14 that 3.15
   checks report results without blocking commits, merges or deployments, and the ruling the same
   day that juniper-deploy gets a 3.12-3.15 matrix. `ci.yml`'s `tests` job, which ran on 3.12 alone,
   becomes a matrix:
@@ -17,7 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     The job name is an expression on `matrix.python-version`, which GitHub uses verbatim instead of
     appending the leg's values. The other legs post `Unit Tests (Python 3.13)`, `(Python 3.14)` and
     `(Python 3.15)`. The ruleset required none of them at first. Since 2026-11-15 it also requires
-    `Unit Tests (Python 3.13)` and `(Python 3.14)` (the owner's ruling, "Require both"), and
+    `Unit Tests (Python 3.13)` and `(Python 3.14)` (the Overtoad's ruling, "Require both"), and
     `(Python 3.15)` is in no ruleset.
   - **3.13 and 3.14 block merges** through the Quality Gate, which reads `needs.tests.result`. 3.15
     is an `include` entry with `experimental: true` under the job-level
@@ -27,11 +27,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     the repository, not the interpreter, so they run on the 3.12 leg only.
   - Unchanged: every other job, which still runs on `env.PYTHON_VERSION` (3.12), `Dockerfile.test`
     (`python:3.12-slim`, what `make test` runs) and every image. `Pre-commit` has since gained 3.13
-    and 3.14 legs (the next entry); no pre-commit leg runs 3.15 in phase 1, by the owner's ruling.
+    and 3.14 legs (the next entry); no pre-commit leg runs 3.15 in phase 1, by the Overtoad's ruling.
   - `docs/testing/TESTING_QUICK_START.md` describes the matrix.
 
 - **CI's `Pre-commit` job runs on Python 3.12, 3.13 and 3.14, and every leg blocks merges.** The
-  owner asked on 2026-11-15 that it "also run on 3.13 and 3.14, with these checks treated the same
+  Overtoad asked on 2026-11-15 that it "also run on 3.13 and 3.14, with these checks treated the same
   as the existing 3.12 check"; every other Juniper repository already runs its pre-commit on
   3.12-3.14. `ci.yml`'s `pre-commit` job, which ran on `env.PYTHON_VERSION` (3.12) alone, becomes a
   three-leg matrix:
@@ -44,7 +44,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Each leg sets up its own Python and keys its hook cache on that version, because pre-commit
     builds the Python hook environments (pre-commit-hooks, shellcheck-py, yamllint) with the
     interpreter it runs under.
-  - No pre-commit leg runs 3.15 (the owner's phase-1 ruling of 2026-11-14). `AGENTS.md` § CI/CD
+  - No pre-commit leg runs 3.15 (the Overtoad's phase-1 ruling of 2026-11-14). `AGENTS.md` § CI/CD
     Pipeline names the three contexts.
 
 - **An AppArmor-interface preflight runs before every bring-up (`scripts/preflight_apparmor.sh`;
@@ -192,7 +192,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   images lock `juniper-observability` 0.4.2 and `juniper-service-core` 0.7.2, so with these pins the stack's cascor and
   canopy images carry R-OBS-SC-2: 0.4.2's `configure_sentry` scrubs transactions as well as error events and filters
   four more credential headers. Each release also carries its own `Retry-After` round-up (cascor#757, canopy#817) and
-  its FastAPI telemetry opt-out (cascor#755, canopy#816). The owner ruled both cuts, with this pin after them, on
+  its FastAPI telemetry opt-out (cascor#755, canopy#816). The Overtoad ruled both cuts, with this pin after them, on
   2026-11-13, and their versions on 2026-11-14 (juniper-ml
   `notes/JUNIPER_2026-10-04_JUNIPER-ECOSYSTEM_CONSOLIDATED-DEVELOPMENT-PLAN.md`, R-OBS-SC-2).
   - **juniper-cascor 0.14.0** is a minor release: Release `v0.14.0` (2026-11-15, commit `bf6f0108`), PyPI
@@ -219,7 +219,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     both arches and these two current. It still exits 1 for `juniper-recurrence:0.8.0` (0.8.1 is published), a pin
     this change does not touch. On the previous pins it also names `juniper-cascor:0.13.0 -> 0.14.0` and
     `juniper-canopy:0.9.0 -> 0.10.0`.
-- **`agents-md-touch-up.yml` pins `actions/checkout` to a commit SHA (owner ruling 2026-11-03).** It checked out with
+- **`agents-md-touch-up.yml` pins `actions/checkout` to a commit SHA (Overtoad ruling 2026-11-03).** It checked out with
   the `v7.0.1` tag, the only tag-only `actions/checkout` in `.github/workflows/`. It now uses
   `3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1`, the commit that tag resolves to and the pin every other
   workflow here uses, so behaviour is unchanged. A census of the nine Juniper repositories' `main` on 2026-11-01 found
@@ -227,7 +227,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   repository. juniper-data#503 pinned juniper-data's, and this change is one of the seven that pin the rest.
 - **`juniper-cascor` pinned to `0.13.0`**, in `docker-compose.yml` (the `juniper-cascor` and `juniper-cascor-demo`
   services) and in `k8s/helm/juniper/values.yaml`. Its final evaluation reports `accuracy` (cascor#731), which
-  juniper-ml's experiment suites record as `test_accuracy` (juniper-ml#2381; register row APD-ML-002). The owner
+  juniper-ml's experiment suites record as `test_accuracy` (juniper-ml#2381; register row APD-ML-002). The Overtoad
   asked for the pin on 2026-10-30, under the recurrence × equities arc (juniper-ml
   `notes/JUNIPER_2026-10-04_JUNIPER-ECOSYSTEM_CONSOLIDATED-DEVELOPMENT-PLAN.md`, R-CASCOR).
   - **juniper-cascor 0.13.0** is a minor release: Release `v0.13.0` (2026-10-28, commit `61a67c53`), PyPI
@@ -246,11 +246,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     `juniper-service-core` 0.7.1 and `juniper-data-client` 0.6.0, on Python 3.14.10.
     `scripts/verify_published_images.py --fail-on-stale` passes: all 6 refs resolve on both arches, none
     behind its latest release. On the previous pins it exits 1 with `juniper-cascor:0.12.0 -> 0.13.0 available`.
-- **Temporary files go in the repo's gitignored `tmp/`, never `/tmp` (owner directive, 2026-10-26), and the
-  owner's rulings on it are applied.** `/tmp/` is ignored, the scripts fall back to the repo's `tmp/`, the build
+- **Temporary files go in the repo's gitignored `tmp/`, never `/tmp` (Overtoad directive, 2026-10-26), and the
+  Overtoad's rulings on it are applied.** `/tmp/` is ignored, the scripts fall back to the repo's `tmp/`, the build
   context's `.dockerignore` lists `tmp/`, and `AGENTS.md` § Temporary files carries the rule and the rulings,
   retention included. `juniper-check-doc-links` passes `--exclude tmp` in CI; nothing keeps pytest out of it, and
-  counting scripts are to choose their scope as to `tmp/` deliberately (the owner's revised ruling). To stay
+  counting scripts are to choose their scope as to `tmp/` deliberately (the Overtoad's revised ruling). To stay
   under the memory budget, `AGENTS.md` § Quick Reference → Key Files moved verbatim to `docs/REFERENCE.md`.
 - **`juniper-data` pinned to `0.17.1` and `juniper-cascor` to `0.12.0`**, in `docker-compose.yml`
   (the `juniper-data` and `demo-seed` services; `juniper-cascor` and `juniper-cascor-demo`) and in
@@ -268,7 +268,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     - `GET /v1/training/status` reports `current_dataset` (cascor#676).
   - **cascor's BLAS default changed, and this file does not override it.** 0.12.0 sets
     `OMP_NUM_THREADS` / `MKL_NUM_THREADS` / `OPENBLAS_NUM_THREADS` to **2** wherever they are
-    unset (owner decision D1). `JUNIPER_CASCOR_BLAS_THREADS=<n>` picks another width, and `0` /
+    unset (Overtoad decision D1). `JUNIPER_CASCOR_BLAS_THREADS=<n>` picks another width, and `0` /
     `off` / `none` restore the runtime default. Neither cascor service here sets any of them.
   - **Verified on GHCR before pinning**, with `docker buildx imagetools inspect`. Each index
     carries `linux/amd64` and `linux/arm64`, and each revision label is its release tag's commit:
@@ -339,10 +339,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **`juniper-recurrence` pinned to `0.6.1`** (M1 of juniper-ml
   `notes/JUNIPER_2026-10-03_JUNIPER-RECURRENCE_EQUITIES-END-TO-END-AUDIT-AND-DEVELOPMENT-PLAN.md`;
-  owner ruling 2026-10-18, taken once juniper-ml's `[recurrence]` floor moved to `>=0.6.1` in
+  Overtoad ruling 2026-10-18, taken once juniper-ml's `[recurrence]` floor moved to `>=0.6.1` in
   juniper-ml#2243). The pin was `0.6.0`.
   - **What 0.6.1 is.** A packaging-metadata patch: it floors `juniper-recurrence-model>=0.4.0` and
-    `juniper-data-client>=0.6.0`, the owner's 2026-10-10 ruling that 0.6.0 shipped without
+    `juniper-data-client>=0.6.0`, the Overtoad's 2026-10-10 ruling that 0.6.0 shipped without
     (juniper-recurrence#206). The image's runtime does not change: `requirements.lock` already
     pinned model 0.4.0 and data-client 0.6.0 in 0.6.0's image. The pin follows so that the deployed
     tag and the index agree on which release carries the floors.
@@ -378,7 +378,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
       Its image runs juniper-data-client 0.6.0's W1.4 validator.
     - **canopy 0.9.0** follows a timed-out recurrence fit by operation, names a busy 409's holder,
       sends the seed plus edits only, shows the service's 4xx detail and version, and carries
-      four security fixes (owner-rated High).
+      four security fixes (Overtoad-rated High).
     The comments at `docker-compose.yml`'s recurrence mount, `README.md`, `docs/REFERENCE.md` and
     `scripts/test_recurrence_snapshots.sh`, which said the pinned image predates the snapshot routes,
     now say that 0.6.0 is the first image with them.
@@ -463,7 +463,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
     Under 0.15.0 every such request failed on the missing `yfinance` (per juniper-data#421). Under
     0.16.0 it fails on the network, and the response blames the caller's parameters. This is what
-    `juniper-recurrence`'s `/train` and `/crossval` would hit for `equities_seq`. The owner ruled
+    `juniper-recurrence`'s `/train` and `/crossval` would hit for `equities_seq`. The Overtoad ruled
     for a dedicated egress network. See `data-egress` under *Fixed*.
   - **`equities_seq` is still `5.0.0` / `classification` here.** X8 (juniper-data#437: `regression`
     at `6.0.0`) merged after the cut and ships in the next data release. `juniper-canopy` already
@@ -548,7 +548,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - **The informational Python 3.15 leg no longer shows as a failed check when it fails** (the
-  owner's report of 2026-11-15: the 3.15 checks "are supposed to produce an informational message
+  Overtoad's report of 2026-11-15: the 3.15 checks "are supposed to produce an informational message
   without affecting the ability of code to commit, push, PR, or merge"). #274's job-level
   `continue-on-error` keeps the Quality Gate green, but a failing `Unit Tests (Python 3.15)` check
   still concluded `failure`: a red X and "Some checks were not successful" on the pull request, a
@@ -589,7 +589,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     recurrence smokes. All four fail against the previous script.
 
 - **The stack can generate `equities` / `equities_seq`: `juniper-data` gets an outbound-only
-  network, `data-egress`** (owner ruling 2026-09-24).
+  network, `data-egress`** (Overtoad ruling 2026-09-24).
   - **Before this change.** Since the `0.16.0` pin above, the image carries the equities
     dependencies, and the generators fetch from Yahoo Finance and SEC EDGAR at request time.
     `juniper-data`'s networks, `backend` and `data`, are both `internal: true`, so every such
@@ -652,11 +652,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
       tests.
   - **Docs.** `README.md`, `docs/REFERENCE.md` (both network tables and the test inventory) and
     `docs/DEVELOPER_CHEATSHEET.md` list the fifth network.
-  - **The Helm chart had the same gap.** The owner applied the same ruling there; see the next
+  - **The Helm chart had the same gap.** The Overtoad applied the same ruling there; see the next
     entry.
 
 - **Helm: `juniper-data`'s NetworkPolicy allows HTTPS to public addresses** (the k8s half of
-  `data-egress` above; owner ruling 2026-09-24). With `networkPolicies.enabled` (the default), the
+  `data-egress` above; Overtoad ruling 2026-09-24). With `networkPolicies.enabled` (the default), the
   deny-all and data policies allowed `juniper-data` DNS only. So in k8s, as in compose, every
   equities, mnist and arc_agi fetch was blocked while `/v1/generators` reported the generators
   available.
@@ -666,7 +666,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - **What the exclusions do not cover.** They keep the rule off cluster addresses only on a
     cluster that uses those ranges. On a cluster whose API server has a public IP on 443 (a GKE or
     AKS public endpoint), or whose pod or service ranges are public, the rule reaches them. So the
-    **data pod now sets `automountServiceAccountToken: false`** (owner ruling 2026-09-24):
+    **data pod now sets `automountServiceAccountToken: false`** (Overtoad ruling 2026-09-24):
     juniper-data never calls the Kubernetes API, and a reachable API server now finds no token to
     accept.
   - **IPv4 only.** On an IPv6-only cluster the fetches stay blocked. On a dual-stack pod, a fetch
@@ -726,7 +726,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   change").** Ruleset `juniper-deploy-rules` (14715370) requires that context on `main`, so a
   red run blocks the merge. The section is now titled *(required check)*. It says neither
   workflow sits in the `required-checks` Quality Gate, so a green Quality Gate does not mean
-  mergeable, and it gives the ruleset query. It also says an owner label greens the check for
+  mergeable, and it gives the ruleset query. It also says an Overtoad label greens the check for
   one PR, while `main-verify.yml` runs after the merge and honours only the commit trailers. The
   same claim is corrected in the `docs/REFERENCE.md` tree and in `main-verify.yml`'s header, and
   in `sequence-safety.yml`'s concurrency comment and References lines. Comment text only in the
@@ -944,8 +944,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - **`scripts/preflight_bind_posture.sh`** (new — **verifiable**): renders `docker compose config --format json` and asserts every published host port of each `..._LOOPBACK_PUBLISH_ATTESTED=true` service binds a loopback IP (`127.0.0.0/8` / `::1`). A service that attests loopback-publish but publishes a non-loopback host IP without also setting `..._AUTH_PROXY_ATTESTED=true` fails loudly (exit 1) — catching the silent `BIND_HOST=0.0.0.0` footgun BEFORE bring-up. Parse-only (`docker compose config` never touches the running stack); an offline `--config-json` mode drives the CI gate.
   - **`Makefile`**: the preflight runs before `docker compose up` in `up` / `demo` / `dev` / `monitor` / `obs-demo` (a failure aborts the target), plus a standalone `make preflight` that checks every profile.
   - **`tests/test_compose_bind_posture_attestation.py`** (new gate, mirrors `test_compose_metrics_subnet_alignment.py`): the shipped compose is loopback-published for every attested service; canopy + cascor both carry the flag; `AUTH_PROXY_ATTESTED` is set nowhere; no stale `FRONTING_AUTH_ATTESTED`; and the preflight PASSES the shipped config while BITING (exit 1) on an injected non-loopback publish.
-  - **Merge coupling**: this deploy PR **must merge together with** the sibling canopy + cascor bind-guard PRs (the compose attests the posture the apps enforce). **Deploy-gated** (owner-approved env/deploy change — not rolled out by merge).
-- **SEC-F19 / D5 — deterministic metrics subnets** (design of record: `juniper-ml/notes/JUNIPER_2026-07-03_JUNIPER-CANOPY_CONTROL-SURFACE-AUTH-AND-NAT-DESIGN.md` §5 Option C1, §8 D5; audit `juniper-ml/notes/JUNIPER_2026-07-02_JUNIPER-ECOSYSTEM_STACK-SECURITY-AUDIT-PLAN.md` §5.2 HO-3). Pinned each of the four compose networks to a static `ipam.config.subnet` — `backend 172.28.0.0/16` + `data 172.29.0.0/16` (both `internal: true`), `frontend 172.30.0.0/16`, `monitoring 172.31.0.0/16` — and re-pinned `.env.observability`'s `*_METRICS_TRUSTED_IPS` to **exactly** the subnets each scrape target shares with Prometheus (`juniper-data` → 172.28/172.29; `juniper-cascor` / `juniper-canopy` → 172.28/172.29/172.30; each plus loopback). This removes the dynamic-IPAM drift that let the live bridge move to `172.23.0.0/16` — outside the old `172.18–21` allowlist — yielding either a 403 scrape failure (availability) or a whole-subnet-trust widening (authorization). Subnets are the **top four /16s of Docker's default address pool**, chosen to avoid Docker's bottom-up auto-assignment; collision-checked 2026-07-04 against the host daemon (`docker network inspect` — only `172.17.0.0/16` allocated). The allowlist is reframed (compose + `.env.observability` comments) as **network-scope authorization** (which subnets may scrape), backed by `internal: true` isolation + the fail-closed `MetricsAuthMiddleware` — **not** per-host authentication; the middleware is unchanged. New drift gate `tests/test_compose_metrics_subnet_alignment.py` asserts the pinned `ipam` subnets and the allowlist CIDRs agree so they cannot silently diverge; `tests/test_compose_metrics_trusted_ips_wired.py` updated to the pinned CIDRs. **Deploy-gated** (owner-approved env/deploy change — not rolled out by merge).
+  - **Merge coupling**: this deploy PR **must merge together with** the sibling canopy + cascor bind-guard PRs (the compose attests the posture the apps enforce). **Deploy-gated** (Overtoad-approved env/deploy change — not rolled out by merge).
+- **SEC-F19 / D5 — deterministic metrics subnets** (design of record: `juniper-ml/notes/JUNIPER_2026-07-03_JUNIPER-CANOPY_CONTROL-SURFACE-AUTH-AND-NAT-DESIGN.md` §5 Option C1, §8 D5; audit `juniper-ml/notes/JUNIPER_2026-07-02_JUNIPER-ECOSYSTEM_STACK-SECURITY-AUDIT-PLAN.md` §5.2 HO-3). Pinned each of the four compose networks to a static `ipam.config.subnet` — `backend 172.28.0.0/16` + `data 172.29.0.0/16` (both `internal: true`), `frontend 172.30.0.0/16`, `monitoring 172.31.0.0/16` — and re-pinned `.env.observability`'s `*_METRICS_TRUSTED_IPS` to **exactly** the subnets each scrape target shares with Prometheus (`juniper-data` → 172.28/172.29; `juniper-cascor` / `juniper-canopy` → 172.28/172.29/172.30; each plus loopback). This removes the dynamic-IPAM drift that let the live bridge move to `172.23.0.0/16` — outside the old `172.18–21` allowlist — yielding either a 403 scrape failure (availability) or a whole-subnet-trust widening (authorization). Subnets are the **top four /16s of Docker's default address pool**, chosen to avoid Docker's bottom-up auto-assignment; collision-checked 2026-07-04 against the host daemon (`docker network inspect` — only `172.17.0.0/16` allocated). The allowlist is reframed (compose + `.env.observability` comments) as **network-scope authorization** (which subnets may scrape), backed by `internal: true` isolation + the fail-closed `MetricsAuthMiddleware` — **not** per-host authentication; the middleware is unchanged. New drift gate `tests/test_compose_metrics_subnet_alignment.py` asserts the pinned `ipam` subnets and the allowlist CIDRs agree so they cannot silently diverge; `tests/test_compose_metrics_trusted_ips_wired.py` updated to the pinned CIDRs. **Deploy-gated** (Overtoad-approved env/deploy change — not rolled out by merge).
 - **SEC-F22 / SEC-F19 / D8 — deployment trust contract (Phase 0).** New `notes/DEPLOYMENT_TRUST_CONTRACT_2026-07-04.md` records the stack's trust model: network position **is** the trust boundary; the control surface is loopback-bound by default (DEPLOY-08, `tests/test_compose_security_config.py`); `BIND_HOST=0.0.0.0` (`.env.example:11`) is supported **only** behind a fronting authenticating proxy (deferred, D7 — not present in this repo yet); the per-IP WS caps are DoS-dampening, not authentication; the metrics allowlist is network-scope authorization. The enforcing app-layer **bind-guard** (D2, canopy + cascor) is the deferred complement — **no merged PR as of 2026-07-04** (verified: cascor has it in-flight/uncommitted, canopy none).
 
 ### Changed

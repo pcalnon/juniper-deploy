@@ -784,7 +784,7 @@ juniper-deploy/
 
 ## Key Files Reference
 
-Relocated verbatim from `AGENTS.md` § Quick Reference → Key Files (2026-10-26, to keep the always-loaded file under its memory budget when the owner's `tmp/` rulings landed) so it is read on demand rather than loaded into every session.
+Relocated verbatim from `AGENTS.md` § Quick Reference → Key Files (2026-10-26, to keep the always-loaded file under its memory budget when the Overtoad's `tmp/` rulings landed) so it is read on demand rather than loaded into every session.
 
 | File | Purpose |
 |------|---------|
@@ -828,7 +828,7 @@ Relocated verbatim from `AGENTS.md` § Quick Reference → Key Files (2026-10-26
 | `.github/workflows/ci.yml` | GitHub Actions pipeline (pre-commit, compose validation, Docker integration) |
 | `.github/workflows/sequence-safety.yml` | Per-PR REQUIRED sequence-safety screens (symbol-loss + docs deletion-magnitude via `juniper-ci-tools`) |
 | `.github/workflows/main-verify.yml` | Post-merge bypass-proof sequence-safety net (screens-only; stable-title tracking issue) |
-| `.github/CODEOWNERS` | Code ownership rules |
+| `.github/CODEOWNERS` | Code Overtoadship rules |
 | `.github/dependabot.yml` | Dependabot configuration |
 
 ---
@@ -909,7 +909,7 @@ Five Docker networks enforce service-to-service communication boundaries:
 | `monitoring` | bridge | Observability stack | prometheus, grafana |
 | `data-egress` | bridge | juniper-data's outbound route: the `equities` / `equities_seq` generators fetch from Yahoo Finance and SEC EDGAR | juniper-data only |
 
-Networks marked **internal** have no external connectivity — containers on these networks can only communicate with other containers on the same network. `data-egress` exists because of that (owner ruling 2026-09-24): without it, every equities request failed at DNS with a `400`, and every mnist and arc_agi request failed with a `500` after about 23 s. juniper-data publishes no port on it. Its egress is unrestricted (any port, any destination), and on Docker older than 28 with a FORWARD policy of ACCEPT a LAN host routing `172.27.0.0/16` via the Docker host could reach it. Both that protection and the internal networks' isolation assume Docker manages the host firewall (`"iptables": false` removes both). See the network's definition in `docker-compose.yml`. `tests/test_compose_data_egress.py` checks the compose file as written. It pins who attaches (with no `extends`, `include` or external alias to hide an attachment), the network's whole definition, that every service attaches to declared networks by name, that juniper-data publishes no port and overrides no DNS, and that `backend` / `data` stay internal. It is not a Compose engine.
+Networks marked **internal** have no external connectivity — containers on these networks can only communicate with other containers on the same network. `data-egress` exists because of that (Overtoad ruling 2026-09-24): without it, every equities request failed at DNS with a `400`, and every mnist and arc_agi request failed with a `500` after about 23 s. juniper-data publishes no port on it. Its egress is unrestricted (any port, any destination), and on Docker older than 28 with a FORWARD policy of ACCEPT a LAN host routing `172.27.0.0/16` via the Docker host could reach it. Both that protection and the internal networks' isolation assume Docker manages the host firewall (`"iptables": false` removes both). See the network's definition in `docker-compose.yml`. `tests/test_compose_data_egress.py` checks the compose file as written. It pins who attaches (with no `extends`, `include` or external alias to hide an attachment), the network's whole definition, that every service attaches to declared networks by name, that juniper-data publishes no port and overrides no DNS, and that `backend` / `data` stay internal. It is not a Compose engine.
 
 ### Container Hardening
 

@@ -44,7 +44,7 @@ spec:
     # HTTPS to public addresses. Several generators fetch their data at request time:
     # equities / equities_seq from Yahoo Finance and SEC EDGAR, mnist and arc_agi from the
     # Hugging Face Hub. Without this rule, the deny-all egress blocks them all, while
-    # /v1/generators still reports them available. This is the same owner ruling (2026-09-24)
+    # /v1/generators still reports them available. This is the same Overtoad ruling (2026-09-24)
     # as the compose stack's `data-egress` network.
     #
     # Five ranges are excluded: RFC 1918 (three blocks), CGNAT (some CNIs place pod or service
