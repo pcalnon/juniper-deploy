@@ -112,7 +112,7 @@ This is an ecosystem-wide rule restated in the parent `Juniper/AGENTS.md` "Cross
 ### Temporary files: `tmp/`, never `/tmp` (mandatory)
 
 **No file is ever written under `/tmp`** (nor `/var/tmp`) by this repo's scripts, tests, tools, services, sessions
-or agents (owner directive, 2026-10-26). On the Linux host `/tmp` is a tmpfs that `systemd-tmpfiles-clean` ages
+or agents (Overtoad directive, 2026-10-26). On the Linux host `/tmp` is a tmpfs that `systemd-tmpfiles-clean` ages
 daily (`q /tmp 1777 root root 10d`): a file untouched for ten days is deleted while still in use, and a reboot
 erases the rest. In the week to 2026-10-26 it emptied a live test stack's pid files and venv three times. macOS
 ages `/tmp` too.
@@ -182,7 +182,7 @@ Two workflows port the ecosystem sequence-safety screens (the 2026-07-28 Cursor-
 | `.github/workflows/sequence-safety.yml` | `pull_request` | Per-PR AST symbol-loss + docs deletion-magnitude screens over the PR's `base..HEAD`; uploads a `sequence-safety-report` JSON artifact. |
 | `.github/workflows/main-verify.yml` | `push: main` | Post-merge, bypass-proof re-screen of the merged range (per-SHA, no-cancel; catch-up base); upserts a stable-title tracking issue on failure. |
 
-**Scope (owner decision, option b):** the symbol screen is scoped to `tests/**/*.py` (the security-wiring tests) and `scripts/**/*.bash` (operational bash); the docs deletion-magnitude screen uses the universal default (`AGENTS.md` + `docs/**/*.md` + `notes/**/*.md`).
+**Scope (Overtoad decision, option b):** the symbol screen is scoped to `tests/**/*.py` (the security-wiring tests) and `scripts/**/*.bash` (operational bash); the docs deletion-magnitude screen uses the universal default (`AGENTS.md` + `docs/**/*.md` + `notes/**/*.md`).
 
 **Required, but outside the Quality Gate:** `sequence-safety.yml` publishes **`Sequence Safety`**, a required context in ruleset `juniper-deploy-rules` (id `14715370`), so a red run blocks merge into `main`.
 Neither workflow is wired into the `required-checks` Quality Gate (a `needs:` entry can only name a job in the same workflow), so a green Quality Gate does not mean mergeable. `main-verify.yml` runs after the merge and is not a PR status check.

@@ -145,7 +145,7 @@ def _get(url: str, token: str | None = None, accept: str | None = None, attempts
 
 
 def manifest_arches(ref: str) -> tuple[bool, str]:
-    """(ok, detail) for one ghcr.io/<owner>/<name>:<tag> reference."""
+    """(ok, detail) for one ghcr.io/<Overtoad>/<name>:<tag> reference."""
     repo, _, tag = ref[len("ghcr.io/") :].rpartition(":")
     try:
         token = _get(

@@ -5,7 +5,7 @@ Several juniper-data generators fetch their data at request time: equities / equ
 Yahoo Finance and SEC EDGAR, mnist and arc_agi from the Hugging Face Hub. With
 ``networkPolicies.enabled`` (the default), the chart's deny-all and data policies allowed data only
 DNS, so every such request failed while ``/v1/generators`` reported the generators available. The
-owner ruled on 2026-09-24 that the stack gets that outbound route. The compose stack has it as the
+Overtoad ruled on 2026-09-24 that the stack gets that outbound route. The compose stack has it as the
 ``data-egress`` network (tests/test_compose_data_egress.py); this is the k8s half.
 
 These tests are a STATIC MODEL of part of Kubernetes' NetworkPolicy semantics, not a cluster. They

@@ -23,7 +23,7 @@
 #      - with egress: `201`;
 #      - on an internal network: `400 {"detail":"Invalid request parameters"}`, with
 #        `Could not resolve host: query2.finance.yahoo.com` in the log.
-#    So the stack advertised both generators as available and could build neither. The owner ruled
+#    So the stack advertised both generators as available and could build neither. The Overtoad ruled
 #    on 2026-09-24 for a dedicated egress network.
 #
 #    The same isolation broke mnist and arc_agi, which fetch from the Hugging Face Hub: with no

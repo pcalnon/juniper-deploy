@@ -160,7 +160,7 @@ The CHANGELOG documents the following changes that are NOT reflected in AGENTS.m
 | `pyproject.toml` | Pytest configuration | P2 |
 | `requirements-test.txt` | Test dependencies | P2 |
 | `.pre-commit-config.yaml` | Pre-commit hooks | P2 |
-| `.github/CODEOWNERS` | Code ownership | P2 |
+| `.github/CODEOWNERS` | Code Overtoadship | P2 |
 | `.github/dependabot.yml` | Dependabot | P2 |
 
 ---
