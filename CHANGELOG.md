@@ -186,6 +186,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`juniper-recurrence` pinned to `0.8.1`** in `docker-compose.yml` (Overtoad ruling 2026-11-23, "Move it now"). The
+  pin was `0.8.0`. 0.8.1 has been on GHCR since 2026-11-04, and juniper-deploy#278 left the pin in place, so
+  `scripts/verify_published_images.py --fail-on-stale` exited 1 on every run.
+  - **What 0.8.1 is.** A patch that only corrects a floor: `juniper-model-core[crossval]>=0.3.0,<0.4.0`
+    (juniper-recurrence#229). 0.8.0's `POST /v1/crossval` passes `groups=`, which model-core has only from 0.3.0, while
+    0.8.0 declared `>=0.2.0`. Between the `juniper-recurrence-v0.8.0` and `juniper-recurrence-v0.8.1` tags, the service
+    package changed only `.dockerignore`, `CHANGELOG.md`, `_version.py`, `pyproject.toml` and a test. Its
+    `requirements.lock`, which the image installs, and its `Dockerfile` are unchanged, so the image runs the same Python
+    packages as 0.8.0's.
+  - **The image, verified on GHCR 2026-11-23**: tags `0.8.1` / `0.8` / `latest` resolve to one index, digest
+    `sha256:daf5cb978ed5cc5aba6f2ebd81beac84b985aeb353e3d1b80f4a14f7cb44e549`; linux/amd64 `sha256:5ff33c28…` and
+    linux/arm64 `sha256:87af8fad…`; `org.opencontainers.image.version` is `0.8.1` and `revision` is `2a467adb`, the
+    `juniper-recurrence-v0.8.1` tag's commit. `publish-image.yml` (run 41935261283) is green. Pulled by that digest and
+    run with no network, it reports Python 3.13.18, `juniper-recurrence` 0.8.1, `juniper-recurrence-model` 0.6.0,
+    `juniper-model-core` 0.3.1, `juniper-data-client` 0.6.0, `juniper-observability` 0.4.1 and `juniper-service-core`
+    0.7.1, and no `sentry-sdk`.
+  - **Not R-OBS-SC-2.** Like 0.8.0's, this image holds observability 0.4.1 and service-core 0.7.1. The 0.4.2 and 0.7.2
+    patches reach the recurrence image only with its next release, cut from a lock on them.
+  - `scripts/verify_published_images.py --fail-on-stale` now exits 0: all 6 refs resolve on both arches, and none is
+    behind its latest release. On the previous pin it exits 1 and names `juniper-recurrence:0.8.0 -> 0.8.1 available`.
+  - **The Helm chart is untouched**: `k8s/helm/juniper/values.yaml` carries no recurrence image.
+  - **Smokes not re-run for this pin.** `scripts/test_recurrence_snapshots.sh` and
+    `scripts/test_canopy_recurrence_smoke.sh` each start a stack, and none was started for this change. The image's
+    runtime is 0.8.0's, so this pin owes them nothing that the 0.8.0 pin did not.
+  - Prose that named 0.8.0 as the pinned image (`docker-compose.yml`'s snapshot comment, `README.md`,
+    `docs/REFERENCE.md`'s `JUNIPER_RECURRENCE_SNAPSHOTS_DIR` row, `docs/USER_MANUAL.md`'s snapshot-smoke entry and the
+    header comment of `scripts/test_recurrence_snapshots.sh`) now names 0.8.1; the routes still shipped in 0.6.0.
+    `README.md`'s revision-label example now gives 0.8.1's `2a467adb` beside 0.8.0's `6a98515e`.
 - **`juniper-cascor` pinned to `0.14.0` and `juniper-canopy` to `0.10.0`**, in `docker-compose.yml` (the
   `juniper-cascor` and `juniper-cascor-demo` services, and `juniper-canopy`, `juniper-canopy-demo` and
   `juniper-canopy-dev`) and in `k8s/helm/juniper/values.yaml`. They are the first cascor and canopy releases whose
