@@ -828,7 +828,7 @@ Relocated verbatim from `AGENTS.md` § Quick Reference → Key Files (2026-10-26
 | `.github/workflows/ci.yml` | GitHub Actions pipeline (pre-commit, compose validation, Docker integration) |
 | `.github/workflows/sequence-safety.yml` | Per-PR REQUIRED sequence-safety screens (symbol-loss + docs deletion-magnitude via `juniper-ci-tools`) |
 | `.github/workflows/main-verify.yml` | Post-merge bypass-proof sequence-safety net (screens-only; stable-title tracking issue) |
-| `.github/CODEOWNERS` | Code Overtoadship rules |
+| `.github/CODEOWNERS` | Code ownership rules |
 | `.github/dependabot.yml` | Dependabot configuration |
 
 ---
