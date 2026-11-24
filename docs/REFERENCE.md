@@ -668,7 +668,7 @@ Snapshot roots are bind mounts of host directories. Each host directory must exi
 | `JUNIPER_RECURRENCE_SNAPSHOTS_HOST_DIR` | juniper-recurrence | `../juniper-recurrence/recurrence-snapshots` | Host side of `/app/recurrence-snapshots` (W1.12) |
 | `JUNIPER_CASCOR_SNAPSHOTS_DIR` | juniper-cascor, juniper-cascor-demo | `/app/cascor-snapshots` | Set in `docker-compose.yml`; equals the mount target |
 | `JUNIPER_CANOPY_SNAPSHOT_DIR` | juniper-canopy | `/app/cascor-snapshots` | Set in `docker-compose.yml`; canopy lists cascor's snapshots from here |
-| `JUNIPER_RECURRENCE_SNAPSHOTS_DIR` | juniper-recurrence | `/app/recurrence-snapshots` | Set in `docker-compose.yml`; equals the mount target. Read by the pinned 0.8.0 image (the routes shipped in 0.6.0); images through 0.5.0 ignore it |
+| `JUNIPER_RECURRENCE_SNAPSHOTS_DIR` | juniper-recurrence | `/app/recurrence-snapshots` | Set in `docker-compose.yml`; equals the mount target. Read by the pinned 0.8.1 image (the routes shipped in 0.6.0); images through 0.5.0 ignore it |
 
 ---
 
@@ -828,7 +828,7 @@ Relocated verbatim from `AGENTS.md` § Quick Reference → Key Files (2026-10-26
 | `.github/workflows/ci.yml` | GitHub Actions pipeline (pre-commit, compose validation, Docker integration) |
 | `.github/workflows/sequence-safety.yml` | Per-PR REQUIRED sequence-safety screens (symbol-loss + docs deletion-magnitude via `juniper-ci-tools`) |
 | `.github/workflows/main-verify.yml` | Post-merge bypass-proof sequence-safety net (screens-only; stable-title tracking issue) |
-| `.github/CODEOWNERS` | Code Overtoadship rules |
+| `.github/CODEOWNERS` | Code ownership rules |
 | `.github/dependabot.yml` | Dependabot configuration |
 
 ---
